@@ -72,7 +72,7 @@ impl Note {
     ///
     /// ```
     /// use rustic::core::note::Note;
-    /// use rustic::generator::GENERATORS;
+    /// use rustic::core::generator::GENERATORS;
     ///
     /// let note = Note::new(440.0, 0.0, 1.0)
     ///     .with_generator(GENERATORS::SINE);
@@ -83,7 +83,7 @@ impl Note {
             GENERATORS::SINE => Box::from(SineWave::new(self.frequency, 1.0)),
             GENERATORS::SQUARE => Box::from(SquareWave::new(self.frequency, 1.0)),
             GENERATORS::NOISE => Box::from(WhiteNoise::new(1.0)),
-            GENERATORS::NULL => Box::from(NullGenerator::new())
+            GENERATORS::NULL => Box::from(NullGenerator::new()),
         };
 
         self.generator.set_tone_generator(new_tone_generator);
@@ -108,10 +108,10 @@ impl Note {
     ///
     /// ```
     /// use rustic::core::note::Note;
-    /// use rustic::generator::Envelope;
+    /// use rustic::core::envelope::prelude::ADSREnvelope;
     ///
     /// let note = Note::new(440.0, 0.0, 1.0)
-    ///     .with_envelope(&Envelope::constant());
+    ///     .with_envelope(&Box::new(ADSREnvelope::constant()));
     /// ```
     pub fn with_envelope(mut self, envelope: &ADSREnvelope) -> Self {
         self.generator.set_ampl_envelope(envelope.clone());
@@ -129,7 +129,7 @@ impl Note {
     /// # Example
     /// ```
     /// use rustic::core::note::Note;
-    /// use rustic::generator::Segment;
+    /// use rustic::core::envelope::prelude::Segment;
     ///
     /// let note = Note::new(440.0, 0.0, 1.0)
     ///    .with_pitch_bend(&Segment::new(0.0, 1.0, 440.0, 880.0, None));

@@ -22,7 +22,7 @@ plotters-backend = { version = "0.3.7", optional = true }
 petgraph = "0.6.5"
 uuid = { version = "1.11.0", features = ["serde", "v4"] }
 chrono = "0.4.38"
-derive = { path = "../derive" }
+rustic-derive = { path = "../rustic-derive", optional = true }
 dyn-clone = "1.0.18"
 directories = "6.0.0"
 
@@ -31,5 +31,4 @@ pretty_assertions = "1.1.0"
 
 [features]
 plotting = ["plotters", "plotters-backend"]
-meta = []                                   # Allows for meta programming (on the filters notably)
-meta2 = []
+meta = ["rustic-derive"]

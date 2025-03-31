@@ -1,20 +1,19 @@
 use std::fmt;
 
+#[cfg(feature = "meta")]
+use rustic_derive::FilterMetaData;
+
 use crate::core::graph::{AudioGraphElement, Entry, Filter};
 
-#[cfg(feature = "meta")]
-use super::{FilterMetadata, Metadata};
-
-#[cfg(feature = "meta2")]
-use derive::{source, FilterMetaData};
-
-/// Low-pass filter using a first-order IIR filter
-#[cfg_attr(feature = "meta2", derive(FilterMetaData))]
+#[cfg_attr(feature = "meta", derive(FilterMetaData))]
 #[derive(Clone, Debug)]
+/// Low-pass filter using a first-order IIR filter
 pub struct LowPassFilter {
+    #[cfg_attr(feature = "meta", filter_source)]
     sources: [f32; 1],
     cutoff_frequency: f32,
     previous_output: f32,
+    #[cfg_attr(feature = "meta", filter_ignore)]
     index: usize,
 }
 
@@ -66,17 +65,5 @@ impl AudioGraphElement for LowPassFilter {
 
     fn set_index(&mut self, index: usize) {
         self.index = index;
-    }
-}
-
-#[cfg(feature = "meta")]
-impl Metadata for LowPassFilter {
-    fn get_metadata() -> FilterMetadata {
-        FilterMetadata {
-            name: "LowPassFilter".to_string(),
-            description: "Low-pass filter using a first-order IIR filter".to_string(),
-            inputs: 1,
-            outputs: 1,
-        }
     }
 }
