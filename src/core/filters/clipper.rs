@@ -1,9 +1,14 @@
 use std::fmt;
 
+// #[cfg(feature = "meta")]
+// use rustic_derive::{filter_source, FilterMetaData};
+
 use crate::core::graph::{AudioGraphElement, Entry, Filter};
 
 #[derive(Debug, Clone)]
+// #[cfg_attr(feature = "meta", derive(FilterMetaData))]
 pub struct Clipper {
+    // #[cfg_attr(feature = "meta", filter_source)]
     pub source: f32,
     pub index: usize,
     pub max_ampl: f32,

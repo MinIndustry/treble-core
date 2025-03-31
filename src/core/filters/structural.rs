@@ -6,9 +6,6 @@ use crate::core::graph::{AudioGraphElement, Entry, Filter};
 
 use log::trace;
 
-#[cfg(feature = "meta")]
-use super::{FilterMetadata, Metadata};
-
 /// Duplicates the content of the input onto two outputs
 #[derive(Clone, Debug)]
 pub struct DuplicateFilter {
@@ -66,17 +63,5 @@ impl AudioGraphElement for DuplicateFilter {
 
     fn set_index(&mut self, index: usize) {
         self.index = index;
-    }
-}
-
-#[cfg(feature = "meta")]
-impl Metadata for DuplicateFilter {
-    fn get_metadata() -> FilterMetadata {
-        FilterMetadata {
-            name: "DuplicateFilter".to_string(),
-            description: "Duplicates the content of the input onto two outputs".to_string(),
-            inputs: 1,
-            outputs: 2,
-        }
     }
 }

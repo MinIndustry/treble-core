@@ -3,9 +3,6 @@ use std::fmt;
 
 use log::trace;
 
-#[cfg(feature = "meta")]
-use super::{FilterMetadata, Metadata};
-
 /// A filter that returns the input value multiplied by a constant factor.
 /// Note: a factor < 1.0 will attenuate the input signal, while a factor > 1.0
 /// will amplify it.
@@ -65,18 +62,5 @@ impl AudioGraphElement for GainFilter {
 
     fn set_index(&mut self, index: usize) {
         self.index = index;
-    }
-}
-
-#[cfg(feature = "meta")]
-impl Metadata for GainFilter {
-    fn get_metadata() -> FilterMetadata {
-        FilterMetadata {
-            name: "GainFilter".to_string(),
-            description: "A filter that returns the input value multiplied by a constant factor."
-                .to_string(),
-            inputs: 1,
-            outputs: 1,
-        }
     }
 }

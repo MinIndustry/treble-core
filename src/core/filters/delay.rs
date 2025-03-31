@@ -5,9 +5,6 @@ use log::trace;
 
 use crate::core::graph::{AudioGraphElement, Entry, Filter};
 
-#[cfg(feature = "meta")]
-use super::{FilterMetadata, Metadata};
-
 /// Delays it input for x samples
 #[derive(Clone)]
 pub struct DelayFilter {
@@ -42,7 +39,11 @@ impl fmt::Display for DelayFilter {
 
 impl fmt::Debug for DelayFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "DelayFilter {{ delay_for: {}, index: {} }}", self.delay_for, self.index)
+        write!(
+            f,
+            "DelayFilter {{ delay_for: {}, index: {} }}",
+            self.delay_for, self.index
+        )
     }
 }
 
@@ -56,7 +57,6 @@ impl Filter for DelayFilter {
         self.buffer.push_back(input);
         vec![output]
     }
-
 
     fn postponable(&self) -> bool {
         true
@@ -74,17 +74,5 @@ impl AudioGraphElement for DelayFilter {
 
     fn set_index(&mut self, index: usize) {
         self.index = index;
-    }
-}
-
-#[cfg(feature = "meta")]
-impl Metadata for DelayFilter {
-    fn get_metadata() -> FilterMetadata {
-        FilterMetadata {
-            name: "DelayFilter".to_string(),
-            description: "Delays its input for x samples".to_string(),
-            inputs: 1,
-            outputs: 1,
-        }
     }
 }

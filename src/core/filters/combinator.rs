@@ -3,9 +3,6 @@ use std::fmt;
 
 use log::{error, trace};
 
-#[cfg(feature = "meta")]
-use super::{FilterMetadata, Metadata};
-
 /// A filter that take input from two sources and combines them into a single
 /// output by adding them together.
 #[derive(Clone, Debug)]
@@ -59,7 +56,6 @@ impl<const INPUTS: usize, const OUTPUTS: usize> Filter for CombinatorFilter<INPU
         Vec::from([output; OUTPUTS])
     }
 
-
     fn postponable(&self) -> bool {
         false
     }
@@ -78,17 +74,5 @@ impl<const INPUTS: usize, const OUTPUTS: usize> AudioGraphElement
 
     fn set_index(&mut self, index: usize) {
         self.index = index;
-    }
-}
-
-#[cfg(feature = "meta")]
-impl Metadata for CombinatorFilter {
-    fn get_metadata() -> FilterMetadata {
-        FilterMetadata {
-            name: "CombinatorFilter".to_string(),
-            description: "Combines multiple inputs by adding them together".to_string(),
-            inputs: 2,
-            outputs: 1,
-        }
     }
 }

@@ -1,6 +1,3 @@
-#[cfg(feature = "meta")]
-mod meta;
-
 mod amplifier;
 mod clipper;
 mod combinator;

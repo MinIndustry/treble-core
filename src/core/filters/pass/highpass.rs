@@ -2,9 +2,6 @@ use std::fmt;
 
 use crate::core::graph::{AudioGraphElement, Entry, Filter};
 
-#[cfg(feature = "meta")]
-use super::{FilterMetadata, Metadata};
-
 /// High-pass filter using a first-order IIR filter
 #[derive(Clone, Debug)]
 pub struct HighPassFilter {
@@ -62,17 +59,5 @@ impl AudioGraphElement for HighPassFilter {
 
     fn set_index(&mut self, index: usize) {
         self.index = index;
-    }
-}
-
-#[cfg(feature = "meta")]
-impl Metadata for HighPassFilter {
-    fn get_metadata() -> FilterMetadata {
-        FilterMetadata {
-            name: "HighPassFilter".to_string(),
-            description: "High-pass filter using a first-order IIR filter".to_string(),
-            inputs: 1,
-            outputs: 1,
-        }
     }
 }

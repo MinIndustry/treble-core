@@ -2,9 +2,6 @@ use std::{f64::consts::PI, fmt};
 
 use crate::core::graph::{AudioGraphElement, Entry, Filter};
 
-#[cfg(feature = "meta")]
-use super::{FilterMetadata, Metadata};
-
 /// Applies a bandpass filter to the input signal
 /// source: https://en.wikipedia.org/wiki/Digital_biquad_filter
 /// This structure implements the Direct form 2 from the above link.

@@ -50,7 +50,7 @@ fn main() {
     }
 
     let mut score = Score::new("Test", TimeSignature(4, 4), 120, 1, 20);
-    let kick_index = score.add_instrument(Box::new(Kick::new()));
-    let snare_index = score.add_instrument(Box::new(Snare::new()));
-    let hihat_index = score.add_instrument(Box::new(HiHat::new().unwrap()));
+    let _kick_index = score.add_instrument(Box::new(Kick::new()));
+    let _snare_index = score.add_instrument(Box::new(Snare::new()));
+    let _hihat_index = score.add_instrument(Box::new(HiHat::new().unwrap()));
 }

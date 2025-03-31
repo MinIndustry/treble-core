@@ -1,8 +1,5 @@
 use crate::core::graph::{AudioGraphElement, Entry, Sink};
 
-#[cfg(feature = "meta")]
-use super::{FilterMetadata, Metadata};
-
 /// Low-pass filter using a first-order IIR filter
 #[derive(Clone)]
 pub struct SimpleSink {
