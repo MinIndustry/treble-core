@@ -9,11 +9,12 @@ use crate::core::graph::{AudioGraphElement, Entry, Filter};
 #[derive(Clone, Debug)]
 /// Low-pass filter using a first-order IIR filter
 pub struct LowPassFilter {
+    // add filter_source proc macro if meta feature is enabled
     #[cfg_attr(feature = "meta", filter_source)]
     sources: [f32; 1],
+    #[cfg_attr(feature = "meta", filter_parameter(range, 0.0, 20000.0, 1000.0))]
     cutoff_frequency: f32,
     previous_output: f32,
-    #[cfg_attr(feature = "meta", filter_ignore)]
     index: usize,
 }
 
