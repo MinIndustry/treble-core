@@ -18,7 +18,7 @@ impl Measure {
     }
 
     /// Checks if the measure is full
-    pub fn is_full(&self) -> bool {
+    pub fn _is_full(&self) -> bool {
         self.notes.len() == 4
     }
 }

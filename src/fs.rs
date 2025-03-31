@@ -46,7 +46,7 @@ pub fn debug_dir(module: &str, filename: &str) -> Result<PathBuf, ()> {
 /// Adds a timestamp to allow for time-differentiation of the saved files.
 ///
 /// Returns a result containing the built path with the file name.
-pub fn stamped_debug_dir(module: &str, filename: &str) -> Result<PathBuf, ()> {
+pub fn _stamped_debug_dir(module: &str, filename: &str) -> Result<PathBuf, ()> {
     let base_path = debug_dir_check()?;
     let full_path = base_path.join(module);
     let timestamp = chrono::Utc::now().format("%Y-%m-%d_%H-%M-%S").to_string();

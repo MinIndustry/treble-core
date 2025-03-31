@@ -16,20 +16,20 @@ use log::error;
 
 pub struct Score {
     notes: BinaryHeap<Note>,
-    playing: bool,
+    _playing: bool,
     current_sample: i32,
     sample_rate: i32,
-    name: String,
+    _name: String,
 }
 
 impl Score {
     pub fn new(name: String, sample_rate: i32) -> Self {
         Self {
             notes: BinaryHeap::new(),
-            playing: false,
+            _playing: false,
             current_sample: 0,
             sample_rate,
-            name,
+            _name: name,
         }
     }
 
