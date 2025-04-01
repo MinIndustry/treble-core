@@ -5,6 +5,9 @@ pub mod inputs;
 /// Instruments are structures that implement the `Instrument` trait.
 pub mod instruments;
 
+#[cfg(feature = "meta")]
+pub mod meta;
+
 /// The mod score contains all the building block for creating music
 /// Sheets contain instruments layed out on a staff, divided into measures
 /// Notes in the measures are structures that implement the `MeasureNote` trait.
