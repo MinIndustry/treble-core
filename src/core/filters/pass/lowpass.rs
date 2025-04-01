@@ -5,8 +5,8 @@ use rustic_derive::FilterMetaData;
 
 use crate::core::graph::{AudioGraphElement, Entry, Filter};
 
-#[cfg_attr(feature = "meta", derive(FilterMetaData))]
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "meta", derive(FilterMetaData))]
 /// Low-pass filter using a first-order IIR filter
 pub struct LowPassFilter {
     // add filter_source proc macro if meta feature is enabled
