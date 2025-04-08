@@ -1,25 +1,29 @@
 use std::collections::VecDeque;
 use std::fmt;
 
-use log::trace;
+#[cfg(feature = "meta")]
+use rustic_derive::FilterMetaData;
 
 use crate::core::graph::{AudioGraphElement, Entry, Filter};
 
-/// Delays it input for x samples
-#[derive(Clone)]
+/// Delays its input by a fixed amount of seconds.
+#[derive(Clone, Default)]
+#[cfg_attr(feature = "meta", derive(FilterMetaData))]
 pub struct DelayFilter {
+    #[cfg_attr(feature = "meta", filter_source)]
     sources: [f32; 1],
-    delay_for: usize,
+    #[cfg_attr(feature = "meta", filter_parameter(range, 0, 20.0, 0.5))]
+    delay_for: f32,
     buffer: VecDeque<f32>,
     index: usize,
 }
 
 impl DelayFilter {
-    pub fn new(delay: usize) -> Self {
+    pub fn new(sample_rate: f32, delay: f32) -> Self {
         Self {
             sources: [0.0],
             delay_for: delay,
-            buffer: VecDeque::from(vec![0.0; delay]),
+            buffer: VecDeque::from(vec![0.0; (delay * sample_rate) as usize]),
             index: 0,
         }
     }
@@ -51,8 +55,6 @@ impl Filter for DelayFilter {
     fn transform(&mut self) -> Vec<f32> {
         let input = self.sources[0];
         let output = self.buffer.pop_front().unwrap_or(0.0);
-
-        trace!("Delay filter running {} -> {}", self.sources[0], output);
 
         self.buffer.push_back(input);
         vec![output]

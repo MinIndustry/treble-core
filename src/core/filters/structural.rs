@@ -1,5 +1,8 @@
 use std::fmt;
 
+#[cfg(feature = "meta")]
+use rustic_derive::FilterMetaData;
+
 /// This file contains structural filters i.e. filters that do not modify
 /// values that pass through it but rather duplicate/merges its inputs
 use crate::core::graph::{AudioGraphElement, Entry, Filter};
@@ -7,8 +10,10 @@ use crate::core::graph::{AudioGraphElement, Entry, Filter};
 use log::trace;
 
 /// Duplicates the content of the input onto two outputs
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "meta", derive(FilterMetaData))]
 pub struct DuplicateFilter {
+    #[cfg_attr(feature = "meta", filter_source)]
     sources: [f32; 1],
     index: usize,
 }

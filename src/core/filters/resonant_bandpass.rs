@@ -1,12 +1,17 @@
 use std::{f64::consts::PI, fmt};
 
+#[cfg(feature = "meta")]
+use rustic_derive::FilterMetaData;
+
 use crate::core::graph::{AudioGraphElement, Entry, Filter};
 
 /// Applies a bandpass filter to the input signal
 /// source: https://en.wikipedia.org/wiki/Digital_biquad_filter
 /// This structure implements the Direct form 2 from the above link.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "meta", derive(FilterMetaData))]
 pub struct ResonantBandpassFilter {
+    #[cfg_attr(feature = "meta", filter_source)]
     source: f32,
     index: usize,
     b: [f64; 3],  // b0, b1, b2

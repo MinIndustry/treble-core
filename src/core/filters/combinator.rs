@@ -1,48 +1,63 @@
 use crate::core::graph::{AudioGraphElement, Entry, Filter};
 use std::fmt;
 
+#[cfg(feature = "meta")]
+use rustic_derive::FilterMetaData;
+
 use log::{error, trace};
 
 /// A filter that take input from two sources and combines them into a single
 /// output by adding them together.
 #[derive(Clone, Debug)]
-pub struct CombinatorFilter<const INPUTS: usize, const OUTPUTS: usize> {
-    sources: [f32; INPUTS],
-    weights: [f32; INPUTS],
+#[cfg_attr(feature = "meta", derive(FilterMetaData))]
+pub struct CombinatorFilter {
+    #[cfg_attr(feature = "meta", filter_source)]
+    inputs: usize,
+    outputs: usize,
+    sources: Vec<f32>,
+    weights: Vec<f32>,
     index: usize,
 }
 
-impl<const INPUTS: usize, const OUTPUTS: usize> CombinatorFilter<INPUTS, OUTPUTS> {
-    pub fn new() -> Self {
+impl Default for CombinatorFilter {
+    fn default() -> Self {
+        Self::new(1, 1)
+    }
+}
+
+impl CombinatorFilter {
+    pub fn new(inputs: usize, outputs: usize) -> Self {
         Self {
-            sources: [0.0; INPUTS],
-            weights: [1.0; INPUTS],
+            inputs,
+            outputs,
+            sources: vec![0.0; inputs],
+            weights: vec![1.0; inputs],
             index: 0,
         }
     }
 }
 
-impl<const INPUTS: usize, const OUTPUTS: usize> Entry for CombinatorFilter<INPUTS, OUTPUTS> {
+impl Entry for CombinatorFilter {
     fn push(&mut self, value: f32, port: usize) {
-        if port >= INPUTS {
+        if port >= self.inputs {
             error!("Port {} out of bounds for CombinatorFilter", port);
         }
         self.sources[port] = value;
     }
 }
 
-impl<const INPUTS: usize, const OUTPUTS: usize> fmt::Display for CombinatorFilter<INPUTS, OUTPUTS> {
+impl fmt::Display for CombinatorFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Combinator Filter")
     }
 }
 
-impl<const INPUTS: usize, const OUTPUTS: usize> Filter for CombinatorFilter<INPUTS, OUTPUTS> {
+impl Filter for CombinatorFilter {
     fn transform(&mut self) -> Vec<f32> {
         let output = self
             .sources
             .iter()
-            .zip(self.weights)
+            .zip(&self.weights)
             .map(|(source, weight)| source * weight)
             .sum();
 
@@ -53,7 +68,7 @@ impl<const INPUTS: usize, const OUTPUTS: usize> Filter for CombinatorFilter<INPU
             output
         );
 
-        Vec::from([output; OUTPUTS])
+        vec![output; self.outputs]
     }
 
     fn postponable(&self) -> bool {
@@ -61,9 +76,7 @@ impl<const INPUTS: usize, const OUTPUTS: usize> Filter for CombinatorFilter<INPU
     }
 }
 
-impl<const INPUTS: usize, const OUTPUTS: usize> AudioGraphElement
-    for CombinatorFilter<INPUTS, OUTPUTS>
-{
+impl AudioGraphElement for CombinatorFilter {
     fn get_name(&self) -> &str {
         "Combinator"
     }

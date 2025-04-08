@@ -6,7 +6,7 @@ use rustic_derive::FilterMetaData;
 use crate::core::graph::{AudioGraphElement, Entry, Filter};
 
 /// High-pass filter using a first-order IIR filter
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "meta", derive(FilterMetaData))]
 pub struct HighPassFilter {
     #[cfg_attr(feature = "meta", filter_source)]

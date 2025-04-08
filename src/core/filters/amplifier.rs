@@ -1,15 +1,20 @@
 use crate::core::graph::{AudioGraphElement, Entry, Filter};
 use std::fmt;
 
+#[cfg(feature = "meta")]
+use rustic_derive::FilterMetaData;
+
 use log::trace;
 
 /// A filter that returns the input value multiplied by a constant factor.
 /// Note: a factor < 1.0 will attenuate the input signal, while a factor > 1.0
 /// will amplify it.
-// #[cfg_attr(feature = "meta2", derive(derive::MetaData))]
-#[derive(Clone, Debug)]
+#[cfg_attr(feature = "meta", derive(FilterMetaData))]
+#[derive(Clone, Debug, Default)]
 pub struct GainFilter {
+    #[cfg_attr(feature = "meta", filter_source)]
     sources: [f32; 1],
+    #[cfg_attr(feature = "meta", filter_parameter(float, 1.0))]
     factor: f32,
     index: usize,
 }

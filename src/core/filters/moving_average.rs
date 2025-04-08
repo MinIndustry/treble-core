@@ -1,33 +1,40 @@
 use std::fmt;
 
+#[cfg(feature = "meta")]
+use rustic_derive::FilterMetaData;
+
 use crate::core::graph::{AudioGraphElement, Entry, Filter};
 
 /// A moving average filter implementation.
 /// Based only on the previous samples
-#[derive(Debug, Clone)]
-pub struct MovingAverage<const SIZE: usize> {
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "meta", derive(FilterMetaData))]
+pub struct MovingAverage {
     index: usize,
-    buffer: [f32; SIZE],
+    size: usize,
+    buffer: Vec<f32>,
+    #[cfg_attr(feature = "meta", filter_source)]
     source: f32,
 }
 
-impl<const SIZE: usize> fmt::Display for MovingAverage<SIZE> {
+impl fmt::Display for MovingAverage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Moving average filter 4 samples")
     }
 }
 
-impl<const SIZE: usize> MovingAverage<SIZE> {
-    pub fn new() -> Self {
+impl MovingAverage {
+    pub fn new(size: usize) -> Self {
         Self {
             index: 0,
-            buffer: [0.0; SIZE],
+            size,
+            buffer: vec![0.0; size],
             source: 0.0,
         }
     }
 }
 
-impl<const SIZE: usize> AudioGraphElement for MovingAverage<SIZE> {
+impl AudioGraphElement for MovingAverage {
     fn get_name(&self) -> &str {
         "Moving Average Filter"
     }
@@ -41,16 +48,17 @@ impl<const SIZE: usize> AudioGraphElement for MovingAverage<SIZE> {
     }
 }
 
-impl<const SIZE: usize> Entry for MovingAverage<SIZE> {
+impl Entry for MovingAverage {
     fn push(&mut self, value: f32, _port: usize) {
         self.source = value;
     }
 }
 
-impl<const SIZE: usize> Filter for MovingAverage<SIZE> {
+impl Filter for MovingAverage {
     fn transform(&mut self) -> Vec<f32> {
-        let output = (self.buffer.iter().fold(0.0, |p, e| p + e) + self.source) / (SIZE + 1) as f32;
-        for i in (SIZE - 1)..0 {
+        let output =
+            (self.buffer.iter().fold(0.0, |p, e| p + e) + self.source) / (self.size + 1) as f32;
+        for i in (self.size - 1)..0 {
             self.buffer[i] = self.buffer[i - 1];
         }
         self.buffer[0] = self.source;

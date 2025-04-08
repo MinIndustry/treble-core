@@ -1,14 +1,22 @@
 use std::fmt;
 
+#[cfg(feature = "meta")]
+use rustic_derive::FilterMetaData;
+
 use crate::core::graph::{AudioGraphElement, Entry, Filter};
 
 use super::{HighPassFilter, LowPassFilter};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "meta", derive(FilterMetaData))]
+/// Bandpass filter using a high-pass and low-pass filter
 pub struct BandPass {
+    #[cfg_attr(feature = "meta", filter_parameter(range, 0.0, 20000.0, 1000.0))]
     pub low: f32,
+    #[cfg_attr(feature = "meta", filter_parameter(range, 0.0, 20000.0, 1000.0))]
     pub high: f32,
     pub filters: (HighPassFilter, LowPassFilter),
+    #[cfg_attr(feature = "meta", filter_source)]
     pub source: f32,
     pub index: usize,
 }
