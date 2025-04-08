@@ -26,13 +26,14 @@ fn dump_default(output_path: String) {
         20,
     );
 
-    let toml_score = match toml::to_string(&score) {
+    let toml_score = match score.dump_toml() {
         Err(e) => {
             println!("Error: {}", e);
             return;
         }
         Ok(toml) => toml,
     };
+
     if let Err(e) = std::fs::write(output_path, toml_score) {
         println!("Error while writing to the ouput file: {}", e);
     }

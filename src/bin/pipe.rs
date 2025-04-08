@@ -81,10 +81,10 @@ fn main() {
     let source = Box::new(Player::new());
 
     let dupe_filter: Box<dyn Filter> = Box::from(DuplicateFilter::new());
-    let sum_filter: Box<dyn Filter> = Box::from(CombinatorFilter::<2, 1>::new());
+    let sum_filter: Box<dyn Filter> = Box::from(CombinatorFilter::new(2, 1));
 
     // Delay of half a second
-    let delay_filter: Box<dyn Filter> = Box::from(DelayFilter::new((0.5 * sample_rate) as usize));
+    let delay_filter: Box<dyn Filter> = Box::from(DelayFilter::new(sample_rate, 0.5));
 
     // Diminish gain in feedback loop
     let gain_filter: Box<dyn Filter> = Box::from(GainFilter::new(0.99));

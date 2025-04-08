@@ -12,7 +12,7 @@ pub fn main() {
     let system_1 = {
         let mut system = System::<2, 5>::new();
 
-        let combinator = system.add_filter(Box::new(CombinatorFilter::<2, 5>::new()));
+        let combinator = system.add_filter(Box::new(CombinatorFilter::new(2, 5)));
 
         let filter_1 = {
             let gain_filter = GainFilter::new(0.1);
@@ -56,7 +56,7 @@ pub fn main() {
     let system_2 = {
         let mut system = System::<5, 1>::new();
 
-        let combinator = system.add_filter(Box::new(CombinatorFilter::<5, 1>::new()));
+        let combinator = system.add_filter(Box::new(CombinatorFilter::new(5, 1)));
 
         system.connect_source(0, combinator, 0);
         system.connect_source(1, combinator, 1);
