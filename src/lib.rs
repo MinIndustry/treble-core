@@ -1,3 +1,6 @@
+/// The `app` module contains the main application data structures and functions.
+/// It provides CLI utilities for managing the application as well as filesystem
+/// utilities for managing files and directories.
 mod app;
 pub mod core;
 pub mod inputs;
@@ -6,6 +9,8 @@ pub mod inputs;
 pub mod instruments;
 
 #[cfg(feature = "meta")]
+/// This module defines the metadata structures for the application.
+/// It allows to store and retreive metadata about filters
 pub mod meta;
 
 /// The mod score contains all the building block for creating music
@@ -17,15 +22,13 @@ mod score;
 const APP_ID: (&str, &str, &str) = ("rustic", "minigrim0", "xyz");
 
 pub mod prelude {
-    pub use super::app::*;
+    pub use super::app::prelude::App;
     pub use super::core;
     pub use super::score::*;
 }
 
 use crate::core::generator::{Bendable, ToneGenerator, VariableFrequency};
 use core::tones::NOTES;
-
-mod fs;
 
 #[cfg(feature = "plotting")]
 pub mod plotting;
