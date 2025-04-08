@@ -1,4 +1,4 @@
 mod measure;
-mod notes;
+pub mod notes;
 pub mod score;
 mod staff;

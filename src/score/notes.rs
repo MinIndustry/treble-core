@@ -1,40 +1,92 @@
 use serde::{Deserialize, Serialize};
 
-use crate::core::tones::NOTES;
-
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub enum NoteDuration {
-    Silence,          // 1 time silence
-    HalfPause,        // 2 times
-    Pause,            // 4 times
-    Whole,            // 4 times
-    Half,             // 2 times
-    Quarter,          // 1 time
-    Eighth,           // half time
-    Sixteenth,        // Quarter time
-    ThirthySencondth, // Eighth time
+    Large,     // Octuple whole note
+    Long,      // Quadruple whole note
+    Breve,     // Double whole note
+    SemiBreve, // Whole note
+    Minim,     // Half note
+    #[default]
+    Crotchet, // Quarter note
+    Quaver,    // Eighth note
+    SemiQuaver, // Sixteenth note
+    DemiSemiQuaver, // Thirty-second note
+    HemiDemiSemiQuaver, // Sixty-fourth note
+    SemiHemiDemiSemiQuaver, // One hundred twenty-eighth note
+    DemiSemiHemiDemiSemiQuaver, // Two hundred fifty-sixth note
+    Tuplet(u8), // Usually 3
+}
+
+#[derive(Default, Serialize, Deserialize, Debug)]
+pub enum DurationModifier {
+    #[default]
+    None,
+    Dotted,
+    DoubleDotted,
+}
+
+#[derive(Default, Serialize, Deserialize, Debug)]
+pub enum NoteModifier {
+    Flat,
+    DoubleFlat,
+    Sharp,
+    DoubleSharp,
+    Natural,
+    #[default]
+    None,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub enum NoteName {
+    A,
+    B,
+    C,
+    D,
+    E,
+    F,
+    G,
+    #[default]
+    Pause,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Note {
     pub duration: NoteDuration,
-    pub note: NOTES,
+    pub duration_modifier: DurationModifier,
+    pub note: NoteName,
+    pub modifier: NoteModifier,
     pub octave: u8,
-    pub bound: bool, // Whether the note continues with its next iteration
+    pub tied: bool, // Whether the note continues with its next iteration
 }
 
 impl Note {
-    pub fn new_pause(duration: usize) -> Result<Self, String> {
+    pub fn new_pause(duration: NoteDuration) -> Result<Self, String> {
         Ok(Self {
-            duration: match duration {
-                1 => Ok(NoteDuration::Silence),
-                2 => Ok(NoteDuration::HalfPause),
-                4 => Ok(NoteDuration::Pause),
-                _ => Err(format!("Invalid duration for a pause: {duration}")),
-            }?,
-            note: NOTES::A,
+            duration,
+            duration_modifier: DurationModifier::None,
+            note: NoteName::Pause, // 0 Means no note
+            modifier: NoteModifier::None,
             octave: 0,
-            bound: false,
+            tied: false,
+        })
+    }
+
+    pub fn new(
+        duration: NoteDuration,
+        duration_modifier: DurationModifier,
+        note: NoteName,
+        modifier: NoteModifier,
+        octave: u8,
+        tied: bool,
+    ) -> Result<Self, String> {
+        Ok(Self {
+            duration,
+            duration_modifier,
+            note,
+            modifier,
+            octave,
+            tied,
         })
     }
 }

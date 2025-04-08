@@ -1,5 +1,6 @@
 use log::info;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 use super::notes::Note;
 use super::staff::Staff;
@@ -14,6 +15,10 @@ use crate::instruments::Instrument;
 /// ```
 #[derive(Serialize, Deserialize)]
 pub struct TimeSignature(pub usize, pub usize);
+
+impl TimeSignature {
+    pub const C: TimeSignature = TimeSignature(4, 4);
+}
 
 /// A music score. Has a defined time signature, tempo,
 /// staves associated with their instruments, name, ...
@@ -45,6 +50,26 @@ impl Score {
             staves,
             instruments: Vec::new(),
         }
+    }
+
+    /// Loads a score from a toml file. Returns either a score or an error message.
+    pub fn load_toml(path: &Path) -> Result<Self, String> {
+        let content =
+            std::fs::read_to_string(path).map_err(|e| format!("Failed to read file: {}", e))?;
+        let score: Self =
+            toml::from_str(&content).map_err(|e| format!("Failed to parse toml: {}", e))?;
+        Ok(score)
+    }
+
+    /// Dumps the score to a toml string.
+    pub fn dump_toml(&self) -> Result<String, String> {
+        toml::to_string(self).map_err(|e| format!("Failed to dump toml: {}", e))
+    }
+
+    /// Saves the score to a toml file.
+    pub fn save(&self, path: &Path) -> Result<(), String> {
+        let content = self.dump_toml()?;
+        std::fs::write(path, content).map_err(|e| format!("Failed to write file: {}", e))
     }
 
     /// Adds an instrument to the score and returns its index.
