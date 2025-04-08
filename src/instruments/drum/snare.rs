@@ -1,4 +1,4 @@
-use crate::core::envelope::prelude::{ADSREnvelope, BezierEnvelope};
+use crate::core::envelope::prelude::{ADSREnvelope, Segment};
 use crate::core::envelope::Envelope;
 use crate::core::generator::prelude::{SineWave, ToneGenerator, WhiteNoise};
 use crate::core::generator::BendableGenerator;
@@ -38,7 +38,7 @@ impl Snare {
                     )
                 },
             ),
-            pitch_curve: Box::from(BezierEnvelope::new(1.2, 1.0, 0.3, (0.0, 1.0))),
+            pitch_curve: Box::from(Segment::new(1.2, 1.0, 0.3, 0.0, Some((0.0, 1.0)))),
             current_tick: 0,
             playing: false,
             output: 0.0,

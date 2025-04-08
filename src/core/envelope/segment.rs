@@ -1,8 +1,9 @@
-use super::Shape;
 use std::default::Default;
 use std::fmt;
 
 use log::warn;
+
+use super::Envelope;
 
 #[derive(Debug, Clone)]
 pub struct Segment {
@@ -102,8 +103,8 @@ impl Segment {
     }
 }
 
-impl Shape for Segment {
-    fn get_at(&self, time: f32) -> f32 {
+impl Envelope for Segment {
+    fn at(&self, time: f32) -> f32 {
         self.at(time)
     }
 }

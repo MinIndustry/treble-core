@@ -1,5 +1,4 @@
-use crate::core::envelope::prelude::ADSREnvelope;
-use crate::core::envelope::prelude::BezierEnvelope;
+use crate::core::envelope::prelude::{ADSREnvelope, Segment};
 use crate::core::envelope::Envelope;
 use crate::core::generator::prelude::SineWave;
 use crate::core::generator::prelude::WhiteNoise;
@@ -40,7 +39,7 @@ impl Kick {
                     )
                 },
             ),
-            pitch_curve: Box::from(BezierEnvelope::new(1.4, 0.1, 0.3, (2.0, 0.2))),
+            pitch_curve: Box::from(Segment::new(1.4, 0.1, 0.3, 0.0, Some((2.0, 0.2)))),
             current_tick: 0,
             playing: false,
             output: 0.0,

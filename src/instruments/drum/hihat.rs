@@ -1,4 +1,4 @@
-use crate::core::envelope::prelude::BezierEnvelope;
+use crate::core::envelope::prelude::Segment;
 use crate::core::envelope::Envelope;
 use crate::core::filters::prelude::{CombinatorFilter, GainFilter, ResonantBandpassFilter};
 use crate::core::generator::prelude::*;
@@ -74,7 +74,7 @@ impl HiHat {
             Err(_) => warn!("Failed to build path to save hihat graph"),
         }
 
-        let amplitude_envelope = Box::new(BezierEnvelope::new(4.0, 0.0, 0.2, (0.0, 0.0)));
+        let amplitude_envelope = Box::new(Segment::new(4.0, 0.0, 0.2, 0.0, Some((0.0, 0.0))));
 
         #[cfg(debug_assertions)]
         let output_path =
