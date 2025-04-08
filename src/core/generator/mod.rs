@@ -10,10 +10,14 @@ pub enum GENERATORS {
     NULL,
 }
 
+/// Defines the available type of frequency transitions
 pub enum FrequencyTransition {
-    DIRECT, // Immediate switch (useful for polyphonic instruments with limited generators)
+    /// Immediate switch (useful for polyphonic instruments with limited generators)
+    DIRECT,
+    /// Smooth transition following an envelope
     ENVELOPE(Box<dyn Envelope>),
-    LINEAR(f32), // Linear transition of the given duration
+    /// Simple linear transition accross the given duration
+    LINEAR(f32),
 }
 
 /// A trait that implements a tone generator.
@@ -33,11 +37,18 @@ pub trait VariableFrequency {
     fn change_frequency(&mut self, frequency: f32, transistion: FrequencyTransition);
 }
 
+/// Allows a generator to change its pitch
 pub trait BendableGenerator: ToneGenerator + Bendable {}
+
+/// Allows a generator to change its frequency
 pub trait VariableGenerator: ToneGenerator + VariableFrequency {}
+
+/// Allows a generator to change its frequency and pitch
 pub trait VariableBendableGenerator: ToneGenerator + VariableFrequency + Bendable {}
 
 #[derive(Debug)]
+/// A generic generator that contains a tone generator,
+/// amplitude & pitch envelopes
 pub struct Generator {
     pub envelope: ADSREnvelope, // An envelope for the note amplitude
     pitch_curve: Segment,       // An evelope for the note pitch
@@ -46,10 +57,11 @@ pub struct Generator {
 }
 
 impl Generator {
+    /// Creates a new generator with the given envelopes and tone generator.
     pub fn new(envelope: ADSREnvelope, tone_generator: Box<dyn ToneGenerator>) -> Generator {
         Self {
             envelope,
-            pitch_curve: Segment::default(), // Segment default is a constant segment
+            pitch_curve: Segment::default(),
             tone_generator,
             last: (false, false, 0.0),
         }

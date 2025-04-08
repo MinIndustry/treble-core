@@ -8,6 +8,9 @@ use crate::KeyboardGenerator;
 use std::f32::consts::PI;
 
 #[derive(Debug)]
+/// A generator that produces a sine wave following the formula:
+/// `y = A * sin(2 * PI * f * t)`
+/// where A is the amplitude, f is the frequency, and t is the current time.
 pub struct SineWave {
     frequency: f32,
     amplitude: f32,
