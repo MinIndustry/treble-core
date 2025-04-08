@@ -39,7 +39,7 @@ impl HiHat {
         ];
 
         let mut system = System::<6, 1>::new();
-        let combinator: CombinatorFilter<6, 1> = CombinatorFilter::new();
+        let combinator: CombinatorFilter = CombinatorFilter::new(6, 1);
         let combinator_index = system.add_filter(Box::from(combinator));
         sources.into_iter().enumerate().for_each(|(index, source)| {
             system.set_source(index, source);
