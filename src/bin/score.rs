@@ -1,4 +1,5 @@
 use clap::Parser;
+use std::path::PathBuf;
 
 use rustic::prelude::score::{Score, TimeSignature};
 
@@ -22,8 +23,6 @@ fn dump_default(output_path: String) {
         "Example Score",
         rustic::prelude::score::TimeSignature(4, 4),
         120,
-        1,
-        20,
     );
 
     let toml_score = match score.dump_toml() {
@@ -49,9 +48,20 @@ fn main() {
         }
         std::process::exit(0);
     }
+    if let Some(path) = args.load {
+        let score = match Score::load_toml(&PathBuf::from(path)) {
+            Err(e) => {
+                println!("Error: {}", e);
+                std::process::exit(1);
+            }
+            Ok(score) => score,
+        };
 
-    let mut score = Score::new("Test", TimeSignature(4, 4), 120, 1, 20);
-    let _kick_index = score.add_instrument(Box::new(Kick::new()));
-    let _snare_index = score.add_instrument(Box::new(Snare::new()));
-    let _hihat_index = score.add_instrument(Box::new(HiHat::new().unwrap()));
+        println!("Loaded score: {}", score.name);
+    } else {
+        let mut score = Score::new("Test", TimeSignature(4, 4), 120);
+        let _kick_index = score.add_instrument(Box::new(Kick::new()));
+        let _snare_index = score.add_instrument(Box::new(Snare::new()));
+        let _hihat_index = score.add_instrument(Box::new(HiHat::new().unwrap()));
+    }
 }

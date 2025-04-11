@@ -13,8 +13,14 @@ use crate::instruments::Instrument;
 /// // A simple 4/4 time signature
 /// let time_signature = TimeSignature(4, 4);
 /// ```
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct TimeSignature(pub usize, pub usize);
+
+impl Default for TimeSignature {
+    fn default() -> Self {
+        Self(4, 4)
+    }
+}
 
 impl TimeSignature {
     pub const C: TimeSignature = TimeSignature(4, 4);
@@ -33,21 +39,12 @@ pub struct Score {
 }
 
 impl Score {
-    pub fn new<S: AsRef<str>>(
-        name: S,
-        signature: TimeSignature,
-        tempo: usize,
-        staves: usize,   // Number of instruments
-        measures: usize, // Number of measures in the score
-    ) -> Self {
-        let staves = Vec::from_iter(
-            (0..staves).map(|_| Staff::default().with_measures(measures, &signature)),
-        );
+    pub fn new<S: AsRef<str>>(name: S, signature: TimeSignature, tempo: usize) -> Self {
         Self {
             name: name.as_ref().to_string(),
             signature,
             tempo,
-            staves,
+            staves: Vec::new(),
             instruments: Vec::new(),
         }
     }
@@ -83,19 +80,17 @@ impl Score {
     /// let kick_index = score.add_instrument(Box::new(Kick::new()));
     /// ```
     pub fn add_instrument(&mut self, instrument: Box<dyn Instrument>) -> usize {
-        let new_index = self.instruments.len();
-        if self.staves.len() < new_index {
-            info!("Adding a new staff to the score");
-            self.staves.push(Staff::default());
-        }
-
         self.instruments.push(instrument);
         let instrument_index = self.instruments.len() - 1;
-        self.staves[new_index].set_instrument(instrument_index);
+        self.staves.push(Staff::new(&self.signature));
+        self.staves
+            .last_mut()
+            .unwrap()
+            .set_instrument(instrument_index);
         instrument_index
     }
 
-    /// Adds a note to the score at the specified position.
+    /// Adds a note to the score for the specified instrument at the first available space.
     pub fn add_note(&mut self, instrument: usize, note: Note) -> Result<(), String> {
         if instrument >= self.instruments.len() {
             return Err("Instrument index out of bounds".to_string());

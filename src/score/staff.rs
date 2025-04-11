@@ -10,12 +10,15 @@ use super::{measure::Measure, notes::Note, score::TimeSignature};
 pub struct Staff {
     instrument: usize, // Instrument index in the intrument map
     measures: Vec<Measure>,
+    signature: TimeSignature,
 }
 
 impl Staff {
-    pub fn with_measures(mut self, measures: usize, signature: &TimeSignature) -> Self {
-        self.measures = Vec::from_iter((0..measures).map(|_| Measure::new(signature)));
-        self
+    pub fn new(signature: &TimeSignature) -> Self {
+        Self {
+            signature: signature.clone(),
+            ..Default::default()
+        }
     }
 
     pub fn set_instrument(&mut self, instrument: usize) {
@@ -26,9 +29,16 @@ impl Staff {
         self.instrument
     }
 
-    pub fn add_note(&mut self, _note: Note) -> Result<(), String> {
-        let _last_measure = self.measures.last_mut().ok_or("No measures in the staff")?;
-        //last_measure.add_note(note)
-        Ok(())
+    pub fn add_note(&mut self, note: Note) -> Result<(), String> {
+        let measure: &mut Measure =
+            if let Some(next_measure_position) = self.measures.iter().position(|m| !m.is_full()) {
+                &mut self.measures[next_measure_position]
+            } else {
+                self.measures.push(Measure::new(&self.signature));
+                &mut self.measures.last_mut().unwrap()
+            };
+
+        let position = measure.current_index();
+        measure.add_note(position, note)
     }
 }

@@ -18,6 +18,25 @@ pub enum NoteDuration {
     Tuplet(u8), // Usually 3
 }
 
+impl NoteDuration {
+    pub fn duration(&self) -> usize {
+        match self {
+            Self::DemiSemiHemiDemiSemiQuaver => 1,
+            Self::SemiHemiDemiSemiQuaver => 2,
+            Self::HemiDemiSemiQuaver => 4,
+            Self::DemiSemiQuaver => 8,
+            Self::SemiQuaver => 16,
+            Self::Quaver => 32,
+            Self::Crotchet | Self::Tuplet(_) => 64,
+            Self::Minim => 128,
+            Self::SemiBreve => 256,
+            Self::Breve => 512,
+            Self::Long => 1024,
+            Self::Large => 2048,
+        }
+    }
+}
+
 #[derive(Default, Serialize, Deserialize, Debug)]
 pub enum DurationModifier {
     #[default]
@@ -88,5 +107,17 @@ impl Note {
             octave,
             tied,
         })
+    }
+
+    pub fn duration(&self) -> usize {
+        match self.duration_modifier {
+            DurationModifier::None => self.duration.duration(),
+            DurationModifier::Dotted => self.duration.duration() + self.duration.duration() / 2,
+            DurationModifier::DoubleDotted => {
+                self.duration.duration()
+                    + self.duration.duration() / 2
+                    + self.duration.duration() / 4
+            }
+        }
     }
 }
