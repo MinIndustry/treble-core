@@ -1,5 +1,4 @@
 use rustic::core::filters::prelude::{HighPassFilter_META, LowPassFilter_META};
-use rustic::meta::traits::FilterMetadata;
 
 fn main() {
     let filter = LowPassFilter_META().clone();
