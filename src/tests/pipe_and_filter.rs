@@ -1,115 +1,143 @@
+use log::info;
+
+use crate::core::filters::prelude::*;
+use crate::core::generator::prelude::ConstantGenerator;
+use crate::core::graph::{simple_source, SimpleSink, System};
+
 #[test]
 fn test_system() {
-    let mut filters = vec![];
+    let filter = GainFilter::new(0.5);
+    let filter2 = GainFilter::new(0.5);
 
-    info!("Creating a source pipe");
-    let source = Rc::new(RefCell::new(Pipe::new()));
+    let mut system = System::<1, 1>::new();
+    let filt_1 = system.add_filter(Box::from(filter));
+    let filt_2 = system.add_filter(Box::from(filter2));
 
-    let second_source = Rc::new(RefCell::new(Pipe::new()));
+    let source = simple_source(ConstantGenerator::new(1.0));
+    system.set_source(0, Box::from(source));
 
-    let inbetween = Rc::new(RefCell::new(Pipe::new()));
+    let sink = SimpleSink::new();
+    system.set_sink(0, Box::from(sink));
 
-    info!("Creating a sink pipe");
-    let sink = Rc::new(RefCell::new(Pipe::new()));
+    system.connect(filt_1, filt_2, 0, 0);
+    system.connect_source(0, filt_1, 0);
+    system.connect_sink(filt_2, 0, 0);
 
-    info!("Creating a filter and connecting to source and sink pipes");
-    let mut filter = Filter::new(Box::new(SumCombinationFilter));
-    filter.add_source(Rc::clone(&source));
-    filter.add_source(Rc::clone(&second_source));
-    filter.add_sink(Rc::clone(&inbetween));
-
-    let mut filter2 = Filter::new(Box::new(DoubleFilter));
-    filter2.add_source(Rc::clone(&inbetween));
-    filter2.add_sink(Rc::clone(&sink));
-
-    filters.push(filter);
-    filters.push(filter2);
-
-    let system = PFSystem {
-        filters,
-        sources: vec![source, second_source],
-        sinks: vec![sink],
-    };
-
-    for x in 0..100 {
-        system.push(x % 2, x as f32);
+    if let Err(_) = system.compute() {
+        panic!("Error computing system");
     }
 
     let mut results = Vec::new();
     loop {
         system.run();
-        if let Some(val) = system.get_sink(0).borrow_mut().pop() {
-            results.push(val)
-        }
-
-        if results.len() == 50 {
-            break;
+        if let Ok(sink) = system.get_sink(0) {
+            results.extend(sink.consume(1));
+            if results.len() >= 50 {
+                break;
+            }
         }
     }
 
-    for (id, val) in results.iter().enumerate() {
-        assert_eq!(
-            *val,
-            2.0 * (2 * (2 * id) + 1) as f32,
-            "Values do not match !"
-        );
+    for val in results.iter() {
+        assert_eq!(*val, 0.25, "Values do not match !");
     }
 }
 
 #[test]
+/// Stress test of the system,
+/// Testing that the system runs at least as fast as the sample rate for a simple system
 fn stress_test() {
-    let mut filters = vec![];
+    let filter = GainFilter::new(0.5);
+    let filter2 = GainFilter::new(0.5);
 
-    info!("Creating a source pipe");
-    let source = Rc::new(RefCell::new(Pipe::new()));
+    let mut system = System::<1, 1>::new();
+    let filt_1 = system.add_filter(Box::from(filter));
+    let filt_2 = system.add_filter(Box::from(filter2));
 
-    let second_source = Rc::new(RefCell::new(Pipe::new()));
+    let source = simple_source(ConstantGenerator::new(1.0));
+    system.set_source(0, Box::from(source));
 
-    let inbetween = Rc::new(RefCell::new(Pipe::new()));
+    let sink = SimpleSink::new();
+    system.set_sink(0, Box::from(sink));
 
-    info!("Creating a sink pipe");
-    let sink = Rc::new(RefCell::new(Pipe::new()));
+    system.connect(filt_1, filt_2, 0, 0);
+    system.connect_source(0, filt_1, 0);
+    system.connect_sink(filt_2, 0, 0);
 
-    info!("Creating a filter and connecting to source and sink pipes");
-    let mut filter = Filter::new(Box::new(SumCombinationFilter));
-    filter.add_source(Rc::clone(&source));
-    filter.add_source(Rc::clone(&second_source));
-    filter.add_sink(Rc::clone(&inbetween));
-
-    let mut filter2 = Filter::new(Box::new(DoubleFilter));
-    filter2.add_source(Rc::clone(&inbetween));
-    filter2.add_sink(Rc::clone(&sink));
-
-    filters.push(filter);
-    filters.push(filter2);
-
-    let system = PFSystem {
-        filters,
-        sources: vec![source, second_source],
-        sinks: vec![sink],
-    };
+    if let Err(_) = system.compute() {
+        panic!("Error computing system");
+    }
 
     for sample_size in [100_000, 1_000_000, 10_000_000] {
-        info!("Working on sample size {}", sample_size);
-        for x in 0..sample_size {
-            system.push(x % 2, x as f32);
-        }
-
-        let mut results = 0;
+        info!("Working on sample size {} at 44100 samples/s", sample_size);
         let start = std::time::Instant::now();
-        loop {
+        for _ in 0..sample_size {
             system.run();
-            if system.get_sink(0).borrow_mut().pop().is_some() {
-                results += 1;
-            }
-
-            if results == 50 {
-                break;
+            if let Ok(sink) = system.get_sink(0) {
+                let _ = sink.consume(1);
             }
         }
         let elapsed = start.elapsed();
         info!("Took {}ms", elapsed.as_millis());
 
-        assert!(elapsed.as_millis() < 1000, "Test went over time !");
+        assert!(
+            elapsed.as_millis() < ((sample_size as f32 / 44100.0) * 1000.0) as u128,
+            "Test went over time !"
+        );
+    }
+}
+
+#[test]
+/// Stress test of the system,
+/// Testing that the system runs at least as fast as the sample rate for a
+/// complex system
+fn stress_test_2() {
+    let mut system = System::<1, 1>::new();
+
+    let filter_0 = CombinatorFilter::new(1, 2);
+    let filter_1 = GainFilter::new(0.5);
+    let filter2 = GainFilter::new(0.5);
+    let filter_3 = CombinatorFilter::new(2, 1);
+
+    let filt_0 = system.add_filter(Box::from(filter_0));
+    let filt_1 = system.add_filter(Box::from(filter_1));
+    let filt_2 = system.add_filter(Box::from(filter2));
+    let filt_3 = system.add_filter(Box::from(filter_3));
+
+    system.connect(filt_0, filt_1, 0, 0);
+    system.connect(filt_0, filt_2, 1, 0);
+
+    system.connect(filt_1, filt_3, 0, 0);
+    system.connect(filt_2, filt_3, 0, 1);
+
+    let source = simple_source(ConstantGenerator::new(1.0));
+    system.set_source(0, Box::from(source));
+
+    let sink = SimpleSink::new();
+    system.set_sink(0, Box::from(sink));
+
+    system.connect_source(0, filt_0, 0);
+    system.connect_sink(filt_3, 0, 0);
+
+    if let Err(_) = system.compute() {
+        panic!("Error computing system");
+    }
+
+    for sample_size in [100_000, 1_000_000, 10_000_000] {
+        info!("Working on sample size {} at 44100 samples/s", sample_size);
+        let start = std::time::Instant::now();
+        for _ in 0..sample_size {
+            system.run();
+            if let Ok(sink) = system.get_sink(0) {
+                let _ = sink.consume(1);
+            }
+        }
+        let elapsed = start.elapsed();
+        info!("Took {}ms", elapsed.as_millis());
+
+        assert!(
+            elapsed.as_millis() < ((sample_size as f32 / 44100.0) * 1000.0) as u128,
+            "Test went over time !"
+        );
     }
 }
