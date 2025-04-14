@@ -98,15 +98,15 @@ impl Note {
         modifier: NoteModifier,
         octave: u8,
         tied: bool,
-    ) -> Result<Self, String> {
-        Ok(Self {
+    ) -> Self {
+        Self {
             duration,
             duration_modifier,
             note,
             modifier,
             octave,
             tied,
-        })
+        }
     }
 
     pub fn duration(&self) -> usize {

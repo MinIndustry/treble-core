@@ -19,6 +19,10 @@ pub struct Chord {
 }
 
 impl Chord {
+    pub fn new(notes: Vec<Note>, modifier: ChordModifier) -> Self {
+        Self { notes, modifier }
+    }
+
     /// Duration of the chord in term of crotchets
     pub fn duration(&self) -> usize {
         self.notes.iter().map(|n| n.duration()).max().unwrap_or(0)
@@ -26,6 +30,11 @@ impl Chord {
 
     pub fn add_note(&mut self, note: Note) {
         self.notes.push(note);
+    }
+
+    /// Replaces the current chord's notes with the given note
+    pub fn set_note(&mut self, note: Note) {
+        self.notes = vec![note];
     }
 }
 
@@ -65,29 +74,45 @@ impl Measure {
 
     /// Adds a note in the chord at the given time position.
     pub fn add_note(&mut self, time_index: usize, note: Note) -> Result<(), String> {
-        if time_index >= self.chords.len() {
-            Err("Invalid time index for pushing a note".to_string())
+        if let Some(index) = self.chords_set.iter().position(|(id, _)| *id == time_index) {
+            info!("Adding note to existing chord at time index {}", time_index);
+            self.chords_set[index].1.add_note(note);
+            Ok(())
         } else {
-            if let Some(index) = self.chords_set.iter().position(|(id, _)| *id == time_index) {
-                info!("Adding note to existing chord at time index {}", time_index);
-                self.chords_set[index].1.add_note(note);
-                Ok(())
-            } else {
-                info!("Adding new chord at time index {}", time_index);
-                self.chords_set.push((time_index, Chord::default()));
-                self.chords_set.last_mut().unwrap().1.add_note(note);
-                Ok(())
-            }
+            info!("Adding new chord at time index {}", time_index);
+            self.chords_set.push((time_index, Chord::default()));
+            self.chords_set.last_mut().unwrap().1.add_note(note);
+            Ok(())
         }
     }
 
     /// Sets the note at the given time position, overriding the chord currently positioned there.
     pub fn set_note(&mut self, time_index: usize, note: Note) -> Result<(), String> {
-        Ok(())
+        if let Some(index) = self.chords_set.iter().position(|(id, _)| *id == time_index) {
+            info!(
+                "Setting note in existing chord at time index {}",
+                time_index
+            );
+            self.chords_set[index].1.set_note(note);
+            Ok(())
+        } else {
+            info!("Setting new chord at time index {}", time_index);
+            self.chords_set.push((time_index, Chord::default()));
+            self.chords_set.last_mut().unwrap().1.set_note(note);
+            Ok(())
+        }
     }
 
     /// Sets the chord at the given position
     pub fn set_chord(&mut self, time_index: usize, chord: Chord) -> Result<(), String> {
-        Ok(())
+        if let Some(index) = self.chords_set.iter().position(|(id, _)| *id == time_index) {
+            info!("Setting chord at time index {}", time_index);
+            self.chords_set[index].1 = chord;
+            Ok(())
+        } else {
+            info!("Setting new chord at time index {}", time_index);
+            self.chords_set.push((time_index, chord));
+            Ok(())
+        }
     }
 }
