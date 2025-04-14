@@ -1,4 +1,3 @@
-use log::info;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
@@ -76,7 +75,7 @@ impl Score {
     /// use rustic::prelude::score::{Score, TimeSignature};
     /// use rustic::instruments::prelude::{HiHat, Kick, Snare};
     ///
-    /// let mut score = Score::new("Test", TimeSignature(4, 4), 120, 1, 20);
+    /// let mut score = Score::new("Test", TimeSignature(4, 4), 120);
     /// let kick_index = score.add_instrument(Box::new(Kick::new()));
     /// ```
     pub fn add_instrument(&mut self, instrument: Box<dyn Instrument>) -> usize {

@@ -2,7 +2,13 @@
 /// It provides CLI utilities for managing the application as well as filesystem
 /// utilities for managing files and directories.
 mod app;
+
+/// The core module of rustic. Contains the envelopes, filters, generators and the
+/// graph building utilities.
 pub mod core;
+
+/// The input module handles user interactions with the application. It consists at
+/// the moment of an abstraction for the evdev crate, available only on Linux.
 pub mod inputs;
 
 /// Instruments are structures that implement the `Instrument` trait.

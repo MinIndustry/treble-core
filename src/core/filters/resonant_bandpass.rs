@@ -6,7 +6,7 @@ use rustic_derive::FilterMetaData;
 use crate::core::graph::{AudioGraphElement, Entry, Filter};
 
 /// Applies a bandpass filter to the input signal
-/// source: https://en.wikipedia.org/wiki/Digital_biquad_filter
+/// source: <https://en.wikipedia.org/wiki/Digital_biquad_filter>
 /// This structure implements the Direct form 2 from the above link.
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "meta", derive(FilterMetaData))]
@@ -27,10 +27,8 @@ impl fmt::Display for ResonantBandpassFilter {
 
 impl ResonantBandpassFilter {
     /// Resonant bandpass filter using a biquad design.
-    /// Implemented from http://musicweb.ucsd.edu/~trsmyth/filters/Bi_quadratic_Resonant_Filte.html
+    /// Implemented from <http://musicweb.ucsd.edu/~trsmyth/filters/Bi_quadratic_Resonant_Filte.html>
     pub fn new(center_frequency: f32, quality: f32, sample_frequency: f32) -> Self {
-        // magnitude of the roots
-
         let period = 1.0 / sample_frequency;
         let bandwidth = center_frequency / quality;
 

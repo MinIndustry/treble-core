@@ -15,13 +15,25 @@ use super::sink::simple_sink;
 use super::{simple_source, Filter, Sink, Source};
 
 /// A Pipe & Filter system
-/// The system is composed of filters, sources, sinks and pipes.
-/// The system is represented as a directed graph where the filters are the nodes
-/// The Sources & Sinks are special nodes that have respectivilly only outgoing (source) or incoming (sink) edges
+/// The system is composed of filters, sources and sinks.
+/// It is represented as a directed graph where the filters are the nodes
+/// The Sources & Sinks are special nodes that have respectively only outgoing (source) or incoming (sink) edges
 /// The edges represent the pipes between the filters
-/// Some filters have special output properties. E.g. the delay filter's input pipe is ignored when
+/// Some filters have special output properties. E.g. the delay filter's input pipe is ignored (postponed) when
 /// the topology sorting is done, in order to avoid cycles. A system with cycles must include a delay or similar filter
 /// to break the cycle.
+///
+/// ```rust
+/// use rustic::core::graph::System;
+/// use rustic::core::filters::prelude::Tremolo;
+///
+/// // A simple system with one input and one output
+/// let mut system = System::<1, 1>::new();
+///
+/// // Adding a filter to the system
+/// let filter = Tremolo::new(20.0, 0.5, 1.5);
+/// let filter_index = system.add_filter(Box::from(filter));
+/// ```
 pub struct System<const INPUTS: usize, const OUTPUTS: usize> {
     // The actual filter graph, from which the execution order is derived
     // Each weight represents the port into which the filter is connected
@@ -41,8 +53,10 @@ pub struct System<const INPUTS: usize, const OUTPUTS: usize> {
 impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
     /// Creates a new system with simple null sources & simple sinks
     pub fn new() -> Self {
-        let sources: [(Box<dyn Source>, (NodeIndex<u32>, usize)); INPUTS] = core::array::from_fn(|_| (simple_source(NullGenerator::new()), (NodeIndex::new(0), 0)));
-        let sinks: [((NodeIndex<u32>, usize), Box<dyn Sink>); OUTPUTS] = core::array::from_fn(|_| ((NodeIndex::new(0), 0), simple_sink()));
+        let sources: [(Box<dyn Source>, (NodeIndex<u32>, usize)); INPUTS] =
+            core::array::from_fn(|_| (simple_source(NullGenerator::new()), (NodeIndex::new(0), 0)));
+        let sinks: [((NodeIndex<u32>, usize), Box<dyn Sink>); OUTPUTS] =
+            core::array::from_fn(|_| ((NodeIndex::new(0), 0), simple_sink()));
 
         System {
             graph: Graph::new(),
@@ -53,34 +67,55 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
     }
 
     /// Merges the two systems together to create a new one. The graphs are merged following the given mapping from sinks to sources.
-    /// Sinks to sources links are replaced with a simple combinator filter
-    pub fn merge<const T: usize>(mut self, other: System<OUTPUTS, T>, mapping: Vec<(usize, usize)>) -> System<INPUTS, T> {
-
+    /// Sinks to sources links are replaced with a simple combinator filter. The amount of input in the second system
+    /// should match the amount of output in the first system.
+    pub fn merge<const T: usize>(
+        mut self,
+        other: System<OUTPUTS, T>,
+        mapping: Vec<(usize, usize)>,
+    ) -> System<INPUTS, T> {
         // Contains the mapping other graph -> new graph
         let mut new_edge_map: HashMap<NodeIndex, NodeIndex> = HashMap::new();
 
         for (from, to) in mapping.iter() {
             let (graph_b_source_descendant_index, graph_b_node_port) = other.sources[*to].1;
-            let source_descendant = dyn_clone::clone_box(&*other.graph[graph_b_source_descendant_index]);
+            let source_descendant =
+                dyn_clone::clone_box(&*other.graph[graph_b_source_descendant_index]);
 
             // Save the new index of the source descendant
             let new_index = if new_edge_map.contains_key(&graph_b_source_descendant_index) {
                 match new_edge_map.get(&graph_b_source_descendant_index) {
                     Some(v) => *v,
-                    None => panic!("What ?")
+                    None => panic!("What ?"),
                 }
             } else {
                 let new_index = self.graph.add_node(source_descendant);
                 self.graph[new_index].set_index(new_index.index());
-                info!("idx {} -> idx {}", graph_b_source_descendant_index.index(), new_index.index());
+                info!(
+                    "idx {} -> idx {}",
+                    graph_b_source_descendant_index.index(),
+                    new_index.index()
+                );
                 new_edge_map.insert(graph_b_source_descendant_index, new_index);
                 new_index
             };
 
             // Connect the sink's predecessors to the source's successors
             let (sink_predecessor_id, sink_predecessor_port) = self.sinks[*from].0;
-            info!("Node {} -> Sink {} & Source {} -> Node {} => Node {} -> Node {}", sink_predecessor_id.index(), from, to, graph_b_source_descendant_index.index(), sink_predecessor_id.index(), new_index.index());
-            self.graph.add_edge(sink_predecessor_id, new_index, (sink_predecessor_port, graph_b_node_port));
+            info!(
+                "Node {} -> Sink {} & Source {} -> Node {} => Node {} -> Node {}",
+                sink_predecessor_id.index(),
+                from,
+                to,
+                graph_b_source_descendant_index.index(),
+                sink_predecessor_id.index(),
+                new_index.index()
+            );
+            self.graph.add_edge(
+                sink_predecessor_id,
+                new_index,
+                (sink_predecessor_port, graph_b_node_port),
+            );
         }
 
         // Go through all nodes in the other graph and add them to the new graph
@@ -100,12 +135,27 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
         for edge in other.graph.edge_indices() {
             let (other_from, other_to) = other.graph.edge_endpoints(edge).unwrap();
             let (from, to) = (new_edge_map[&other_from], new_edge_map[&other_to]);
-            info!("Edge ({}, {}) -> ({}, {})", other_from.index(), other_to.index(), from.index(), to.index());
+            info!(
+                "Edge ({}, {}) -> ({}, {})",
+                other_from.index(),
+                other_to.index(),
+                from.index(),
+                to.index()
+            );
             let weight = other.graph[edge];
             self.graph.add_edge(from, to, weight);
         }
 
-        let new_sinks: [((NodeIndex<u32>, usize), Box<dyn Sink>); T] = core::array::from_fn(|index| ((new_edge_map[&other.sinks[index].0.0], other.sinks[index].0.1), dyn_clone::clone_box(&*other.sinks[index].1)));
+        let new_sinks: [((NodeIndex<u32>, usize), Box<dyn Sink>); T] =
+            core::array::from_fn(|index| {
+                (
+                    (
+                        new_edge_map[&other.sinks[index].0 .0],
+                        other.sinks[index].0 .1,
+                    ),
+                    dyn_clone::clone_box(&*other.sinks[index].1),
+                )
+            });
 
         let new_system: System<INPUTS, T> = System {
             graph: self.graph,
@@ -173,12 +223,17 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
         let acyclic_graph = self.graph.filter_map(
             |_index, node| Some(node),
             |index, edge| {
-                if self.graph.edge_endpoints(index).and_then(|(_, to)| Some(self.graph[to].postponable())) == Some(true) {
+                if self
+                    .graph
+                    .edge_endpoints(index)
+                    .and_then(|(_, to)| Some(self.graph[to].postponable()))
+                    == Some(true)
+                {
                     None
                 } else {
                     Some(edge)
                 }
-            }
+            },
         );
 
         if let Ok(topo) = toposort(&acyclic_graph, None) {

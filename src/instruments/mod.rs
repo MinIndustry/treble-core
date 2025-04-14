@@ -1,6 +1,9 @@
 use crate::Note;
 
+/// Drum related modules
 mod drum;
+
+/// Keyboard related modules
 mod keyboard;
 
 pub mod prelude {

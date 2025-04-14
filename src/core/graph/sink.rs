@@ -1,6 +1,7 @@
 use crate::core::graph::{AudioGraphElement, Entry, Sink};
 
-/// Low-pass filter using a first-order IIR filter
+/// A simple audio sink that stores incoming audio samples. (Allowing
+/// other parts of the code to pull its values)
 #[derive(Clone)]
 pub struct SimpleSink {
     values: Vec<f32>,

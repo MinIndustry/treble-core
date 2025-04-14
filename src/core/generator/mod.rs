@@ -134,6 +134,7 @@ impl Generator {
     }
 }
 
+mod constant_generator;
 mod null_generator;
 mod saw_tooth;
 mod sine_wave;
@@ -141,6 +142,7 @@ mod square_wave;
 mod white_noise;
 
 pub mod prelude {
+    pub use super::constant_generator::ConstantGenerator;
     pub use super::null_generator::NullGenerator;
     pub use super::saw_tooth::SawTooth;
     pub use super::sine_wave::SineWave;
