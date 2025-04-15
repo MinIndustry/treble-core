@@ -1,4 +1,4 @@
-use crate::score::prelude::*;
+use crate::prelude::*;
 
 #[test]
 pub fn test_chord_duration() {

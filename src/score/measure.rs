@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use super::notes::{Note, NoteDuration};
 use super::score::TimeSignature;
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 pub enum ChordModifier {
     #[default]
     None,
@@ -12,10 +12,10 @@ pub enum ChordModifier {
     ArpeggioInverted,
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 pub struct Chord {
-    notes: Vec<Note>,
-    modifier: ChordModifier,
+    pub notes: Vec<Note>,
+    pub modifier: ChordModifier,
 }
 
 impl Chord {
@@ -39,7 +39,7 @@ impl Chord {
 }
 
 /// A measure contains a given amount of notes
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Measure {
     size: usize, // Number of Crotchet notes
     #[serde(skip)]
@@ -114,5 +114,12 @@ impl Measure {
             self.chords_set.push((time_index, chord));
             Ok(())
         }
+    }
+
+    /// Returns the orderer vector of chords
+    pub fn get_orderer_chords(&self) -> Vec<Chord> {
+        let mut chords_cpy = self.chords_set.to_vec();
+        chords_cpy.sort_by(|e1, e2| e1.0.cmp(&e2.0));
+        chords_cpy.iter().map(|e| e.1.clone()).collect()
     }
 }

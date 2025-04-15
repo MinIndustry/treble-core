@@ -1,11 +1,16 @@
+// Private modules
+mod compiled_score;
+mod instances;
 mod measure;
-pub mod notes;
-pub mod score;
 mod staff;
 
-pub mod prelude {
-    pub use super::measure::{Chord, ChordModifier, Measure};
-    pub use super::notes::{DurationModifier, Note, NoteDuration, NoteModifier, NoteName};
-    pub use super::score::{Score, TimeSignature};
-    pub use super::staff::Staff;
-}
+// Public modules and re-exports
+pub mod notes;
+pub mod score;
+
+// Re-export essential types directly from the score module
+pub use instances::StaffInstance;
+pub use measure::{Chord, ChordModifier, Measure};
+pub use notes::{DurationModifier, Note, NoteDuration, NoteModifier, NoteName};
+pub use score::{Score, TimeSignature};
+pub use staff::Staff;

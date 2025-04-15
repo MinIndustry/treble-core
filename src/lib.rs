@@ -27,10 +27,22 @@ mod score;
 
 const APP_ID: (&str, &str, &str) = ("rustic", "minigrim0", "xyz");
 
+/// Main prelude module that exports the most commonly used types from the crate
 pub mod prelude {
-    pub use super::app::prelude::App;
+    // App exports
+    pub use super::app::App;
+
+    // Core exports - only expose the module, details accessed through it
     pub use super::core;
-    pub use super::score::*;
+
+    // Score exports
+    pub use super::score::{
+        Chord, ChordModifier, DurationModifier, Measure, Note, NoteDuration, NoteModifier,
+        NoteName, Score, Staff, StaffInstance, TimeSignature,
+    };
+
+    // Instruments exports
+    pub use super::instruments::Instrument;
 }
 
 use crate::core::generator::{Bendable, ToneGenerator, VariableFrequency};

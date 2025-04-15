@@ -1,5 +1,5 @@
-use crate::core::generator::ToneGenerator;
 use super::{AudioGraphElement, Source};
+use crate::core::generator::ToneGenerator;
 
 pub struct SimpleSource<T> {
     generator: T,
@@ -12,7 +12,7 @@ impl<T> SimpleSource<T> {
         Self {
             generator,
             sample_rate,
-            index: 0
+            index: 0,
         }
     }
 }

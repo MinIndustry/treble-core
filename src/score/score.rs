@@ -107,4 +107,43 @@ impl Score {
 
         staff.add_note(note)
     }
+
+    /// Plays the score by compiling it first and then playing it.
+    ///
+    /// This method creates an optimized `CompiledScore` representation of the score,
+    /// plays it, and then returns the instruments back to the score.
+    ///
+    /// # Returns
+    /// * `Ok(())` - If playback completed successfully
+    /// * `Err(String)` - If an error occurred during playback
+    ///
+    /// # Example
+    /// ```
+    /// use rustic::prelude::score::{Score, TimeSignature};
+    /// use rustic::instruments::prelude::HiHat;
+    ///
+    /// let mut score = Score::new("Demo", TimeSignature(4, 4), 120);
+    /// score.add_instrument(Box::new(HiHat::new()));
+    ///
+    /// // Play the score
+    /// score.play().unwrap();
+    /// ```
+    pub fn play(&mut self) -> Result<(), String> {
+        use super::compiled_score::CompiledScore;
+
+        // Create a compiled version of the score
+        let mut compiled = CompiledScore::new(self)?;
+
+        // Play the compiled score
+        let result = compiled.play();
+
+        // Return instruments back to the score
+        for (idx, instance) in compiled.staff_instances.into_iter().enumerate() {
+            let staff = &self.staves[idx];
+            let instrument_idx = staff.get_instrument();
+            self.instruments[instrument_idx] = instance.take_instrument();
+        }
+
+        result
+    }
 }

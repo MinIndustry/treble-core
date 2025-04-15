@@ -9,9 +9,8 @@ mod filesystem;
 /// Its purpose is to help organize the system and provide a way to interact with it.
 mod system;
 
-pub mod prelude {
-    pub use super::app::App;
-    pub use super::cli::Cli;
-    pub use super::filesystem::FSConfig;
-    pub use super::system::SystemConfig;
-}
+// Export essential types directly from the app module
+pub use app::App;
+pub use cli::Cli;
+pub use filesystem::FSConfig;
+pub use system::SystemConfig;

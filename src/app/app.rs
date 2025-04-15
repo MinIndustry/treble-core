@@ -30,7 +30,7 @@ pub struct App {
 
 impl Default for App {
     fn default() -> Self {
-        let root_path = match crate::app::prelude::FSConfig::app_root_dir() {
+        let root_path = match crate::app::FSConfig::app_root_dir() {
             Ok(path) => path,
             Err(e) => {
                 error!("Unable to build app root dir: {}", e);

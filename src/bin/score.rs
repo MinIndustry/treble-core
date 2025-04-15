@@ -1,7 +1,7 @@
 use clap::Parser;
 use std::path::PathBuf;
 
-use rustic::prelude::score::{Score, TimeSignature};
+use rustic::prelude::{Score, TimeSignature};
 
 use rustic::instruments::prelude::{HiHat, Kick, Snare};
 
@@ -19,11 +19,7 @@ struct Cli {
 
 /// Dumps a default score to a file
 fn dump_default(output_path: String) {
-    let score = Score::new(
-        "Example Score",
-        rustic::prelude::score::TimeSignature(4, 4),
-        120,
-    );
+    let score = Score::new("Example Score", TimeSignature(4, 4), 120);
 
     let toml_score = match score.dump_toml() {
         Err(e) => {

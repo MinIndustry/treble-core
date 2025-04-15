@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub enum NoteDuration {
     Large,     // Octuple whole note
     Long,      // Quadruple whole note
@@ -37,7 +37,7 @@ impl NoteDuration {
     }
 }
 
-#[derive(Default, Serialize, Deserialize, Debug)]
+#[derive(Default, Serialize, Deserialize, Debug, Clone)]
 pub enum DurationModifier {
     #[default]
     None,
@@ -45,7 +45,7 @@ pub enum DurationModifier {
     DoubleDotted,
 }
 
-#[derive(Default, Serialize, Deserialize, Debug)]
+#[derive(Default, Serialize, Deserialize, Debug, Clone)]
 pub enum NoteModifier {
     Flat,
     DoubleFlat,
@@ -56,7 +56,7 @@ pub enum NoteModifier {
     None,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub enum NoteName {
     A,
     B,
@@ -69,7 +69,7 @@ pub enum NoteName {
     Pause,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Note {
     pub duration: NoteDuration,
     pub duration_modifier: DurationModifier,
