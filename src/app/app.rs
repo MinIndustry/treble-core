@@ -108,11 +108,6 @@ impl App {
             std::process::exit(0);
         }
 
-        if args.score.is_none() && !args.live {
-            println!("No score or live mode specified");
-            std::process::exit(1);
-        }
-
         if args.score.is_some() {
             app.run_mode = RunMode::Score;
         }
