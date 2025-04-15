@@ -1,4 +1,5 @@
 use clap::Parser;
+use std::path::PathBuf;
 
 #[derive(Parser, Default, Debug)]
 #[clap(
@@ -13,5 +14,13 @@ pub struct Cli {
 
     #[arg(short = 'c', long = "config")]
     /// The configuration file to read
-    pub config: Option<String>,
+    pub config: Option<PathBuf>,
+
+    #[arg(short, long)]
+    /// The score file to read
+    pub score: Option<PathBuf>,
+
+    #[arg(short, long)]
+    /// Wether to start the app in live mode
+    pub live: bool,
 }

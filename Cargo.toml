@@ -39,6 +39,7 @@ rustic-derive = { path = "../rustic-derive", optional = true }
 rustic-meta = { path = "../rustic-meta", optional = true }
 dyn-clone = "1.0.18"
 directories = "6.0.0"
+thiserror = "2.0.12"
 
 [dev-dependencies]
 pretty_assertions = "1.1.0"
@@ -48,3 +49,5 @@ plotting = ["plotters", "plotters-backend"]
 meta = ["rustic-derive", "rustic-meta"]
 tui = ["termion"]
 linux = ["evdev"]
+macos = []
+windows = []

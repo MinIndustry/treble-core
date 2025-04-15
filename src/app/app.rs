@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::default::Default;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use clap::Parser;
 use log::{error, info};
@@ -10,7 +10,7 @@ use super::cli::Cli;
 use super::filesystem::FSConfig;
 use super::system::SystemConfig;
 use crate::core::keys;
-use crate::inputs::InputConfig;
+use crate::inputs::{InputConfig, InputSystem};
 use crate::note;
 
 #[derive(Debug, Default, Deserialize, Serialize)]
@@ -21,11 +21,28 @@ pub struct AppConfig {
     pub system: SystemConfig,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Default)]
+pub enum RunMode {
+    Live,
+    Score,
+    #[default]
+    Unknown,
+}
+
+#[derive(Default)]
+pub enum AppMode {
+    #[default]
+    Setup, // Setup mode, the app has not started yet
+    Input,   // Waiting for user input
+    Running, // Simply running, use inputs as commands/notes
+}
+
 /// Application meta-object, contains the application's configuration,
 /// Available instruments, paths to save/load files to/from, ...
 pub struct App {
     pub config: AppConfig,
+    pub run_mode: RunMode,
+    pub mode: AppMode,
 }
 
 impl Default for App {
@@ -40,20 +57,22 @@ impl Default for App {
 
         let config_file = root_path.join("config.toml");
 
-        if config_file.exists() {
+        let config = if config_file.exists() {
             match toml::from_str(&std::fs::read_to_string(config_file).unwrap()) {
-                Ok(config) => App { config },
+                Ok(config) => config,
                 Err(e) => {
                     error!("Unable to parse config file: {}", e);
-                    Self {
-                        config: AppConfig::default(),
-                    }
+                    AppConfig::default()
                 }
             }
         } else {
-            Self {
-                config: AppConfig::default(),
-            }
+            AppConfig::default()
+        };
+
+        Self {
+            config,
+            run_mode: RunMode::Unknown,
+            mode: AppMode::Input,
         }
     }
 }
@@ -70,7 +89,7 @@ impl App {
     /// line arguments ask for the application version or a dump of the config).
     pub fn init() -> App {
         let args = Cli::parse();
-        let app = if let Some(path) = args.config {
+        let mut app = if let Some(path) = args.config {
             App::from_file(&path)
                 .map_err(|e| {
                     println!("Unable to load config: {}", e);
@@ -89,18 +108,79 @@ impl App {
             std::process::exit(0);
         }
 
+        if args.score.is_none() && !args.live {
+            println!("No score or live mode specified");
+            std::process::exit(1);
+        }
+
+        if args.score.is_some() {
+            app.run_mode = RunMode::Score;
+        }
+
+        if args.live {
+            app.run_mode = RunMode::Live;
+        }
+
         app
     }
 
     /// Tries to load the application configuration from a file.
-    pub fn from_file(path: &String) -> Result<App, String> {
-        info!("Loading configuration from file: {}", path);
-        toml::from_str(&std::fs::read_to_string(path).map_err(|e| e.to_string())?)
-            .map_err(|e| format!("Unable to load config: {}", e))
+    pub fn from_file(path: &Path) -> Result<App, String> {
+        info!(
+            "Loading configuration from file: {}",
+            path.to_str().unwrap_or("unknown")
+        );
+        let config: AppConfig =
+            toml::from_str(&std::fs::read_to_string(path).map_err(|e| e.to_string())?)
+                .map_err(|e| format!("Unable to load config: {}", e))?;
+
+        Ok(App {
+            config,
+            run_mode: RunMode::Unknown,
+            mode: AppMode::Setup,
+        })
     }
 
-    pub fn run(&self) {
+    pub fn live_mode(&mut self) {
+        info!("Starting the input system");
+        // Setup the input system
+        let input_config = InputConfig::new();
+        let (mut input_system, cmd_receiver) = match InputSystem::new(input_config) {
+            Ok(system) => system,
+            Err(e) => panic!("Failed to create input system: {}", e),
+        };
+
+        match input_system.start() {
+            Ok(_) => {
+                info!("Input system started successfully");
+            }
+            Err(e) => {
+                error!("Failed to start input system: {}", e);
+            }
+        }
+        loop {
+            // Handle input events
+            if let Some(event) = input_system.poll_event() {
+                // Process input events
+                println!("Received event: {:?}", event);
+            }
+        }
+    }
+
+    /// Runs the application
+    pub fn run(&mut self) {
         info!("Running application");
+        match self.run_mode {
+            RunMode::Unknown => {
+                panic!("Unknown run mode");
+            }
+            RunMode::Score => {
+                info!("Running score mode");
+            }
+            RunMode::Live => {
+                self.live_mode();
+            }
+        }
     }
 
     pub fn get_key_mapping(&self) -> HashMap<u16, keys::Key> {

@@ -11,7 +11,5 @@ use rustic::prelude::App;
 fn main() {
     colog::init();
 
-    let app: App = App::init();
-    println!("{:?}", app);
-    app.run();
+    App::init().run();
 }
