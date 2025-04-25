@@ -143,7 +143,7 @@ impl App {
         info!("Starting the input system");
         // Setup the input system
         let input_config = InputConfig::new();
-        let (mut input_system, cmd_receiver) = match InputSystem::new(input_config) {
+        let (mut input_system, _cmd_receiver) = match InputSystem::new(input_config) {
             Ok(system) => system,
             Err(e) => panic!("Failed to create input system: {}", e),
         };
@@ -165,7 +165,6 @@ impl App {
         }
     }
 
-    #[cfg(feature = "standalone")]
     /// Runs the application in standalone mode
     pub fn run(&mut self) {
         info!("Running application");
@@ -182,9 +181,8 @@ impl App {
         }
     }
 
-    #[cfg(not(feature = "standalone"))]
     /// Ticks the application, processes the events.
-    pub fn run(&mut self, events: Vec<InputEvent>) {}
+    pub fn tick(&mut self, events: Vec<InputEvent>) {}
 
     pub fn get_key_mapping(&self) -> HashMap<u16, keys::Key> {
         // TODO: Load an actual key mapping

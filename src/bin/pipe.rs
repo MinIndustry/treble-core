@@ -17,6 +17,7 @@ use rustic::core::graph::{
 use rustic::core::note::Note;
 use rustic::core::tones::{NOTES, TONES_FREQ};
 
+#[derive(Debug)]
 struct Player {
     notes: Vec<Note>,
     i: usize,

@@ -233,13 +233,6 @@ impl InputHandler {
             return Ok(Box::new(MacOSInputBackend::start(config)?));
         }
 
-        // Fallback to dummy backend if no platform-specific backend is available
-        #[cfg(feature = "dummy")]
-        {
-            use crate::inputs::dummy::DummyInputBackend;
-            return Ok(Box::new(DummyInputBackend::start(config)?));
-        }
-
         Err(InputError::UnsupportedPlatform)
     }
 
