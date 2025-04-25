@@ -7,6 +7,7 @@ use crate::core::generator::ToneGenerator;
 use crate::instruments::Instrument;
 use crate::Note;
 
+#[derive(Debug)]
 pub struct Kick {
     generators: (Box<dyn ToneGenerator>, Box<dyn BendableGenerator>),
     envelopes: (Box<dyn Envelope>, Box<dyn Envelope>),

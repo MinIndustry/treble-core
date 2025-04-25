@@ -6,6 +6,7 @@ use crate::instruments::Instrument;
 use crate::Note;
 
 /// A snare for the drum kit
+#[derive(Debug)]
 pub struct Snare {
     generators: (Box<dyn ToneGenerator>, Box<dyn BendableGenerator>),
     envelopes: (Box<dyn Envelope>, Box<dyn Envelope>),

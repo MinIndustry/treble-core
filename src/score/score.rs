@@ -7,7 +7,7 @@ use crate::instruments::Instrument;
 
 /// A simple time signature denoted with its numerator and denominator.
 /// ```rust
-/// use rustic::prelude::score::TimeSignature;
+/// use rustic::prelude::TimeSignature;
 ///
 /// // A simple 4/4 time signature
 /// let time_signature = TimeSignature(4, 4);
@@ -68,11 +68,18 @@ impl Score {
         std::fs::write(path, content).map_err(|e| format!("Failed to write file: {}", e))
     }
 
+    /// Adds a new staff to the score and returns its index.
+    /// The staff will not be associated with any instrument.
+    pub fn add_staff(&mut self) -> usize {
+        self.staves.push(Staff::new(&self.signature));
+        self.staves.len() - 1
+    }
+
     /// Adds an instrument to the score and returns its index.
     /// The instrument's index is also added to the corresponding staff.
     /// If the number of staves is less than the number of instruments, a new staff is created.
     /// ```rust
-    /// use rustic::prelude::score::{Score, TimeSignature};
+    /// use rustic::prelude::{Score, TimeSignature};
     /// use rustic::instruments::prelude::{HiHat, Kick, Snare};
     ///
     /// let mut score = Score::new("Test", TimeSignature(4, 4), 120);
@@ -119,11 +126,11 @@ impl Score {
     ///
     /// # Example
     /// ```
-    /// use rustic::prelude::score::{Score, TimeSignature};
+    /// use rustic::prelude::{Score, TimeSignature};
     /// use rustic::instruments::prelude::HiHat;
     ///
     /// let mut score = Score::new("Demo", TimeSignature(4, 4), 120);
-    /// score.add_instrument(Box::new(HiHat::new()));
+    /// score.add_instrument(Box::new(HiHat::new().unwrap()));
     ///
     /// // Play the score
     /// score.play().unwrap();

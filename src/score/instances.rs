@@ -11,12 +11,12 @@ use std::collections::VecDeque;
 ///
 /// # Example
 /// ```
-/// use rustic::prelude::score::{Staff, TimeSignature};
+/// use rustic::prelude::{Staff, TimeSignature};
 /// use rustic::instruments::prelude::HiHat;
 /// use rustic::score::instances::StaffInstance;
 ///
 /// let staff = Staff::new(&TimeSignature(4, 4));
-/// let instance = StaffInstance::new(Box::new(HiHat::new()), staff);
+/// let instance = StaffInstance::new(Box::new(HiHat::new().unwrap()), staff);
 /// ```
 pub struct StaffInstance {
     instrument: Box<dyn Instrument>,
@@ -39,12 +39,12 @@ impl StaffInstance {
     ///
     /// # Example
     /// ```
-    /// use rustic::prelude::score::{Staff, TimeSignature};
+    /// use rustic::prelude::{Staff, TimeSignature};
     /// use rustic::instruments::prelude::HiHat;
     /// use rustic::score::instances::StaffInstance;
     ///
     /// let staff = Staff::new(&TimeSignature(4, 4));
-    /// let instance = StaffInstance::new(Box::new(HiHat::new()), staff);
+    /// let instance = StaffInstance::new(Box::new(HiHat::new().unwrap()), staff);
     /// ```
     pub fn new(instrument: Box<dyn Instrument>, staff: Staff) -> Self {
         let chords = VecDeque::from(staff.get_orderer_chords());
@@ -66,12 +66,12 @@ impl StaffInstance {
     ///
     /// # Example
     /// ```
-    /// # use rustic::prelude::score::{Staff, TimeSignature};
+    /// # use rustic::prelude::{Staff, TimeSignature};
     /// # use rustic::instruments::prelude::HiHat;
     /// # use rustic::score::instances::StaffInstance;
     /// #
     /// # let staff = Staff::new(&TimeSignature(4, 4));
-    /// # let mut instance = StaffInstance::new(Box::new(HiHat::new()), staff);
+    /// # let mut instance = StaffInstance::new(Box::new(HiHat::new().unwrap()), staff);
     ///
     /// if let Some(chord) = instance.next_chord() {
     ///     // Play the chord
@@ -97,12 +97,12 @@ impl StaffInstance {
     ///
     /// # Example
     /// ```
-    /// # use rustic::prelude::score::{Staff, TimeSignature};
+    /// # use rustic::prelude::{Staff, TimeSignature};
     /// # use rustic::instruments::prelude::HiHat;
     /// # use rustic::score::instances::StaffInstance;
     /// #
     /// # let staff = Staff::new(&TimeSignature(4, 4));
-    /// # let instance = StaffInstance::new(Box::new(HiHat::new()), staff);
+    /// # let instance = StaffInstance::new(Box::new(HiHat::new().unwrap()), staff);
     ///
     /// if let Some(chord) = instance.peek_next_chord() {
     ///     println!("Next chord has {} notes", chord.notes.len());
@@ -122,12 +122,12 @@ impl StaffInstance {
     ///
     /// # Example
     /// ```
-    /// # use rustic::prelude::score::{Staff, TimeSignature};
+    /// # use rustic::prelude::{Staff, TimeSignature};
     /// # use rustic::instruments::prelude::HiHat;
     /// # use rustic::score::instances::StaffInstance;
     /// #
     /// # let staff = Staff::new(&TimeSignature(4, 4));
-    /// # let mut instance = StaffInstance::new(Box::new(HiHat::new()), staff);
+    /// # let mut instance = StaffInstance::new(Box::new(HiHat::new().unwrap()), staff);
     ///
     /// let instrument = instance.instrument();
     /// // Now we can use the instrument
@@ -145,12 +145,12 @@ impl StaffInstance {
     ///
     /// # Example
     /// ```
-    /// # use rustic::prelude::score::{Staff, TimeSignature};
+    /// # use rustic::prelude::{Staff, TimeSignature};
     /// # use rustic::instruments::prelude::HiHat;
     /// # use rustic::score::instances::StaffInstance;
     /// #
     /// # let staff = Staff::new(&TimeSignature(4, 4));
-    /// # let instance = StaffInstance::new(Box::new(HiHat::new()), staff);
+    /// # let instance = StaffInstance::new(Box::new(HiHat::new().unwrap()), staff);
     ///
     /// if instance.is_empty() {
     ///     println!("No more chords to play");
@@ -171,12 +171,12 @@ impl StaffInstance {
     ///
     /// # Example
     /// ```
-    /// # use rustic::prelude::score::{Staff, TimeSignature};
+    /// # use rustic::prelude::{Staff, TimeSignature};
     /// # use rustic::instruments::prelude::HiHat;
     /// # use rustic::score::instances::StaffInstance;
     /// #
     /// # let staff = Staff::new(&TimeSignature(4, 4));
-    /// # let instance = StaffInstance::new(Box::new(HiHat::new()), staff);
+    /// # let instance = StaffInstance::new(Box::new(HiHat::new().unwrap()), staff);
     ///
     /// println!("Current position: {}", instance.current_position());
     /// ```
@@ -193,12 +193,12 @@ impl StaffInstance {
     ///
     /// # Example
     /// ```
-    /// # use rustic::prelude::score::{Staff, TimeSignature};
+    /// # use rustic::prelude::{Staff, TimeSignature};
     /// # use rustic::instruments::prelude::HiHat;
     /// # use rustic::score::instances::StaffInstance;
     /// #
     /// # let staff = Staff::new(&TimeSignature(4, 4));
-    /// # let instance = StaffInstance::new(Box::new(HiHat::new()), staff);
+    /// # let instance = StaffInstance::new(Box::new(HiHat::new().unwrap()), staff);
     ///
     /// let instrument = instance.take_instrument();
     /// // The instrument can now be used elsewhere

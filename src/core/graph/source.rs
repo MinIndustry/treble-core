@@ -1,6 +1,7 @@
 use super::{AudioGraphElement, Source};
 use crate::core::generator::ToneGenerator;
 
+#[derive(Debug)]
 pub struct SimpleSource<T> {
     generator: T,
     sample_rate: f32,
@@ -17,7 +18,7 @@ impl<T> SimpleSource<T> {
     }
 }
 
-impl<T> AudioGraphElement for SimpleSource<T> {
+impl<T: std::fmt::Debug> AudioGraphElement for SimpleSource<T> {
     fn get_name(&self) -> &str {
         "Simple Sine Source"
     }

@@ -18,6 +18,7 @@ use log::{info, warn};
 /// A HiHat instrument.
 /// It consists of six square wave sources connected to a combinator filter. The result is then passed through a resonant bandpass filter,
 /// before being shaped by an envelope generator.
+#[derive(Debug)]
 pub struct HiHat {
     graph: System<6, 1>,
     playing: bool,

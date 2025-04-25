@@ -47,12 +47,12 @@ fn play_chord(instrument: &mut Box<dyn crate::instruments::Instrument>, chord: &
 ///
 /// # Example
 /// ```
-/// use rustic::prelude::score::{Score, TimeSignature};
+/// use rustic::prelude::{Score, TimeSignature};
 /// use rustic::instruments::prelude::HiHat;
 /// use rustic::score::compiled_score::CompiledScore;
 ///
 /// let mut score = Score::new("Test Score", TimeSignature(4, 4), 120);
-/// score.add_instrument(Box::new(HiHat::new()));
+/// score.add_instrument(Box::new(HiHat::new().unwrap()));
 ///
 /// // Compile the score for efficient playback
 /// let mut compiled = CompiledScore::new(&mut score).unwrap();
@@ -84,12 +84,12 @@ impl CompiledScore {
     ///
     /// # Example
     /// ```
-    /// use rustic::prelude::score::{Score, TimeSignature};
+    /// use rustic::prelude::{Score, TimeSignature};
     /// use rustic::instruments::prelude::HiHat;
     /// use rustic::score::compiled_score::CompiledScore;
     ///
     /// let mut score = Score::new("Test Score", TimeSignature(4, 4), 120);
-    /// score.add_instrument(Box::new(HiHat::new()));
+    /// score.add_instrument(Box::new(HiHat::new().unwrap()));
     ///
     /// let compiled = CompiledScore::new(&mut score).unwrap();
     /// ```
@@ -137,12 +137,12 @@ impl CompiledScore {
     ///
     /// # Example
     /// ```
-    /// # use rustic::prelude::score::{Score, TimeSignature};
+    /// # use rustic::prelude::{Score, TimeSignature};
     /// # use rustic::instruments::prelude::HiHat;
     /// # use rustic::score::compiled_score::CompiledScore;
     /// #
     /// # let mut score = Score::new("Test Score", TimeSignature(4, 4), 120);
-    /// # score.add_instrument(Box::new(HiHat::new()));
+    /// # score.add_instrument(Box::new(HiHat::new().unwrap()));
     /// # let mut compiled = CompiledScore::new(&mut score).unwrap();
     ///
     /// // Advance the score by one tick
@@ -168,12 +168,12 @@ impl CompiledScore {
     ///
     /// # Example
     /// ```
-    /// # use rustic::prelude::score::{Score, TimeSignature};
+    /// # use rustic::prelude::{Score, TimeSignature};
     /// # use rustic::instruments::prelude::HiHat;
     /// # use rustic::score::compiled_score::CompiledScore;
     /// #
     /// # let mut score = Score::new("Test Score", TimeSignature(4, 4), 120);
-    /// # score.add_instrument(Box::new(HiHat::new()));
+    /// # score.add_instrument(Box::new(HiHat::new().unwrap()));
     /// # let mut compiled = CompiledScore::new(&mut score).unwrap();
     ///
     /// // Play the score
@@ -271,6 +271,7 @@ impl CompiledScore {
 }
 
 /// A dummy instrument used as a placeholder when we take ownership of an instrument
+#[derive(Debug)]
 struct DummyInstrument {}
 
 impl crate::instruments::Instrument for DummyInstrument {

@@ -2,7 +2,7 @@ use crate::core::graph::{AudioGraphElement, Entry, Sink};
 
 /// A simple audio sink that stores incoming audio samples. (Allowing
 /// other parts of the code to pull its values)
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SimpleSink {
     values: Vec<f32>,
     index: usize,

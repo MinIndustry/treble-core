@@ -3,7 +3,7 @@ use std::fmt;
 
 /// An element in the Audio pipeline
 /// Has a name and an index. Is able to connect to other elements
-pub trait AudioGraphElement {
+pub trait AudioGraphElement: std::fmt::Debug {
     /// Connects this element to another element.
     /// The to element must implement the Entry trait.
     fn get_name(&self) -> &str;

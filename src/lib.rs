@@ -23,7 +23,7 @@ pub mod meta;
 /// Sheets contain instruments layed out on a staff, divided into measures
 /// Notes in the measures are structures that implement the `MeasureNote` trait.
 /// This allows to build complex notes, chords, ...
-mod score;
+pub mod score;
 
 const APP_ID: (&str, &str, &str) = ("rustic", "minigrim0", "xyz");
 

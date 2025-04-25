@@ -34,6 +34,7 @@ use super::{simple_source, Filter, Sink, Source};
 /// let filter = Tremolo::new(20.0, 0.5, 1.5);
 /// let filter_index = system.add_filter(Box::from(filter));
 /// ```
+#[derive(Debug)]
 pub struct System<const INPUTS: usize, const OUTPUTS: usize> {
     // The actual filter graph, from which the execution order is derived
     // Each weight represents the port into which the filter is connected

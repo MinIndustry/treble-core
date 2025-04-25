@@ -1,8 +1,8 @@
 // Private modules
-mod compiled_score;
-mod instances;
-mod measure;
-mod staff;
+pub mod compiled_score;
+pub mod instances;
+pub mod measure;
+pub mod staff;
 
 // Public modules and re-exports
 pub mod notes;

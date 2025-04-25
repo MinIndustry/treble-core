@@ -10,8 +10,9 @@ use super::cli::Cli;
 use super::filesystem::FSConfig;
 use super::system::SystemConfig;
 use crate::core::keys;
-use crate::inputs::{InputConfig, InputSystem};
+use crate::inputs::{InputConfig, InputEvent, InputSystem};
 use crate::note;
+use crate::prelude::Instrument;
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 /// The application configuration
@@ -19,6 +20,8 @@ pub struct AppConfig {
     pub input: InputConfig,
     pub fs: FSConfig,
     pub system: SystemConfig,
+    #[serde(skip)]
+    pub instruments: Vec<Box<dyn Instrument>>,
 }
 
 #[derive(Default)]
@@ -162,7 +165,8 @@ impl App {
         }
     }
 
-    /// Runs the application
+    #[cfg(feature = "standalone")]
+    /// Runs the application in standalone mode
     pub fn run(&mut self) {
         info!("Running application");
         match self.run_mode {
@@ -177,6 +181,10 @@ impl App {
             }
         }
     }
+
+    #[cfg(not(feature = "standalone"))]
+    /// Ticks the application, processes the events.
+    pub fn run(&mut self, events: Vec<InputEvent>) {}
 
     pub fn get_key_mapping(&self) -> HashMap<u16, keys::Key> {
         // TODO: Load an actual key mapping

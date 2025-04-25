@@ -7,7 +7,7 @@ use crate::instruments::Instrument;
 use crate::KeyboardGenerator;
 use crate::Note;
 
-// #[derive(Send, Sync)]
+#[derive(Debug)]
 pub struct Keyboard<const VOICES: usize> {
     generators: [(Box<dyn KeyboardGenerator>, bool); VOICES],
     note_indices: HashMap<Note, usize>,

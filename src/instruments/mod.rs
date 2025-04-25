@@ -13,7 +13,7 @@ pub mod prelude {
 
 /// The `Instrument` trait unifies different instruments structure,
 /// allowing to play complex graphs using a simple interface.
-pub trait Instrument {
+pub trait Instrument: std::fmt::Debug {
     /// Starts playing the given note
     fn start_note(&mut self, note: Note, velocity: f32);
 
