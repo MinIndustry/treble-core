@@ -1,10 +1,15 @@
 //! Windows-specific input handling using windows-rs
 
-use std::sync::{mpsc::{channel, Sender, Receiver}, Arc, Mutex};
+use log::{debug, error, info, warn};
+use std::sync::{
+    mpsc::{channel, Receiver, Sender},
+    Arc, Mutex,
+};
 use std::thread;
-use log::{debug, error, warn, info};
 
-use super::input::{InputBackend, InputError, InputControl, InputEvent, KeyAction, KeyCode, Modifiers};
+use super::input::{
+    InputBackend, InputControl, InputError, InputEvent, KeyAction, KeyCode, Modifiers,
+};
 
 // Windows-specific input backend using windows-rs
 pub struct WindowsInputBackend {
@@ -17,16 +22,16 @@ pub struct WindowsInputBackend {
 impl InputBackend for WindowsInputBackend {
     fn start(config: &crate::inputs::InputConfig) -> Result<Self, InputError> {
         let running = Arc::new(Mutex::new(true));
-        
+
         let (control_sender, control_receiver) = channel();
         let (callback_sender, callback_receiver) = channel();
-        
+
         let running_clone = Arc::clone(&running);
-        
+
         let thread_handle = thread::spawn(move || {
             run_input_loop(running_clone, control_receiver, callback_receiver);
         });
-        
+
         Ok(Self {
             running,
             thread_handle: Some(thread_handle),
@@ -34,24 +39,24 @@ impl InputBackend for WindowsInputBackend {
             callback_sender: Some(callback_sender),
         })
     }
-    
+
     fn stop(&mut self) {
         if let Ok(mut running) = self.running.lock() {
             *running = false;
         }
-        
+
         if let Some(handle) = self.thread_handle.take() {
             let _ = handle.join();
         }
     }
-    
+
     fn is_running(&self) -> bool {
         match self.running.lock() {
             Ok(running) => *running,
             Err(_) => false,
         }
     }
-    
+
     fn get_sender(&self) -> Option<&Sender<InputControl>> {
         self.sender.as_ref()
     }
@@ -74,9 +79,9 @@ fn convert_key(key: u8) -> KeyCode {
         pub const VK_RETURN: u8 = 0x0D;
         pub const VK_SHIFT: u8 = 0x10;
         pub const VK_CONTROL: u8 = 0x11;
-        pub const VK_MENU: u8 = 0x12;     // ALT key
+        pub const VK_MENU: u8 = 0x12; // ALT key
         pub const VK_PAUSE: u8 = 0x13;
-        pub const VK_CAPITAL: u8 = 0x14;  // CAPS LOCK
+        pub const VK_CAPITAL: u8 = 0x14; // CAPS LOCK
         pub const VK_ESCAPE: u8 = 0x1B;
         pub const VK_SPACE: u8 = 0x20;
         pub const VK_LEFT: u8 = 0x25;
@@ -84,7 +89,7 @@ fn convert_key(key: u8) -> KeyCode {
         pub const VK_RIGHT: u8 = 0x27;
         pub const VK_DOWN: u8 = 0x28;
         pub const VK_DELETE: u8 = 0x2E;
-        
+
         // Numbers
         pub const VK_0: u8 = 0x30;
         pub const VK_1: u8 = 0x31;
@@ -96,7 +101,7 @@ fn convert_key(key: u8) -> KeyCode {
         pub const VK_7: u8 = 0x37;
         pub const VK_8: u8 = 0x38;
         pub const VK_9: u8 = 0x39;
-        
+
         // Letters
         pub const VK_A: u8 = 0x41;
         pub const VK_B: u8 = 0x42;
@@ -124,7 +129,7 @@ fn convert_key(key: u8) -> KeyCode {
         pub const VK_X: u8 = 0x58;
         pub const VK_Y: u8 = 0x59;
         pub const VK_Z: u8 = 0x5A;
-        
+
         // Function keys
         pub const VK_F1: u8 = 0x70;
         pub const VK_F2: u8 = 0x71;
@@ -138,7 +143,7 @@ fn convert_key(key: u8) -> KeyCode {
         pub const VK_F10: u8 = 0x79;
         pub const VK_F11: u8 = 0x7A;
         pub const VK_F12: u8 = 0x7B;
-        
+
         // Numpad
         pub const VK_NUMPAD0: u8 = 0x60;
         pub const VK_NUMPAD1: u8 = 0x61;
@@ -155,24 +160,24 @@ fn convert_key(key: u8) -> KeyCode {
         pub const VK_SUBTRACT: u8 = 0x6D;
         pub const VK_DECIMAL: u8 = 0x6E;
         pub const VK_DIVIDE: u8 = 0x6F;
-        
+
         // Other keys
-        pub const VK_OEM_1: u8 = 0xBA;     // Semicolon
-        pub const VK_OEM_PLUS: u8 = 0xBB;  // Plus
+        pub const VK_OEM_1: u8 = 0xBA; // Semicolon
+        pub const VK_OEM_PLUS: u8 = 0xBB; // Plus
         pub const VK_OEM_COMMA: u8 = 0xBC; // Comma
         pub const VK_OEM_MINUS: u8 = 0xBD; // Minus
         pub const VK_OEM_PERIOD: u8 = 0xBE; // Period
-        pub const VK_OEM_2: u8 = 0xBF;     // Slash
-        pub const VK_OEM_3: u8 = 0xC0;     // Tilde
-        pub const VK_OEM_4: u8 = 0xDB;     // Left bracket
-        pub const VK_OEM_5: u8 = 0xDC;     // Backslash
-        pub const VK_OEM_6: u8 = 0xDD;     // Right bracket
-        pub const VK_OEM_7: u8 = 0xDE;     // Quote
-        
-        pub const VK_LWIN: u8 = 0x5B;      // Left Windows key
-        pub const VK_RWIN: u8 = 0x5C;      // Right Windows key
+        pub const VK_OEM_2: u8 = 0xBF; // Slash
+        pub const VK_OEM_3: u8 = 0xC0; // Tilde
+        pub const VK_OEM_4: u8 = 0xDB; // Left bracket
+        pub const VK_OEM_5: u8 = 0xDC; // Backslash
+        pub const VK_OEM_6: u8 = 0xDD; // Right bracket
+        pub const VK_OEM_7: u8 = 0xDE; // Quote
+
+        pub const VK_LWIN: u8 = 0x5B; // Left Windows key
+        pub const VK_RWIN: u8 = 0x5C; // Right Windows key
     }
-    
+
     use vk::*;
     match key {
         // Letters
@@ -202,7 +207,7 @@ fn convert_key(key: u8) -> KeyCode {
         VK_X => KeyCode::X,
         VK_Y => KeyCode::Y,
         VK_Z => KeyCode::Z,
-        
+
         // Numbers
         VK_1 => KeyCode::Key1,
         VK_2 => KeyCode::Key2,
@@ -214,7 +219,7 @@ fn convert_key(key: u8) -> KeyCode {
         VK_8 => KeyCode::Key8,
         VK_9 => KeyCode::Key9,
         VK_0 => KeyCode::Key0,
-        
+
         // Function keys
         VK_F1 => KeyCode::F1,
         VK_F2 => KeyCode::F2,
@@ -228,7 +233,7 @@ fn convert_key(key: u8) -> KeyCode {
         VK_F10 => KeyCode::F10,
         VK_F11 => KeyCode::F11,
         VK_F12 => KeyCode::F12,
-        
+
         // Special keys
         VK_ESCAPE => KeyCode::Escape,
         VK_TAB => KeyCode::Tab,
@@ -241,13 +246,13 @@ fn convert_key(key: u8) -> KeyCode {
         VK_RETURN => KeyCode::Enter,
         VK_BACK => KeyCode::Backspace,
         VK_DELETE => KeyCode::Delete,
-        
+
         // Arrow keys
         VK_UP => KeyCode::Up,
         VK_DOWN => KeyCode::Down,
         VK_LEFT => KeyCode::Left,
         VK_RIGHT => KeyCode::Right,
-        
+
         // Numpad
         VK_NUMPAD0 => KeyCode::Numpad0,
         VK_NUMPAD1 => KeyCode::Numpad1,
@@ -263,7 +268,7 @@ fn convert_key(key: u8) -> KeyCode {
         VK_SUBTRACT => KeyCode::NumpadSubtract,
         VK_MULTIPLY => KeyCode::NumpadMultiply,
         VK_DIVIDE => KeyCode::NumpadDivide,
-        
+
         // Other keys
         VK_OEM_MINUS => KeyCode::Minus,
         VK_OEM_PLUS => KeyCode::Equals,
@@ -275,7 +280,7 @@ fn convert_key(key: u8) -> KeyCode {
         VK_OEM_COMMA => KeyCode::Comma,
         VK_OEM_PERIOD => KeyCode::Period,
         VK_OEM_2 => KeyCode::Slash,
-        
+
         // Unknown
         _ => KeyCode::Unknown,
     }
@@ -290,31 +295,31 @@ fn run_input_loop(
     // This is a placeholder for the Windows-specific implementation
     // It would use windows-rs to implement low-level keyboard hooks
     // but we can't add that dependency here without modifying Cargo.toml
-    
+
     #[cfg(target_os = "windows")]
     {
         use std::cell::RefCell;
-        
+
         thread_local! {
             static MODIFIERS: RefCell<Modifiers> = RefCell::new(Modifiers::default());
         }
-        
+
         info!("Starting Windows input backend");
-        
+
         // In a real implementation, we'd use windows-rs to create a keyboard hook
         // This would allow us to capture key events without needing a window
-        
+
         // Pseudo-code for the implementation:
         // 1. Set up a low-level keyboard hook using SetWindowsHookExW
         // 2. In the hook callback, process key events and convert them to our format
         // 3. Send the events to our callback_sender
         // 4. Check control_receiver for control messages
-        
+
         while let Ok(is_running) = running.lock() {
             if !*is_running {
                 break;
             }
-            
+
             // Check for control messages
             if let Ok(control) = control_receiver.try_recv() {
                 match control {
@@ -322,15 +327,15 @@ fn run_input_loop(
                     _ => {}
                 }
             }
-            
+
             // Don't burn CPU in our placeholder
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
-        
+
         // Clean up would go here
         info!("Windows input backend stopped");
     }
-    
+
     #[cfg(not(target_os = "windows"))]
     {
         warn!("Windows input backend not available on this platform");

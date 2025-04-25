@@ -6,14 +6,16 @@ use std::sync::mpsc::Sender;
 pub trait InputBackend {
     /// Start the input handling loop in a separate thread
     /// Returns a result with the Sender to send commands to the backend or an error
-    fn start(config: &crate::inputs::InputConfig) -> Result<Self, InputError> where Self: Sized;
-    
+    fn start(config: &crate::inputs::InputConfig) -> Result<Self, InputError>
+    where
+        Self: Sized;
+
     /// Stop the input handling loop
     fn stop(&mut self);
-    
+
     /// Check if the backend is running
     fn is_running(&self) -> bool;
-    
+
     /// Get the sender to communicate with input backend
     fn get_sender(&self) -> Option<&Sender<InputControl>>;
 }
@@ -65,33 +67,107 @@ pub struct Modifiers {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum KeyCode {
     // Letters
-    A, B, C, D, E, F, G, H, I, J, K, L, M,
-    N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
-    
+    A,
+    B,
+    C,
+    D,
+    E,
+    F,
+    G,
+    H,
+    I,
+    J,
+    K,
+    L,
+    M,
+    N,
+    O,
+    P,
+    Q,
+    R,
+    S,
+    T,
+    U,
+    V,
+    W,
+    X,
+    Y,
+    Z,
+
     // Numbers
-    Key1, Key2, Key3, Key4, Key5,
-    Key6, Key7, Key8, Key9, Key0,
-    
+    Key1,
+    Key2,
+    Key3,
+    Key4,
+    Key5,
+    Key6,
+    Key7,
+    Key8,
+    Key9,
+    Key0,
+
     // Function keys
-    F1, F2, F3, F4, F5, F6,
-    F7, F8, F9, F10, F11, F12,
-    
+    F1,
+    F2,
+    F3,
+    F4,
+    F5,
+    F6,
+    F7,
+    F8,
+    F9,
+    F10,
+    F11,
+    F12,
+
     // Special keys
-    Escape, Tab, CapsLock, Shift, Ctrl, Alt, Meta,
-    Space, Enter, Backspace, Delete,
-    
+    Escape,
+    Tab,
+    CapsLock,
+    Shift,
+    Ctrl,
+    Alt,
+    Meta,
+    Space,
+    Enter,
+    Backspace,
+    Delete,
+
     // Arrow keys
-    Up, Down, Left, Right,
-    
+    Up,
+    Down,
+    Left,
+    Right,
+
     // Numpad
-    Numpad0, Numpad1, Numpad2, Numpad3, Numpad4,
-    Numpad5, Numpad6, Numpad7, Numpad8, Numpad9,
-    NumpadAdd, NumpadSubtract, NumpadMultiply, NumpadDivide, NumpadEnter,
-    
+    Numpad0,
+    Numpad1,
+    Numpad2,
+    Numpad3,
+    Numpad4,
+    Numpad5,
+    Numpad6,
+    Numpad7,
+    Numpad8,
+    Numpad9,
+    NumpadAdd,
+    NumpadSubtract,
+    NumpadMultiply,
+    NumpadDivide,
+    NumpadEnter,
+
     // Other keys
-    Minus, Equals, LeftBracket, RightBracket,
-    Semicolon, Quote, Backslash, Comma, Period, Slash,
-    
+    Minus,
+    Equals,
+    LeftBracket,
+    RightBracket,
+    Semicolon,
+    Quote,
+    Backslash,
+    Comma,
+    Period,
+    Slash,
+
     // Unknown key
     Unknown,
 }
@@ -101,16 +177,16 @@ pub enum KeyCode {
 pub enum InputError {
     #[error("Device not found")]
     DeviceNotFound,
-    
+
     #[error("Failed to initialize input backend: {0}")]
     InitializationError(String),
-    
+
     #[error("Input backend is not supported on this platform")]
     UnsupportedPlatform,
-    
+
     #[error("Input event processing error: {0}")]
     EventProcessingError(String),
-    
+
     #[error("Other error: {0}")]
     Other(String),
 }
@@ -126,50 +202,52 @@ pub struct InputHandler {
 
 impl InputHandler {
     /// Create a new input handler with the given callback
-    pub fn new(config: &crate::inputs::InputConfig, callback: Box<InputCallback>) -> Result<Self, InputError> {
+    pub fn new(
+        config: &crate::inputs::InputConfig,
+        callback: Box<InputCallback>,
+    ) -> Result<Self, InputError> {
         let backend = Self::create_backend(config)?;
-        
-        Ok(Self {
-            backend,
-            callback,
-        })
+
+        Ok(Self { backend, callback })
     }
-    
+
     /// Create the appropriate backend for the current platform
-    fn create_backend(config: &crate::inputs::InputConfig) -> Result<Box<dyn InputBackend>, InputError> {
+    fn create_backend(
+        config: &crate::inputs::InputConfig,
+    ) -> Result<Box<dyn InputBackend>, InputError> {
         #[cfg(all(feature = "linux", target_os = "linux"))]
         {
             use crate::inputs::linux::LinuxInputBackend;
             return Ok(Box::new(LinuxInputBackend::start(config)?));
         }
-        
+
         #[cfg(all(feature = "windows", target_os = "windows"))]
         {
             use crate::inputs::windows::WindowsInputBackend;
             return Ok(Box::new(WindowsInputBackend::start(config)?));
         }
-        
+
         #[cfg(all(feature = "macos", target_os = "macos"))]
         {
             use crate::inputs::macos::MacOSInputBackend;
             return Ok(Box::new(MacOSInputBackend::start(config)?));
         }
-        
+
         // Fallback to dummy backend if no platform-specific backend is available
         #[cfg(feature = "dummy")]
         {
             use crate::inputs::dummy::DummyInputBackend;
             return Ok(Box::new(DummyInputBackend::start(config)?));
         }
-        
+
         Err(InputError::UnsupportedPlatform)
     }
-    
+
     /// Stop the input handler
     pub fn stop(&mut self) {
         self.backend.stop();
     }
-    
+
     /// Check if the input handler is running
     pub fn is_running(&self) -> bool {
         self.backend.is_running()
