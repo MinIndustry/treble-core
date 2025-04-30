@@ -30,7 +30,7 @@ const APP_ID: (&str, &str, &str) = ("rustic", "minigrim0", "xyz");
 /// Main prelude module that exports the most commonly used types from the crate
 pub mod prelude {
     // App exports
-    pub use super::app::App;
+    pub use super::app::{App, AppMode, RunMode};
 
     // Core exports - only expose the module, details accessed through it
     pub use super::core;

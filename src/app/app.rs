@@ -10,7 +10,7 @@ use super::cli::Cli;
 use super::filesystem::FSConfig;
 use super::system::SystemConfig;
 use crate::core::keys;
-use crate::inputs::{InputConfig, InputEvent, InputSystem};
+use crate::inputs::{InputConfig, InputError, InputSystem};
 use crate::note;
 use crate::prelude::Instrument;
 
@@ -139,31 +139,21 @@ impl App {
         })
     }
 
-    pub fn live_mode(&mut self) {
+    /// Sets the application mode.
+    pub fn set_mode(&mut self, mode: RunMode) {
+        self.run_mode = mode;
+    }
+
+    fn setup_input_system(&self) -> Result<InputSystem, InputError> {
         info!("Starting the input system");
         // Setup the input system
         let input_config = InputConfig::new();
-        let (mut input_system, _cmd_receiver) = match InputSystem::new(input_config) {
-            Ok(system) => system,
-            Err(e) => panic!("Failed to create input system: {}", e),
-        };
-
-        match input_system.start() {
-            Ok(_) => {
-                info!("Input system started successfully");
-            }
-            Err(e) => {
-                error!("Failed to start input system: {}", e);
-            }
-        }
-        loop {
-            // Handle input events
-            if let Some(event) = input_system.poll_event() {
-                // Process input events
-                println!("Received event: {:?}", event);
-            }
-        }
+        let (mut input_system, _cmd_receiver) = InputSystem::new(input_config)?;
+        input_system.start()?;
+        Ok(input_system)
     }
+
+    fn live_tick(&mut self, event: Option<crate::inputs::commands::Commands>) {}
 
     /// Runs the application in standalone mode
     pub fn run(&mut self) {
@@ -176,13 +166,39 @@ impl App {
                 info!("Running score mode");
             }
             RunMode::Live => {
-                self.live_mode();
+                info!("Starting live mode");
+                let input_system = match self.setup_input_system() {
+                    Ok(input_system) => input_system,
+                    Err(err) => {
+                        error!("Failed to setup input system: {}", err);
+                        return;
+                    }
+                };
+                loop {
+                    // Handle input events
+                    if let Some(event) = input_system.poll_event() {
+                        // Convert input events to Commands and tick the app
+                        println!("Received event: {:?}", event);
+                    }
+                }
             }
         }
     }
 
     /// Ticks the application, processes the events.
-    pub fn tick(&mut self, events: Vec<InputEvent>) {}
+    pub fn tick(&mut self, event: Option<crate::inputs::commands::Commands>) {
+        match self.run_mode {
+            RunMode::Unknown => {
+                panic!("Unknown run mode");
+            }
+            RunMode::Score => {
+                info!("Running score mode");
+            }
+            RunMode::Live => {
+                self.live_tick(event);
+            }
+        }
+    }
 
     pub fn get_key_mapping(&self) -> HashMap<u16, keys::Key> {
         // TODO: Load an actual key mapping

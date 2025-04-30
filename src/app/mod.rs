@@ -10,7 +10,7 @@ mod filesystem;
 mod system;
 
 // Export essential types directly from the app module
-pub use app::App;
+pub use app::{App, AppMode, RunMode};
 pub use cli::Cli;
 pub use filesystem::FSConfig;
 pub use system::SystemConfig;
