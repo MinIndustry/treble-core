@@ -23,4 +23,8 @@ pub struct Cli {
     #[arg(short, long)]
     /// Wether to start the app in live mode
     pub live: bool,
+
+    #[arg(short = 'e', long)]
+    /// How the input system should be handled.
+    pub external_input: bool,
 }

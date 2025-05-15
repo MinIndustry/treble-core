@@ -16,6 +16,27 @@ pub enum NOTES {
     B = 11,
 }
 
+impl From<u8> for NOTES {
+    fn from(value: u8) -> Self {
+        let notes = [
+            NOTES::C,
+            NOTES::CS,
+            NOTES::D,
+            NOTES::DS,
+            NOTES::E,
+            NOTES::F,
+            NOTES::FS,
+            NOTES::G,
+            NOTES::GS,
+            NOTES::A,
+            NOTES::AS,
+            NOTES::B,
+        ];
+
+        notes[(value as usize) % notes.len()]
+    }
+}
+
 pub const TONES_FREQ: [[f32; 9]; 12] = [
     [
         16.35, 32.70, 65.41, 130.81, 261.63, 523.25, 1046.50, 2093.00, 4186.00,

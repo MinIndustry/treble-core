@@ -1,5 +1,6 @@
 mod app;
 mod cli;
+mod row;
 
 /// The filesystem module is used to interact with the filesystem.
 /// Its purpose is to help organize the filesystem and provide a way to interact with it.
@@ -10,7 +11,7 @@ mod filesystem;
 mod system;
 
 // Export essential types directly from the app module
-pub use app::{App, AppMode, RunMode};
+pub use app::{App, AppMode, InputSystemConfig, RunMode};
 pub use cli::Cli;
 pub use filesystem::FSConfig;
 pub use system::SystemConfig;

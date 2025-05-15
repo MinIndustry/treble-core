@@ -339,64 +339,64 @@ impl InputSystem {
         self.config.map_key(
             KeyCode::Q,
             Modifiers::default(),
-            commands::Commands::NoteStart(0, 4, 0, 1.0),
-        ); // C4
+            commands::Commands::NoteStart(0, 0, 1.0),
+        );
         self.config.map_key(
             KeyCode::W,
             Modifiers::default(),
-            commands::Commands::NoteStart(2, 4, 0, 1.0),
-        ); // D4
+            commands::Commands::NoteStart(1, 0, 1.0),
+        );
         self.config.map_key(
             KeyCode::E,
             Modifiers::default(),
-            commands::Commands::NoteStart(4, 4, 0, 1.0),
+            commands::Commands::NoteStart(2, 0, 1.0),
         ); // E4
         self.config.map_key(
             KeyCode::R,
             Modifiers::default(),
-            commands::Commands::NoteStart(5, 4, 0, 1.0),
+            commands::Commands::NoteStart(3, 0, 1.0),
         ); // F4
         self.config.map_key(
             KeyCode::T,
             Modifiers::default(),
-            commands::Commands::NoteStart(7, 4, 0, 1.0),
-        ); // G4
+            commands::Commands::NoteStart(4, 0, 1.0),
+        );
         self.config.map_key(
             KeyCode::Y,
             Modifiers::default(),
-            commands::Commands::NoteStart(9, 4, 0, 1.0),
-        ); // A4
+            commands::Commands::NoteStart(5, 0, 1.0),
+        );
         self.config.map_key(
             KeyCode::U,
             Modifiers::default(),
-            commands::Commands::NoteStart(11, 4, 0, 1.0),
-        ); // B4
+            commands::Commands::NoteStart(6, 0, 1.0),
+        );
         self.config.map_key(
             KeyCode::I,
             Modifiers::default(),
-            commands::Commands::NoteStart(0, 5, 0, 1.0),
-        ); // C5
+            commands::Commands::NoteStart(7, 0, 1.0),
+        );
 
         // Second row (ASDFG...)
         self.config.map_key(
             KeyCode::A,
             Modifiers::default(),
-            commands::Commands::NoteStart(0, 4, 1, 1.0),
+            commands::Commands::NoteStart(0, 1, 1.0),
         ); // C4 on second instrument
         self.config.map_key(
             KeyCode::S,
             Modifiers::default(),
-            commands::Commands::NoteStart(2, 4, 1, 1.0),
+            commands::Commands::NoteStart(2, 1, 1.0),
         ); // D4 on second instrument
         self.config.map_key(
             KeyCode::D,
             Modifiers::default(),
-            commands::Commands::NoteStart(4, 4, 1, 1.0),
+            commands::Commands::NoteStart(4, 1, 1.0),
         ); // E4 on second instrument
         self.config.map_key(
             KeyCode::F,
             Modifiers::default(),
-            commands::Commands::NoteStart(5, 4, 1, 1.0),
+            commands::Commands::NoteStart(5, 1, 1.0),
         ); // F4 on second instrument
 
         // Loop controls

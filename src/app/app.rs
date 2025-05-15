@@ -1,18 +1,21 @@
-use std::collections::HashMap;
 use std::default::Default;
 use std::path::{Path, PathBuf};
 
 use clap::Parser;
-use log::{error, info};
+use log::{error, info, trace};
+use rodio::buffer::SamplesBuffer;
+use rodio::{OutputStream, Sink};
 use serde::{Deserialize, Serialize};
 
 use super::cli::Cli;
 use super::filesystem::FSConfig;
 use super::system::SystemConfig;
-use crate::core::keys;
+use crate::inputs::commands::Commands;
 use crate::inputs::{InputConfig, InputError, InputSystem};
-use crate::note;
+use crate::instruments::prelude::Keyboard;
 use crate::prelude::Instrument;
+
+use super::row::Row;
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 /// The application configuration
@@ -20,13 +23,18 @@ pub struct AppConfig {
     pub input: InputConfig,
     pub fs: FSConfig,
     pub system: SystemConfig,
-    #[serde(skip)]
-    pub instruments: Vec<Box<dyn Instrument>>,
+}
+
+#[derive(Default)]
+pub enum InputSystemConfig {
+    External,
+    #[default]
+    Auto,
 }
 
 #[derive(Default)]
 pub enum RunMode {
-    Live,
+    Live(InputSystemConfig),
     Score,
     #[default]
     Unknown,
@@ -46,6 +54,11 @@ pub struct App {
     pub config: AppConfig,
     pub run_mode: RunMode,
     pub mode: AppMode,
+    pub rows: [Row; 2], // Mapping from keyboard rows to currently selected instruments
+    pub instruments: Vec<Box<dyn Instrument>>, // All the instruments loaded in the app
+    pub stream: rodio::OutputStream, // The rodio output stream
+    pub sink: rodio::Sink, // Rodio sink for outputting audio
+    pub buffer: Vec<f32>, // Buffer for audio data
 }
 
 impl Default for App {
@@ -72,10 +85,18 @@ impl Default for App {
             AppConfig::default()
         };
 
+        let (stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
+        let sink = Sink::try_new(&stream_handle).unwrap();
+
         Self {
             config,
             run_mode: RunMode::Unknown,
             mode: AppMode::Input,
+            instruments: vec![Box::new(Keyboard::<4>::new())],
+            rows: [Row::default(), Row::default()],
+            sink,
+            stream,
+            buffer: Vec::new(),
         }
     }
 }
@@ -116,7 +137,11 @@ impl App {
         }
 
         if args.live {
-            app.run_mode = RunMode::Live;
+            app.run_mode = RunMode::Live(if args.external_input {
+                InputSystemConfig::External
+            } else {
+                InputSystemConfig::Auto
+            });
         }
 
         app
@@ -132,10 +157,18 @@ impl App {
             toml::from_str(&std::fs::read_to_string(path).map_err(|e| e.to_string())?)
                 .map_err(|e| format!("Unable to load config: {}", e))?;
 
+        let (stream, stream_handle) = OutputStream::try_default().unwrap();
+        let sink = Sink::try_new(&stream_handle).unwrap();
+
         Ok(App {
             config,
             run_mode: RunMode::Unknown,
             mode: AppMode::Setup,
+            sink,
+            stream,
+            rows: [Row::default(), Row::default()],
+            instruments: Vec::new(),
+            buffer: Vec::new(),
         })
     }
 
@@ -153,32 +186,81 @@ impl App {
         Ok(input_system)
     }
 
-    fn live_tick(&mut self, event: Option<crate::inputs::commands::Commands>) {}
+    pub fn on_event(&mut self, event: crate::inputs::commands::Commands) {
+        match event {
+            Commands::NoteStart(note, row, force) => {
+                if row > 2 {
+                    panic!("Row out of bounds");
+                }
+
+                let note = self.rows[row as usize].get_note(note);
+                self.instruments[self.rows[row as usize].instrument].start_note(note, force);
+            }
+            Commands::NoteStop(note, row) => {
+                if row > 2 {
+                    panic!("Row out of bounds");
+                }
+
+                let note = self.rows[row as usize].get_note(note);
+                self.instruments[self.rows[row as usize].instrument].stop_note(note);
+            }
+            _ => {}
+        }
+    }
+
+    pub fn live_tick(&mut self) {
+        self.instruments.iter_mut().for_each(|r| r.tick());
+
+        let output = self
+            .instruments
+            .iter_mut()
+            .map(|row| row.get_output())
+            .sum::<f32>();
+
+        self.buffer.push(output);
+
+        if self.buffer.len() >= (self.config.system.sample_rate as f32 * 0.01) as usize {
+            self.sink.append(SamplesBuffer::new(
+                1 as u16,
+                self.config.system.sample_rate as u32,
+                self.buffer.clone(),
+            ));
+            self.buffer.clear();
+        }
+    }
 
     /// Runs the application in standalone mode
     pub fn run(&mut self) {
         info!("Running application");
-        match self.run_mode {
+        match &self.run_mode {
             RunMode::Unknown => {
                 panic!("Unknown run mode");
             }
             RunMode::Score => {
                 info!("Running score mode");
             }
-            RunMode::Live => {
+            RunMode::Live(config) => {
                 info!("Starting live mode");
-                let input_system = match self.setup_input_system() {
-                    Ok(input_system) => input_system,
-                    Err(err) => {
-                        error!("Failed to setup input system: {}", err);
-                        return;
+                match config {
+                    InputSystemConfig::Auto => {
+                        let input_system = match self.setup_input_system() {
+                            Ok(input_system) => input_system,
+                            Err(err) => {
+                                error!("Failed to setup input system: {}", err);
+                                return;
+                            }
+                        };
+
+                        loop {
+                            // Handle input events
+                            if let Some(event) = input_system.poll_event() {
+                                // Convert input events to Commands and tick the app
+                                println!("Received event: {:?}", event);
+                            }
+                        }
                     }
-                };
-                loop {
-                    // Handle input events
-                    if let Some(event) = input_system.poll_event() {
-                        // Convert input events to Commands and tick the app
-                        println!("Received event: {:?}", event);
+                    InputSystemConfig::External => {
+                        // Update to use here instead ?
                     }
                 }
             }
@@ -186,7 +268,7 @@ impl App {
     }
 
     /// Ticks the application, processes the events.
-    pub fn tick(&mut self, event: Option<crate::inputs::commands::Commands>) {
+    pub fn tick(&mut self) {
         match self.run_mode {
             RunMode::Unknown => {
                 panic!("Unknown run mode");
@@ -194,27 +276,10 @@ impl App {
             RunMode::Score => {
                 info!("Running score mode");
             }
-            RunMode::Live => {
-                self.live_tick(event);
+            RunMode::Live(_) => {
+                trace!("Live ticking");
+                self.live_tick();
             }
         }
-    }
-
-    pub fn get_key_mapping(&self) -> HashMap<u16, keys::Key> {
-        // TODO: Load an actual key mapping
-        HashMap::from([
-            (16, note!(keys::KeyCode::NoteC)),
-            (17, note!(keys::KeyCode::NoteCS)),
-            (18, note!(keys::KeyCode::NoteD)),
-            (19, note!(keys::KeyCode::NoteDS)),
-            (20, note!(keys::KeyCode::NoteE)),
-            (21, note!(keys::KeyCode::NoteF)),
-            (22, note!(keys::KeyCode::NoteFS)),
-            (23, note!(keys::KeyCode::NoteG)),
-            (24, note!(keys::KeyCode::NoteGS)),
-            (25, note!(keys::KeyCode::NoteA)),
-            (26, note!(keys::KeyCode::NoteAS)),
-            (27, note!(keys::KeyCode::NoteB)),
-        ])
     }
 }

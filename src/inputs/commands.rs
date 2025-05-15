@@ -11,11 +11,11 @@ pub enum Commands {
 
     // Note playing commands
     /// Start playing a note with specified parameters
-    /// Parameters: note_value (0-11 for C through B), octave, instrument_row (0 or 1), velocity (0.0-1.0)
-    NoteStart(u8, u8, u8, f32),
+    /// Parameters: note_value (0-11 for C through B), instrument_row (0 or 1), velocity (0.0-1.0)
+    NoteStart(u8, u8, f32),
     /// Stop playing a note
-    /// Parameters: note_value (0-11 for C through B), octave, instrument_row (0 or 1)
-    NoteStop(u8, u8, u8),
+    /// Parameters: note_value (0-11 for C through B), instrument_row (0 or 1)
+    NoteStop(u8, u8),
 
     // Octave control
     /// Increase the octave for a specific instrument row
