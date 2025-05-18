@@ -1,7 +1,9 @@
 use std::{default::Default, fmt};
 
 use super::{segment::Segment, Envelope};
-use crate::core::generator::{Generator, ToneGenerator};
+use crate::core::generator::{SimpleGenerator, VariableToneGenerator};
+
+use log::info;
 
 /// ADSR Envelope. Consists of four segments;
 /// * Attack: The beginning of the envelope, where the amplitude increases from 0 to the maximum value.
@@ -55,8 +57,8 @@ impl ADSREnvelope {
     }
 
     /// Creates a generator from a tone generator and the envelope (cloned)
-    pub fn attach_amplitude(&self, generator: Box<dyn ToneGenerator>) -> Generator {
-        Generator::new(self.clone(), generator)
+    pub fn attach_amplitude(&self, generator: Box<dyn VariableToneGenerator>) -> SimpleGenerator {
+        SimpleGenerator::new(Box::from(self.clone()), generator)
     }
 
     /// Returns the sustain value of the envelope
@@ -104,15 +106,25 @@ impl fmt::Display for ADSREnvelope {
 }
 
 impl Envelope for ADSREnvelope {
-    fn at(&self, time: f32) -> f32 {
+    fn at(&self, time: f32, note_off: f32) -> f32 {
         if self.attack.covers(time) {
             self.attack.at(time)
         } else if self.decay.covers(time) {
             self.decay.at(time)
-        } else if self.release.covers(time) {
-            self.release.at(time)
         } else {
-            0.0
+            if note_off > 0.0 {
+                if self.release.covers(time - note_off) {
+                    self.release.at(time - note_off)
+                } else {
+                    0.0
+                }
+            } else {
+                self.decay.end_value()
+            }
         }
+    }
+
+    fn completed(&self, time: f32, note_off: f32) -> bool {
+        note_off > 0.0 && time - note_off > self.release.end()
     }
 }

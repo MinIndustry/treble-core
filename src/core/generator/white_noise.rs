@@ -1,4 +1,4 @@
-use super::ToneGenerator;
+use super::{ToneGenerator, VariableFrequency, VariableToneGenerator};
 use rand;
 
 #[derive(Debug)]
@@ -20,3 +20,9 @@ impl ToneGenerator for WhiteNoise {
         self.amplitude * (rand::random::<f32>() * 2.0 - 1.0)
     }
 }
+
+impl VariableFrequency for WhiteNoise {
+    fn change_frequency(&mut self, _: f32, _: super::FrequencyTransition) {}
+}
+
+impl VariableToneGenerator for WhiteNoise {}

@@ -1,4 +1,4 @@
-use super::ToneGenerator;
+use super::{ToneGenerator, VariableFrequency, VariableToneGenerator};
 
 #[derive(Debug)]
 /// A generator that produces a sawtooth wave following the formula:
@@ -29,3 +29,11 @@ impl ToneGenerator for SawTooth {
                 * ((self.timer / self.period) - ((1.0 / 2.0) + (self.timer / self.period)).floor()))
     }
 }
+
+impl VariableFrequency for SawTooth {
+    fn change_frequency(&mut self, frequency: f32, _transistion: super::FrequencyTransition) {
+        self.period = 1.0 / frequency;
+    }
+}
+
+impl VariableToneGenerator for SawTooth {}

@@ -124,7 +124,7 @@ impl Instrument for HiHat {
                 }
             }
         }
-        value * self.amplitude_envelope.at(self.time)
+        value * self.amplitude_envelope.at(self.time, -1.0)
     }
 
     fn tick(&mut self) {

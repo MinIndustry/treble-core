@@ -2,8 +2,8 @@ use crate::core::envelope::prelude::{ADSREnvelope, Segment};
 use crate::core::envelope::Envelope;
 use crate::core::generator::prelude::SineWave;
 use crate::core::generator::prelude::WhiteNoise;
-use crate::core::generator::BendableGenerator;
 use crate::core::generator::ToneGenerator;
+use crate::core::generator::{BendableGenerator, SimpleGenerator};
 use crate::instruments::Instrument;
 use crate::Note;
 
@@ -22,7 +22,10 @@ impl Kick {
         Self {
             generators: (
                 Box::from(WhiteNoise::new(0.02)),
-                Box::from(SineWave::new(58.0, 1.0)),
+                Box::from(SimpleGenerator::new(
+                    Box::from(ADSREnvelope::constant()),
+                    Box::from(SineWave::new(58.0, 1.0)),
+                )),
             ),
             envelopes: (
                 Box::from(
@@ -66,10 +69,11 @@ impl Instrument for Kick {
     fn tick(&mut self) {
         self.current_tick += 1;
         let current_time: f32 = self.current_tick as f32 / 44100.0;
-        let current_pitch = self.pitch_curve.at(current_time);
+        let current_pitch = self.pitch_curve.at(current_time, -1.0);
         self.generators.1.set_pitch_bend(current_pitch);
 
-        self.output = self.generators.0.tick(1.0 / 44100.0) * self.envelopes.0.at(current_time)
-            + self.generators.1.tick(1.0 / 44100.0) * self.envelopes.1.at(current_time);
+        self.output = self.generators.0.tick(1.0 / 44100.0)
+            * self.envelopes.0.at(current_time, -1.0)
+            + self.generators.1.tick(1.0 / 44100.0) * self.envelopes.1.at(current_time, -1.0);
     }
 }

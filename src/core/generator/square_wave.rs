@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use super::ToneGenerator;
+use super::{ToneGenerator, VariableFrequency, VariableToneGenerator};
 
 #[derive(Debug)]
 /// A generator that produces a square wave following the formula:
@@ -28,3 +28,11 @@ impl ToneGenerator for SquareWave {
         (2.0 * PI * self.frequency * self.timer).sin().signum() * self.amplitude
     }
 }
+
+impl VariableFrequency for SquareWave {
+    fn change_frequency(&mut self, frequency: f32, _transistion: super::FrequencyTransition) {
+        self.frequency = frequency;
+    }
+}
+
+impl VariableToneGenerator for SquareWave {}

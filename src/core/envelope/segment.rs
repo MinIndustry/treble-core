@@ -104,7 +104,11 @@ impl Segment {
 }
 
 impl Envelope for Segment {
-    fn at(&self, time: f32) -> f32 {
+    fn at(&self, time: f32, _: f32) -> f32 {
         self.at(time)
+    }
+
+    fn completed(&self, time: f32, _: f32) -> bool {
+        self.covers(time)
     }
 }

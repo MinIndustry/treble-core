@@ -1,8 +1,11 @@
 use std::cmp::Ordering;
 
 use super::envelope::prelude::*;
+use super::envelope::Envelope;
 use super::generator::prelude::*;
-use super::generator::{Generator, ToneGenerator, GENERATORS};
+use super::generator::{
+    Generator, SimpleGenerator, ToneGenerator, VariableToneGenerator, GENERATORS,
+};
 
 /// Represents a musical note that can be part of a score. It has an associated generator,
 /// that can generate the tone of the note in any of the `GENERATORS` shapes.
@@ -18,7 +21,7 @@ pub struct Note {
     pub frequency: f32,
     pub start_time: f32,
     pub duration: f32,
-    pub generator: Box<Generator>,
+    pub generator: Box<SimpleGenerator>,
 }
 
 impl Eq for Note {}
@@ -45,7 +48,8 @@ impl Note {
     /// Creates a new note instance with the given parameters. The default generator is a Sine generator.
     pub fn new(frequency: f32, start_time: f32, duration: f32) -> Self {
         let env: ADSREnvelope = ADSREnvelope::constant();
-        let tone_generator: Box<dyn ToneGenerator> = Box::from(SineWave::new(frequency, 1.0));
+        let tone_generator: Box<dyn VariableToneGenerator> =
+            Box::from(SineWave::new(frequency, 1.0));
 
         Self {
             frequency,
@@ -78,7 +82,7 @@ impl Note {
     ///     .with_generator(GENERATORS::SINE);
     /// ```
     pub fn with_generator(mut self, generator: GENERATORS) -> Self {
-        let new_tone_generator: Box<dyn ToneGenerator> = match generator {
+        let new_tone_generator: Box<dyn VariableToneGenerator> = match generator {
             GENERATORS::SAW => Box::from(SawTooth::new(self.frequency, 1.0)),
             GENERATORS::SINE => Box::from(SineWave::new(self.frequency, 1.0)),
             GENERATORS::SQUARE => Box::from(SquareWave::new(self.frequency, 1.0)),
@@ -113,8 +117,8 @@ impl Note {
     /// let note = Note::new(440.0, 0.0, 1.0)
     ///     .with_envelope(&Box::new(ADSREnvelope::constant()));
     /// ```
-    pub fn with_envelope(mut self, envelope: &ADSREnvelope) -> Self {
-        self.generator.set_ampl_envelope(envelope.clone());
+    pub fn with_envelope(mut self, envelope: Box<dyn Envelope + Send + Sync>) -> Self {
+        self.generator.set_ampl_envelope(envelope);
         self
     }
 
@@ -139,21 +143,13 @@ impl Note {
         self
     }
 
-    pub fn tick(&mut self, sample: i32, sample_rate: i32) -> f32 {
-        self.generator.tick(
-            sample,
-            sample_rate,
-            self.start_time,
-            self.start_time + self.duration,
-        )
+    pub fn tick(&mut self, sample_rate: i32) -> f32 {
+        self.generator.tick(1.0 / sample_rate as f32)
     }
 
     /// Returns true when to note is completed (amplitude envelope release has finished)
     /// This depends on the `off_time` of the note.
     pub fn is_completed(&self, time: f32) -> bool {
-        !self
-            .generator
-            .covers(time, self.start_time, self.start_time + self.duration)
-            && time > self.start_time
+        self.generator.envelope.completed(time, self.start_time) && time > self.start_time
     }
 }

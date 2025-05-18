@@ -13,7 +13,11 @@ pub trait Envelope: std::fmt::Display + std::fmt::Debug {
     /// Returns the envelope value at the given point in time. The timestamps
     /// is expected to be mapped to the envelope's duration, that is the
     /// minimum value is 0.0.
-    fn at(&self, time: f32) -> f32;
+    fn at(&self, time: f32, note_off: f32) -> f32;
+
+    /// Returns whether the envelope has completed or not based on the
+    /// current time & note_off timestamp
+    fn completed(&self, time: f32, note_off: f32) -> bool;
 }
 
 pub mod prelude {

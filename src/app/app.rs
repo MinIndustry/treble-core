@@ -8,8 +8,7 @@ use serde::{Deserialize, Serialize};
 use super::cli::Cli;
 use super::filesystem::FSConfig;
 use super::system::SystemConfig;
-use crate::inputs::commands::Commands;
-use crate::inputs::{InputConfig, InputError, InputSystem};
+use super::Commands;
 use crate::instruments::prelude::Keyboard;
 use crate::prelude::Instrument;
 
@@ -18,21 +17,13 @@ use super::row::Row;
 #[derive(Debug, Default, Deserialize, Serialize)]
 /// The application configuration
 pub struct AppConfig {
-    pub input: InputConfig,
     pub fs: FSConfig,
     pub system: SystemConfig,
 }
 
 #[derive(Default)]
-pub enum InputSystemConfig {
-    External,
-    #[default]
-    Auto,
-}
-
-#[derive(Default)]
 pub enum RunMode {
-    Live(InputSystemConfig),
+    Live,
     Score,
     #[default]
     Unknown,
@@ -96,7 +87,10 @@ impl App {
     /// Tries to load the application configuration from a default path.
     /// If the configuration file does not exist, it will use the default configuration.
     pub fn new() -> App {
-        App::default()
+        let mut app = App::default();
+
+        app.rows[0].octave = 3;
+        app
     }
 
     /// Initializes the application settings from the command line arguments.
@@ -128,11 +122,7 @@ impl App {
         }
 
         if args.live {
-            app.run_mode = RunMode::Live(if args.external_input {
-                InputSystemConfig::External
-            } else {
-                InputSystemConfig::Auto
-            });
+            app.run_mode = RunMode::Live;
         }
 
         app
@@ -163,16 +153,7 @@ impl App {
         self.run_mode = mode;
     }
 
-    fn setup_input_system(&self) -> Result<InputSystem, InputError> {
-        info!("Starting the input system");
-        // Setup the input system
-        let input_config = InputConfig::new();
-        let (mut input_system, _cmd_receiver) = InputSystem::new(input_config)?;
-        input_system.start()?;
-        Ok(input_system)
-    }
-
-    pub fn on_event(&mut self, event: crate::inputs::commands::Commands) {
+    pub fn on_event(&mut self, event: Commands) {
         match event {
             Commands::NoteStart(note, row, force) => {
                 if row > 2 {
@@ -213,30 +194,8 @@ impl App {
             RunMode::Score => {
                 info!("Running score mode");
             }
-            RunMode::Live(config) => {
+            RunMode::Live => {
                 info!("Starting live mode");
-                match config {
-                    InputSystemConfig::Auto => {
-                        let input_system = match self.setup_input_system() {
-                            Ok(input_system) => input_system,
-                            Err(err) => {
-                                error!("Failed to setup input system: {}", err);
-                                return;
-                            }
-                        };
-
-                        loop {
-                            // Handle input events
-                            if let Some(event) = input_system.poll_event() {
-                                // Convert input events to Commands and tick the app
-                                println!("Received event: {:?}", event);
-                            }
-                        }
-                    }
-                    InputSystemConfig::External => {
-                        // Update to use here instead ?
-                    }
-                }
             }
         }
     }
@@ -250,7 +209,7 @@ impl App {
             RunMode::Score => {
                 info!("Running score mode");
             }
-            RunMode::Live(_) => {
+            RunMode::Live => {
                 trace!("Live ticking");
                 self.live_tick();
             }

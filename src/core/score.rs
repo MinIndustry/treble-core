@@ -152,7 +152,7 @@ impl Score {
                 current_time,
                 current_notes
                     .iter_mut()
-                    .map(|note| note.tick(self.current_sample, self.sample_rate as i32))
+                    .map(|note| note.tick(self.sample_rate))
                     .sum(),
             ));
         }

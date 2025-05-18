@@ -1,9 +1,7 @@
 use super::{
-    Bendable, BendableGenerator, FrequencyTransition, ToneGenerator, VariableBendableGenerator,
-    VariableFrequency, VariableGenerator,
+    Bendable, BendableGenerator, FrequencyTransition, ToneGenerator, VariableFrequency,
+    VariableToneGenerator,
 };
-
-use crate::KeyboardGenerator;
 
 use std::f32::consts::PI;
 
@@ -14,8 +12,6 @@ use std::f32::consts::PI;
 pub struct SineWave {
     frequency: f32,
     amplitude: f32,
-    timer: f32,
-    pitch_ratio: f32,
 }
 
 impl SineWave {
@@ -23,16 +19,13 @@ impl SineWave {
         Self {
             frequency,
             amplitude,
-            timer: 0.0,
-            pitch_ratio: 1.0,
         }
     }
 }
 
 impl ToneGenerator for SineWave {
     fn tick(&mut self, elapsed_time: f32) -> f32 {
-        self.timer += elapsed_time * self.pitch_ratio;
-        self.amplitude * (2.0 * PI * self.frequency * self.timer).sin()
+        self.amplitude * (2.0 * PI * self.frequency * elapsed_time).sin()
     }
 }
 
@@ -43,13 +36,4 @@ impl VariableFrequency for SineWave {
     }
 }
 
-impl Bendable for SineWave {
-    fn set_pitch_bend(&mut self, bend: f32) {
-        self.pitch_ratio = bend;
-    }
-}
-
-impl BendableGenerator for SineWave {}
-impl VariableGenerator for SineWave {}
-impl VariableBendableGenerator for SineWave {}
-impl KeyboardGenerator for SineWave {}
+impl VariableToneGenerator for SineWave {}

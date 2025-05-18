@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use crate::core::generator::prelude::SineWave;
+use crate::core::envelope::prelude::ADSREnvelope;
+use crate::core::generator::prelude::{SimpleGenerator, SineWave};
+use crate::core::generator::EnvelopedGenerator;
 use crate::core::generator::FrequencyTransition;
 use crate::core::tones::TONES_FREQ;
 use crate::instruments::Instrument;
@@ -16,8 +18,16 @@ pub struct Keyboard<const VOICES: usize> {
 
 impl<const VOICES: usize> Keyboard<VOICES> {
     pub fn new() -> Self {
+        let envelope = ADSREnvelope::new()
+            .with_attack(0.3, 1.0, Some((0.3, 0.0)))
+            .with_decay(0.2, 0.6, Some((0.3, 0.6)))
+            .with_release(5.0, 0.0, Some((0.0, 0.0)));
         let generators: [(Box<dyn KeyboardGenerator>, bool); VOICES] = std::array::from_fn(|_| {
-            let generator: Box<dyn KeyboardGenerator> = Box::from(SineWave::new(0.0, 1.0));
+            let generator = SimpleGenerator::new(
+                Box::from(envelope.clone()),
+                Box::from(SineWave::new(0.0, 1.0)),
+            );
+            let generator: Box<dyn KeyboardGenerator> = Box::from(generator);
             (generator, false)
         });
 
@@ -42,10 +52,10 @@ impl<const VOICES: usize> Instrument for Keyboard<VOICES> {
             .position(|(_, is_playing)| !is_playing);
         if let Some(position) = generator_position {
             // If there is a free generator, we use it
-            self.generators[position].0.change_frequency(
-                TONES_FREQ[note.0 as usize][note.1 as usize],
-                FrequencyTransition::DIRECT,
-            );
+            self.generators[position]
+                .0
+                .set_frequency(TONES_FREQ[note.0 as usize][note.1 as usize]);
+            self.generators[position].0.start();
             self.generators[position].1 = true;
             self.note_indices.insert(note, position);
         } else {
@@ -57,7 +67,7 @@ impl<const VOICES: usize> Instrument for Keyboard<VOICES> {
     /// Stops playing the given note
     fn stop_note(&mut self, note: Note) {
         if let Some(position) = self.note_indices.get(&note) {
-            self.generators[*position].1 = false;
+            self.generators[*position].0.stop()
         }
     }
 
@@ -68,12 +78,20 @@ impl<const VOICES: usize> Instrument for Keyboard<VOICES> {
 
     /// Advances the instrument by one tick
     fn tick(&mut self) {
+        // Stop completed generators
+        for i in 0..self.generators.len() {
+            if self.generators[i].1 {
+                self.generators[i].1 = !self.generators[i].0.completed();
+            }
+        }
+
         self.output = self
             .generators
             .iter_mut()
             .map(|(generator, is_playing)| {
                 if *is_playing {
-                    generator.tick(1.0 / 44100.0)
+                    let val = generator.tick(1.0 / 44100.0);
+                    val
                 } else {
                     0.0
                 }

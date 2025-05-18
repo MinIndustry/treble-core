@@ -1,5 +1,6 @@
 use crate::core::envelope::prelude::*;
 use crate::core::envelope::Envelope;
+use crate::KeyboardGenerator;
 
 /// The different types of generator shapes.
 pub enum GENERATORS {
@@ -20,104 +21,91 @@ pub enum FrequencyTransition {
     LINEAR(f32),
 }
 
-/// A trait that implements a tone generator.
+/// A trait that implements a tone generator. This is a simple generator with no envelope
 pub trait ToneGenerator: std::fmt::Debug {
     /// Ticks the generator and returns the current amplitude.
     /// The amplitude is in the range of -1.0 to 1.0.
     fn tick(&mut self, elapsed_time: f32) -> f32;
 }
 
+/// The generator trait represents a complete generator,
+/// It contains a ToneGenerator & an Envelope
+pub trait Generator: std::fmt::Debug + Sync + Send {
+    /// Starts the generator. Resets the envelope timer
+    /// and start playing the note
+    fn start(&mut self);
+
+    /// Stops playing the note. This simply means that the
+    /// Envelope will enter its `Release` phase, not that the
+    /// note is necessarily over yet.
+    fn stop(&mut self);
+
+    /// Ticks the generator of `elapsed_time` seconds.
+    fn tick(&mut self, elapsed_time: f32) -> f32;
+
+    /// Whether the generator's envelope has finished its
+    /// release phase.
+    fn completed(&self) -> bool;
+
+    fn set_frequency(&mut self, frequency: f32);
+}
+
+/// A Generator with an envelope shaping its amplitude
+pub trait EnvelopedGenerator: Generator {
+    fn set_envelope(&mut self, envelope: Box<dyn Envelope + Send + Sync>);
+}
+
 /// Allows an generator to bend its frequency following an envelope
-pub trait Bendable {
+pub trait Bendable: Generator {
     fn set_pitch_bend(&mut self, pitch: f32);
 }
 
 /// Allows a generator to change its frequency
-pub trait VariableFrequency {
+pub trait VariableFrequency: ToneGenerator {
     fn change_frequency(&mut self, frequency: f32, transistion: FrequencyTransition);
 }
 
 /// Allows a generator to change its pitch
-pub trait BendableGenerator: ToneGenerator + Bendable {}
+pub trait BendableGenerator: Generator + Bendable {}
 
 /// Allows a generator to change its frequency
-pub trait VariableGenerator: ToneGenerator + VariableFrequency {}
+pub trait VariableToneGenerator: ToneGenerator + VariableFrequency + Send + Sync {}
 
 /// Allows a generator to change its frequency and pitch
-pub trait VariableBendableGenerator: ToneGenerator + VariableFrequency + Bendable {}
+pub trait VariableBendableGenerator: ToneGenerator + Bendable {}
 
 #[derive(Debug)]
 /// A generic generator that contains a tone generator,
 /// amplitude & pitch envelopes
-pub struct Generator {
-    pub envelope: ADSREnvelope, // An envelope for the note amplitude
-    pitch_curve: Segment,       // An evelope for the note pitch
-    tone_generator: Box<dyn ToneGenerator>,
-    pub last: (bool, bool, f32), // note on ? - note off ? - last_value
+pub struct SimpleGenerator {
+    pub envelope: Box<dyn Envelope + Send + Sync>, // An envelope for the note amplitude
+    pitch_curve: Segment,                          // An evelope for the note pitch
+    pitch_bend: f32,                               // When negative no pitch bend
+    tone_generator: Box<dyn VariableToneGenerator + Send + Sync>,
+    timer: f32,
+    stop_timestamp: f32,
 }
 
-impl Generator {
+impl SimpleGenerator {
     /// Creates a new generator with the given envelopes and tone generator.
-    pub fn new(envelope: ADSREnvelope, tone_generator: Box<dyn ToneGenerator>) -> Generator {
+    pub fn new(
+        envelope: Box<dyn Envelope + Send + Sync>,
+        tone_generator: Box<dyn VariableToneGenerator + Send + Sync>,
+    ) -> SimpleGenerator {
         Self {
             envelope,
             pitch_curve: Segment::default(),
             tone_generator,
-            last: (false, false, 0.0),
+            pitch_bend: 0.0,
+            timer: 0.0,
+            stop_timestamp: -1.0,
         }
     }
 
-    /// Returns the note value at a point in time, given the note_on, note_off and current time.
-    pub fn tick(
+    pub fn set_tone_generator(
         &mut self,
-        sample: i32,
-        sample_rate: i32,
-        note_on_time: f32,
-        note_off_time: f32,
-    ) -> f32 {
-        let time = sample as f32 / sample_rate as f32;
-
-        let ampl = if note_on_time <= time {
-            let on_elapsed = time - note_on_time;
-            if note_off_time <= time {
-                if !self.last.1 {
-                    // The note was just released
-                    if on_elapsed < self.envelope.decay.end() {
-                        // We haven't finished the decay cycle
-                        // println!("Note off before end of decay ! - Last value: {}", self.last.2);
-                        self.envelope.release.change_from(self.last.2);
-                    }
-                }
-                let off_elapsed = time - note_off_time;
-                if off_elapsed < self.envelope.release.end() {
-                    self.envelope.release.at(off_elapsed)
-                } else {
-                    0.0
-                }
-            } else if on_elapsed < self.envelope.attack.end() {
-                self.envelope.attack.at(on_elapsed)
-            } else if on_elapsed < self.envelope.decay.end() {
-                self.envelope.decay.at(on_elapsed)
-            } else {
-                self.envelope.sustain()
-            }
-        } else {
-            0.0
-        };
-
-        let warp = if time < note_on_time {
-            self.pitch_curve.start_value()
-        } else if time < note_off_time {
-            self.pitch_curve.at(time - note_on_time)
-        } else {
-            self.pitch_curve.end_value()
-        };
-
-        self.last = (note_on_time >= time, note_off_time >= time, ampl);
-        ampl * self.tone_generator.tick(1.0 / sample_rate as f32 * warp)
-    }
-
-    pub fn set_tone_generator(&mut self, tone_generator: Box<dyn ToneGenerator>) {
+        tone_generator: Box<dyn VariableToneGenerator + Send + Sync>,
+    ) {
         self.tone_generator = tone_generator;
     }
 
@@ -125,14 +113,65 @@ impl Generator {
         self.pitch_curve = pitch_curve
     }
 
-    pub fn set_ampl_envelope(&mut self, ampl_envelope: ADSREnvelope) {
+    pub fn set_ampl_envelope(&mut self, ampl_envelope: Box<dyn Envelope + Send + Sync>) {
         self.envelope = ampl_envelope
     }
+}
 
-    pub fn covers(&self, time: f32, note_on_time: f32, note_off_time: f32) -> bool {
-        time >= note_on_time && time <= note_off_time + self.envelope.release.end()
+impl Generator for SimpleGenerator {
+    fn start(&mut self) {
+        self.timer = 0.0;
+        self.stop_timestamp = -1.0;
+    }
+
+    fn stop(&mut self) {
+        self.stop_timestamp = self.timer;
+    }
+
+    /// Returns the note value at a point in time, given the note_on, note_off and current time.
+    fn tick(&mut self, elapsed_time: f32) -> f32 {
+        let warp = if self.pitch_curve.covers(self.timer) {
+            self.pitch_curve.at(self.timer)
+        } else {
+            1.0
+        };
+        self.timer += warp * elapsed_time;
+
+        let ampl = self.envelope.at(self.timer, self.stop_timestamp);
+        let sample: f32 = self.tone_generator.tick(self.timer);
+
+        ampl * sample
+    }
+
+    fn completed(&self) -> bool {
+        if self.stop_timestamp > 0.0 {
+            self.envelope.completed(self.timer, self.stop_timestamp)
+        } else {
+            false
+        }
+    }
+
+    fn set_frequency(&mut self, frequency: f32) {
+        self.tone_generator
+            .change_frequency(frequency, FrequencyTransition::DIRECT);
     }
 }
+
+impl EnvelopedGenerator for SimpleGenerator {
+    fn set_envelope(&mut self, envelope: Box<dyn Envelope + Send + Sync>) {
+        self.envelope = envelope;
+    }
+}
+
+impl Bendable for SimpleGenerator {
+    fn set_pitch_bend(&mut self, pitch: f32) {
+        self.pitch_bend = pitch;
+    }
+}
+
+impl BendableGenerator for SimpleGenerator {}
+
+impl KeyboardGenerator for SimpleGenerator {}
 
 mod constant_generator;
 mod null_generator;
@@ -148,5 +187,5 @@ pub mod prelude {
     pub use super::sine_wave::SineWave;
     pub use super::square_wave::SquareWave;
     pub use super::white_noise::WhiteNoise;
-    pub use super::{ToneGenerator, GENERATORS};
+    pub use super::{SimpleGenerator, ToneGenerator, GENERATORS};
 }

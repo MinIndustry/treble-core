@@ -13,10 +13,6 @@ mod app;
 /// graph building utilities.
 pub mod core;
 
-/// The input module handles user interactions with the application. It consists at
-/// the moment of an abstraction for the evdev crate, available only on Linux.
-pub mod inputs;
-
 /// Instruments are structures that implement the `Instrument` trait.
 pub mod instruments;
 
@@ -36,7 +32,7 @@ const APP_ID: (&str, &str, &str) = ("rustic", "minigrim0", "xyz");
 /// Main prelude module that exports the most commonly used types from the crate
 pub mod prelude {
     // App exports
-    pub use super::app::{App, AppMode, InputSystemConfig, RunMode};
+    pub use super::app::{App, AppMode, Commands, RunMode};
 
     // Core exports - only expose the module, details accessed through it
     pub use super::core;
@@ -51,7 +47,7 @@ pub mod prelude {
     pub use super::instruments::Instrument;
 }
 
-use crate::core::generator::{Bendable, ToneGenerator, VariableFrequency};
+use crate::core::generator::{Bendable, Generator};
 use core::tones::NOTES;
 
 #[cfg(feature = "plotting")]
@@ -60,7 +56,7 @@ pub mod plotting;
 #[cfg(test)]
 pub mod tests;
 
-pub trait KeyboardGenerator: ToneGenerator + VariableFrequency + Bendable + Send + Sync {}
+pub trait KeyboardGenerator: Generator + Bendable + Send + Sync {}
 
 /// A note with its octave
 #[derive(Hash, Eq, PartialEq, Debug, Copy, Clone)]

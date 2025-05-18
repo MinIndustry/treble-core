@@ -1,4 +1,4 @@
-use super::ToneGenerator;
+use super::{ToneGenerator, VariableFrequency, VariableToneGenerator};
 
 #[derive(Debug)]
 /// A generator that does nothing. Can be used as a placeholder
@@ -18,3 +18,9 @@ impl ToneGenerator for ConstantGenerator {
         self.value
     }
 }
+
+impl VariableFrequency for ConstantGenerator {
+    fn change_frequency(&mut self, _: f32, _: super::FrequencyTransition) {}
+}
+
+impl VariableToneGenerator for ConstantGenerator {}
