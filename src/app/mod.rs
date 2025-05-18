@@ -1,5 +1,6 @@
 mod app;
 mod cli;
+mod commands;
 mod row;
 
 /// The filesystem module is used to interact with the filesystem.
