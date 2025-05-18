@@ -3,8 +3,6 @@ use std::path::{Path, PathBuf};
 
 use clap::Parser;
 use log::{error, info, trace};
-use rodio::buffer::SamplesBuffer;
-use rodio::{OutputStream, Sink};
 use serde::{Deserialize, Serialize};
 
 use super::cli::Cli;
@@ -55,10 +53,8 @@ pub struct App {
     pub run_mode: RunMode,
     pub mode: AppMode,
     pub rows: [Row; 2], // Mapping from keyboard rows to currently selected instruments
-    pub instruments: Vec<Box<dyn Instrument>>, // All the instruments loaded in the app
-    pub stream: rodio::OutputStream, // The rodio output stream
-    pub sink: rodio::Sink, // Rodio sink for outputting audio
-    pub buffer: Vec<f32>, // Buffer for audio data
+    pub instruments: Vec<Box<dyn Instrument + Send + Sync>>, // All the instruments loaded in the app
+    pub buffer: Vec<f32>,                                    // Buffer for audio data
 }
 
 impl Default for App {
@@ -85,17 +81,12 @@ impl Default for App {
             AppConfig::default()
         };
 
-        let (stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
-        let sink = Sink::try_new(&stream_handle).unwrap();
-
         Self {
             config,
             run_mode: RunMode::Unknown,
             mode: AppMode::Input,
             instruments: vec![Box::new(Keyboard::<4>::new())],
             rows: [Row::default(), Row::default()],
-            sink,
-            stream,
             buffer: Vec::new(),
         }
     }
@@ -157,15 +148,10 @@ impl App {
             toml::from_str(&std::fs::read_to_string(path).map_err(|e| e.to_string())?)
                 .map_err(|e| format!("Unable to load config: {}", e))?;
 
-        let (stream, stream_handle) = OutputStream::try_default().unwrap();
-        let sink = Sink::try_new(&stream_handle).unwrap();
-
         Ok(App {
             config,
             run_mode: RunMode::Unknown,
             mode: AppMode::Setup,
-            sink,
-            stream,
             rows: [Row::default(), Row::default()],
             instruments: Vec::new(),
             buffer: Vec::new(),
@@ -208,25 +194,13 @@ impl App {
         }
     }
 
-    pub fn live_tick(&mut self) {
+    pub fn live_tick(&mut self) -> f32 {
         self.instruments.iter_mut().for_each(|r| r.tick());
 
-        let output = self
-            .instruments
+        self.instruments
             .iter_mut()
             .map(|row| row.get_output())
-            .sum::<f32>();
-
-        self.buffer.push(output);
-
-        if self.buffer.len() >= (self.config.system.sample_rate as f32 * 0.01) as usize {
-            self.sink.append(SamplesBuffer::new(
-                1 as u16,
-                self.config.system.sample_rate as u32,
-                self.buffer.clone(),
-            ));
-            self.buffer.clear();
-        }
+            .sum::<f32>()
     }
 
     /// Runs the application in standalone mode
