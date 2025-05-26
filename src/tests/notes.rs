@@ -31,7 +31,7 @@ fn test_note_plays() {
     let sample_rate: i32 = 100;
 
     let count = (0..100)
-        .map(|i| note.tick(i, sample_rate))
+        .map(|_| note.tick(sample_rate))
         .filter(|v| *v > 0.5 || *v < 0.5)
         .count();
 
