@@ -171,6 +171,20 @@ impl App {
                 let note = self.rows[row as usize].get_note(note);
                 self.instruments[self.rows[row as usize].instrument].stop_note(note);
             }
+            Commands::OctaveDown(row) => {
+                if row > 2 {
+                    panic!("Row out of bounds");
+                }
+
+                self.rows[row as usize].octave -= 1;
+            }
+            Commands::OctaveUp(row) => {
+                if row > 2 {
+                    panic!("Row out of bounds");
+                }
+
+                self.rows[row as usize].octave += 1;
+            }
             _ => {}
         }
     }
