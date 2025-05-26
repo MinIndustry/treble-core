@@ -81,17 +81,27 @@ pub fn start_app(
             .next()
             .expect("no supported config?!")
             .with_max_sample_rate();
-        let config = supported_config.config();
+        let mut config = supported_config.config();
+        config.buffer_size = cpal::BufferSize::Fixed(64);
         rustic_app.config.system.sample_rate = config.sample_rate.0;
+        let mut command_batch = Vec::with_capacity(16);
 
         let stream = device
             .build_output_stream(
                 &config,
                 move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
                     // react to stream events and read or write stream data here.
-                    if let Ok(command) = receiver.recv_timeout(Duration::from_micros(1)) {
-                        println!("Command: {:?}", command);
-                        rustic_app.on_event(command);
+                    command_batch.clear();
+                    while let Ok(command) = receiver.try_recv() {
+                        command_batch.push(command);
+                        if command_batch.len() >= 16 {
+                            break;
+                        } // Prevent excessive processing
+                    }
+
+                    // Process batch
+                    for command in &command_batch {
+                        rustic_app.on_event(command.clone());
                     }
 
                     for sample in data.iter_mut() {

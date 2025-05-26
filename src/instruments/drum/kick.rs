@@ -1,9 +1,8 @@
 use crate::core::envelope::prelude::{ADSREnvelope, Segment};
 use crate::core::envelope::Envelope;
-use crate::core::generator::prelude::SineWave;
-use crate::core::generator::prelude::WhiteNoise;
+use crate::core::generator::prelude::{SimpleGenerator, SineWave, WhiteNoise};
+use crate::core::generator::BendableGenerator;
 use crate::core::generator::ToneGenerator;
-use crate::core::generator::{BendableGenerator, SimpleGenerator};
 use crate::instruments::Instrument;
 use crate::Note;
 

@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 
 use crate::core::envelope::prelude::ADSREnvelope;
-use crate::core::generator::prelude::{SimpleGenerator, SineWave};
-use crate::core::generator::EnvelopedGenerator;
-use crate::core::generator::FrequencyTransition;
+use crate::core::generator::prelude::{MultiSourceGenerator, SineWave, WhiteNoise};
 use crate::core::tones::TONES_FREQ;
 use crate::instruments::Instrument;
 use crate::KeyboardGenerator;
@@ -19,14 +17,15 @@ pub struct Keyboard<const VOICES: usize> {
 impl<const VOICES: usize> Keyboard<VOICES> {
     pub fn new() -> Self {
         let envelope = ADSREnvelope::new()
-            .with_attack(0.3, 1.0, Some((0.3, 0.0)))
-            .with_decay(0.2, 0.6, Some((0.3, 0.6)))
-            .with_release(5.0, 0.0, Some((0.0, 0.0)));
+            .with_attack(0.02, 1.0, Some((0.3, 0.0)))
+            .with_decay(0.2, 0.6, Some((0.02, 0.6)))
+            .with_release(0.1, 0.0, Some((0.0, 0.0)));
         let generators: [(Box<dyn KeyboardGenerator>, bool); VOICES] = std::array::from_fn(|_| {
-            let generator = SimpleGenerator::new(
+            let generator = MultiSourceGenerator::new(
                 Box::from(envelope.clone()),
                 Box::from(SineWave::new(0.0, 1.0)),
-            );
+            )
+            .add_generator(Box::from(WhiteNoise::new(1.0)), 0.01);
             let generator: Box<dyn KeyboardGenerator> = Box::from(generator);
             (generator, false)
         });
@@ -96,6 +95,7 @@ impl<const VOICES: usize> Instrument for Keyboard<VOICES> {
                     0.0
                 }
             })
-            .sum()
+            .sum::<f32>()
+            / VOICES as f32
     }
 }
