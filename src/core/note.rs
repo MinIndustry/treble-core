@@ -3,9 +3,7 @@ use std::cmp::Ordering;
 use super::envelope::prelude::*;
 use super::envelope::Envelope;
 use super::generator::prelude::*;
-use super::generator::{
-    Generator, SimpleGenerator, ToneGenerator, VariableToneGenerator, GENERATORS,
-};
+use super::generator::{Generator, VariableToneGenerator, GENERATORS};
 
 /// Represents a musical note that can be part of a score. It has an associated generator,
 /// that can generate the tone of the note in any of the `GENERATORS` shapes.

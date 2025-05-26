@@ -1,9 +1,8 @@
 use std::{default::Default, fmt};
 
 use super::{segment::Segment, Envelope};
-use crate::core::generator::{SimpleGenerator, VariableToneGenerator};
-
-use log::info;
+use crate::core::generator::prelude::SimpleGenerator;
+use crate::core::generator::VariableToneGenerator;
 
 /// ADSR Envelope. Consists of four segments;
 /// * Attack: The beginning of the envelope, where the amplitude increases from 0 to the maximum value.
