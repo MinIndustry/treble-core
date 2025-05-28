@@ -85,13 +85,13 @@ fn main() {
     let sum_filter: Box<dyn Filter> = Box::from(CombinatorFilter::new(2, 1));
 
     // Delay of half a second
-    let delay_filter: Box<dyn Filter> = Box::from(DelayFilter::new(sample_rate, 0.5));
+    let delay_filter: Box<dyn Filter> = Box::from(DelayFilter::new(sample_rate, 1.0));
 
     // Diminish gain in feedback loop
-    let gain_filter: Box<dyn Filter> = Box::from(GainFilter::new(0.99));
+    let gain_filter: Box<dyn Filter> = Box::from(GainFilter::new(0.4));
 
     // Add a tremolo
-    let final_tremolo: Box<dyn Filter> = Box::from(Tremolo::new(5.0, 0.4, 0.6));
+    let final_tremolo: Box<dyn Filter> = Box::from(Tremolo::new(20.0, 0.4, 0.6));
     // let clipper: Box<dyn Filter> = Box::from(Clipper::new(0.75));
 
     let system_sink: Box<dyn SystemSink> = Box::from(SimpleSink::new());

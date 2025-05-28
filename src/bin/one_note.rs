@@ -14,7 +14,7 @@ fn main() {
         let mut env = ADSREnvelope::new();
         env.set_attack(0.1, scale * 1.0, Some((0.1, 0.0)));
         env.set_decay(0.4, scale * 0.2, Some((0.5, scale * 1.0)));
-        env.set_release(2.0, scale * 0.0, Some((0.5, 0.0)));
+        env.set_release(0.5, scale * 0.0, Some((0.5, 0.0)));
         env
     };
 

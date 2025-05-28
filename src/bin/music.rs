@@ -12,9 +12,9 @@ fn main() {
 
     let envelope = {
         let mut env = ADSREnvelope::new();
-        env.set_attack(0.05, scale * 1.0, Some((0.05, 0.0)));
-        env.set_decay(0.1, scale * 0.8, None);
-        env.set_release(5.0, scale * 0.0, Some((0.5, 0.0)));
+        env.set_attack(0.1, scale * 1.0, Some((0.05, 0.0)));
+        env.set_decay(1.0, scale * 0.8, None);
+        env.set_release(0.2, scale * 0.0, Some((0.5, 0.0)));
         env
     };
 
