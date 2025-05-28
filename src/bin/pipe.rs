@@ -33,13 +33,13 @@ impl Player {
 
         let initial_note = Note::new(TONES_FREQ[NOTES::C as usize][4], 0.0, 0.2)
             .with_generator(GENERATORS::SINE)
-            .with_envelope(&envelope);
+            .with_envelope(Box::from(envelope.clone()));
         let second_note = Note::new(TONES_FREQ[NOTES::D as usize][3], 2.0, 0.2)
             .with_generator(GENERATORS::SINE)
-            .with_envelope(&envelope);
+            .with_envelope(Box::from(envelope.clone()));
         let third_note = Note::new(TONES_FREQ[NOTES::FS as usize][5], 4.0, 0.2)
             .with_generator(GENERATORS::SINE)
-            .with_envelope(&envelope);
+            .with_envelope(Box::from(envelope.clone()));
 
         let notes = vec![initial_note, second_note, third_note];
 
@@ -55,9 +55,9 @@ impl Source for Player {
     fn pull(&mut self) -> f32 {
         trace!("Player::pull");
         self.i += 1;
-        self.notes[0].tick(self.i as i32, self.sample_rate as i32)
-            + self.notes[1].tick(self.i as i32, self.sample_rate as i32)
-            + self.notes[2].tick(self.i as i32, self.sample_rate as i32)
+        self.notes[0].tick(self.sample_rate as i32)
+            + self.notes[1].tick(self.sample_rate as i32)
+            + self.notes[2].tick(self.sample_rate as i32)
     }
 }
 

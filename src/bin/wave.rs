@@ -1,16 +1,17 @@
 use log::info;
+use rustic::core::generator::VariableToneGenerator;
 use std::time::Instant;
 
 use rustic::core::envelope::prelude::ADSREnvelope;
-use rustic::core::generator::{prelude::SineWave, ToneGenerator};
+use rustic::core::generator::{prelude::SineWave, Generator};
 
 #[cfg(feature = "plotting")]
 use rustic::plotting::plot_data;
 
 fn main() {
     // Tone Generator
-    let sine_440: Box<dyn ToneGenerator> = Box::from(SineWave::new(440.0, 1.0));
-    let sine_20: Box<dyn ToneGenerator> = Box::from(SineWave::new(20.0, 1.0));
+    let sine_440: Box<dyn VariableToneGenerator> = Box::from(SineWave::new(440.0, 1.0));
+    let sine_20: Box<dyn VariableToneGenerator> = Box::from(SineWave::new(20.0, 1.0));
 
     let mut envelope = ADSREnvelope::new();
     let mut envelope2 = ADSREnvelope::new();
@@ -38,8 +39,8 @@ fn main() {
     for sample in 0..(duration * sample_rate) as i32 {
         let current_time = sample as f32 / sample_rate;
 
-        let val = generator.tick(sample, sample_rate as i32, 0.02, 0.5);
-        let val2 = generator2.tick(sample, sample_rate as i32, 0.02, 0.5);
+        let val = generator.tick(1.0 / sample_rate as f32);
+        let val2 = generator2.tick(1.0 / sample_rate as f32);
 
         results.push((current_time, val));
         results2.push((current_time, val2));

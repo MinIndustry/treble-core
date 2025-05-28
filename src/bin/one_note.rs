@@ -21,13 +21,13 @@ fn main() {
     let notes = vec![
         Note::new(TONES_FREQ[NOTES::C as usize][3], 0.0, 5.0)
             .with_generator(GENERATORS::SINE)
-            .with_envelope(&envelope),
+            .with_envelope(Box::from(envelope.clone())),
         Note::new(TONES_FREQ[NOTES::E as usize][3], 0.0, 5.0)
             .with_generator(GENERATORS::SINE)
-            .with_envelope(&envelope),
+            .with_envelope(Box::from(envelope.clone())),
         Note::new(TONES_FREQ[NOTES::G as usize][3], 0.0, 5.0)
             .with_generator(GENERATORS::SINE)
-            .with_envelope(&envelope),
+            .with_envelope(Box::from(envelope.clone())),
     ];
 
     let mut score = Score::new("Long note".to_string(), sample_rate as i32);

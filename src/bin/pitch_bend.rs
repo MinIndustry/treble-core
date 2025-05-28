@@ -20,7 +20,7 @@ fn main() {
     score.add_note(
         Note::new(60.0, 0.0, 5.0)
             .with_generator(GENERATORS::SINE)
-            .with_envelope(&envelope)
+            .with_envelope(Box::from(envelope))
             .with_pitch_bend(&pitch_bend),
     );
 
