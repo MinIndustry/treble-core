@@ -147,7 +147,14 @@ impl Note {
 
     /// Returns true when to note is completed (amplitude envelope release has finished)
     /// This depends on the `off_time` of the note.
-    pub fn is_completed(&self, time: f32) -> bool {
-        self.generator.envelope.completed(time, self.start_time) && time > self.start_time
+    pub fn is_completed(&mut self, time: f32) -> bool {
+        if time > self.start_time + self.duration && !self.generator.is_stopping() {
+            self.generator.stop();
+        }
+
+        self.generator
+            .envelope
+            .completed(time, self.start_time + self.duration)
+            && time > self.start_time
     }
 }

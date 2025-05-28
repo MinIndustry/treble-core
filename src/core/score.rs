@@ -121,7 +121,7 @@ impl Score {
                 vals.clear();
             }
 
-            current_notes.retain(|n| !n.is_completed(current_time));
+            current_notes.retain_mut(|n| !n.is_completed(current_time));
 
             // If there are no notes to play, break the loop
             if current_notes.is_empty() {

@@ -31,6 +31,10 @@ impl SimpleGenerator {
         }
     }
 
+    pub fn is_stopping(&self) -> bool {
+        return self.stop_timestamp >= 0.0;
+    }
+
     pub fn set_tone_generator(
         &mut self,
         tone_generator: Box<dyn VariableToneGenerator + Send + Sync>,
