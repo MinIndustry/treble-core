@@ -113,7 +113,7 @@ impl Note {
     /// use rustic::core::envelope::prelude::ADSREnvelope;
     ///
     /// let note = Note::new(440.0, 0.0, 1.0)
-    ///     .with_envelope(&Box::new(ADSREnvelope::constant()));
+    ///     .with_envelope(Box::new(ADSREnvelope::constant()));
     /// ```
     pub fn with_envelope(mut self, envelope: Box<dyn Envelope + Send + Sync>) -> Self {
         self.generator.set_ampl_envelope(envelope);

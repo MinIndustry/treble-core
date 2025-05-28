@@ -4,7 +4,7 @@ use crate::core::note::Note;
 
 #[test]
 fn test_note_coverage() {
-    let note = Note::new(440.0, 1.0, 1.0);
+    let mut note = Note::new(440.0, 1.0, 1.0);
 
     assert_eq!(
         note.is_completed(1.5),
