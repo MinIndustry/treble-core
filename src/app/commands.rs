@@ -1,8 +1,10 @@
+use serde::{Deserialize, Serialize};
+
 /// Commands for a keyboard-based music application
 ///
 /// This enum represents all possible commands that can be issued through
 /// keyboard input in the application.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Commands {
     /// Quit the application
     Quit,
