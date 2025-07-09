@@ -90,9 +90,11 @@ pub fn start_app(
             .build_output_stream(
                 &config,
                 move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+                    println!("Processing audio");
                     // react to stream events and read or write stream data here.
                     command_batch.clear();
                     while let Ok(command) = receiver.try_recv() {
+                        println!("received {command:?}");
                         command_batch.push(command);
                         if command_batch.len() >= 16 {
                             break;
@@ -116,6 +118,7 @@ pub fn start_app(
                 None, // None=blocking, Some(Duration)=timeout
             )
             .unwrap();
+
         stream.play().unwrap();
         loop {}
     })
