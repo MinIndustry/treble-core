@@ -31,12 +31,12 @@ pub struct HiHat {
 impl HiHat {
     pub fn new() -> Result<Self, String> {
         let sources = [
-            simple_source(SquareWave::new(123.0, 1.0)),
-            simple_source(SquareWave::new(150.0, 1.0)),
-            simple_source(SquareWave::new(180.0, 1.0)),
-            simple_source(SquareWave::new(219.0, 1.0)),
-            simple_source(SquareWave::new(240.0, 1.0)),
-            simple_source(SquareWave::new(261.0, 1.0)),
+            simple_source(tones::SquareWave::new(123.0, 1.0)),
+            simple_source(tones::SquareWave::new(150.0, 1.0)),
+            simple_source(tones::SquareWave::new(180.0, 1.0)),
+            simple_source(tones::SquareWave::new(219.0, 1.0)),
+            simple_source(tones::SquareWave::new(240.0, 1.0)),
+            simple_source(tones::SquareWave::new(261.0, 1.0)),
         ];
 
         let mut system = System::<6, 1>::new();

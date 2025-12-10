@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use crate::core::envelope::prelude::ADSREnvelope;
-use crate::core::generator::prelude::{MultiSourceGenerator, SineWave, WhiteNoise};
+use crate::core::generator::prelude::{
+    tones::{SineWave, WhiteNoise},
+    MultiSourceGenerator,
+};
 use crate::core::tones::TONES_FREQ;
 use crate::instruments::Instrument;
 use crate::KeyboardGenerator;

@@ -1,6 +1,5 @@
-use super::{
-    Bendable, BendableGenerator, FrequencyTransition, ToneGenerator, VariableFrequency,
-    VariableToneGenerator,
+use crate::core::generator::{
+    FrequencyTransition, ToneGenerator, VariableFrequency, VariableToneGenerator,
 };
 
 use std::f32::consts::PI;

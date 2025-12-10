@@ -8,7 +8,7 @@ pub enum GENERATORS {
     SAW,
     SQUARE,
     NOISE,
-    NULL,
+    BLANK,
 }
 
 /// Defines the available type of frequency transitions
@@ -76,21 +76,21 @@ pub trait VariableBendableGenerator: ToneGenerator + Bendable {}
 
 mod constant_generator;
 mod multisource_generator;
-mod null_generator;
-mod saw_tooth;
 mod simple_generator;
-mod sine_wave;
-mod square_wave;
-mod white_noise;
+mod tone;
 
 pub mod prelude {
     pub use super::constant_generator::ConstantGenerator;
     pub use super::multisource_generator::MultiSourceGenerator;
-    pub use super::null_generator::NullGenerator;
-    pub use super::saw_tooth::SawTooth;
     pub use super::simple_generator::SimpleGenerator;
-    pub use super::sine_wave::SineWave;
-    pub use super::square_wave::SquareWave;
-    pub use super::white_noise::WhiteNoise;
     pub use super::{ToneGenerator, GENERATORS};
+
+    use super::tone;
+    pub mod tones {
+        pub use super::tone::Blank;
+        pub use super::tone::SawTooth;
+        pub use super::tone::SineWave;
+        pub use super::tone::SquareWave;
+        pub use super::tone::WhiteNoise;
+    }
 }

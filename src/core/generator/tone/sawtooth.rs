@@ -1,4 +1,6 @@
-use super::{ToneGenerator, VariableFrequency, VariableToneGenerator};
+use crate::core::generator::{
+    FrequencyTransition, ToneGenerator, VariableFrequency, VariableToneGenerator,
+};
 
 #[derive(Debug)]
 /// A generator that produces a sawtooth wave following the formula:
@@ -31,7 +33,7 @@ impl ToneGenerator for SawTooth {
 }
 
 impl VariableFrequency for SawTooth {
-    fn change_frequency(&mut self, frequency: f32, _transistion: super::FrequencyTransition) {
+    fn change_frequency(&mut self, frequency: f32, _transistion: FrequencyTransition) {
         self.period = 1.0 / frequency;
     }
 }

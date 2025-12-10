@@ -1,6 +1,8 @@
 use std::f32::consts::PI;
 
-use super::{ToneGenerator, VariableFrequency, VariableToneGenerator};
+use crate::core::generator::{
+    FrequencyTransition, ToneGenerator, VariableFrequency, VariableToneGenerator,
+};
 
 #[derive(Debug)]
 /// A generator that produces a square wave following the formula:
@@ -30,7 +32,7 @@ impl ToneGenerator for SquareWave {
 }
 
 impl VariableFrequency for SquareWave {
-    fn change_frequency(&mut self, frequency: f32, _transistion: super::FrequencyTransition) {
+    fn change_frequency(&mut self, frequency: f32, _transistion: FrequencyTransition) {
         self.frequency = frequency;
     }
 }

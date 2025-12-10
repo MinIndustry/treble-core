@@ -47,7 +47,7 @@ impl Note {
     pub fn new(frequency: f32, start_time: f32, duration: f32) -> Self {
         let env: ADSREnvelope = ADSREnvelope::constant();
         let tone_generator: Box<dyn VariableToneGenerator> =
-            Box::from(SineWave::new(frequency, 1.0));
+            Box::from(tones::SineWave::new(frequency, 1.0));
 
         Self {
             frequency,
@@ -81,11 +81,11 @@ impl Note {
     /// ```
     pub fn with_generator(mut self, generator: GENERATORS) -> Self {
         let new_tone_generator: Box<dyn VariableToneGenerator> = match generator {
-            GENERATORS::SAW => Box::from(SawTooth::new(self.frequency, 1.0)),
-            GENERATORS::SINE => Box::from(SineWave::new(self.frequency, 1.0)),
-            GENERATORS::SQUARE => Box::from(SquareWave::new(self.frequency, 1.0)),
-            GENERATORS::NOISE => Box::from(WhiteNoise::new(1.0)),
-            GENERATORS::NULL => Box::from(NullGenerator::new()),
+            GENERATORS::SAW => Box::from(tones::SawTooth::new(self.frequency, 1.0)),
+            GENERATORS::SINE => Box::from(tones::SineWave::new(self.frequency, 1.0)),
+            GENERATORS::SQUARE => Box::from(tones::SquareWave::new(self.frequency, 1.0)),
+            GENERATORS::NOISE => Box::from(tones::WhiteNoise::new(1.0)),
+            GENERATORS::BLANK => Box::from(tones::Blank::new()),
         };
 
         self.generator.set_tone_generator(new_tone_generator);

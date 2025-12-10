@@ -9,7 +9,7 @@ use petgraph::prelude::NodeIndex;
 use petgraph::Graph;
 use petgraph::{algo::toposort, Direction};
 
-use crate::core::generator::prelude::NullGenerator;
+use crate::core::generator::prelude::tones::Blank;
 
 use super::sink::simple_sink;
 use super::{simple_source, Filter, Sink, Source};
@@ -55,7 +55,7 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
     /// Creates a new system with simple null sources & simple sinks
     pub fn new() -> Self {
         let sources: [(Box<dyn Source>, (NodeIndex<u32>, usize)); INPUTS] =
-            core::array::from_fn(|_| (simple_source(NullGenerator::new()), (NodeIndex::new(0), 0)));
+            core::array::from_fn(|_| (simple_source(Blank::new()), (NodeIndex::new(0), 0)));
         let sinks: [((NodeIndex<u32>, usize), Box<dyn Sink>); OUTPUTS] =
             core::array::from_fn(|_| ((NodeIndex::new(0), 0), simple_sink()));
 

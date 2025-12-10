@@ -1,5 +1,8 @@
-use super::{ToneGenerator, VariableFrequency, VariableToneGenerator};
 use rand;
+
+use crate::core::generator::{
+    FrequencyTransition, ToneGenerator, VariableFrequency, VariableToneGenerator,
+};
 
 #[derive(Debug)]
 /// A generator that produces white noise following the formula:
@@ -22,7 +25,7 @@ impl ToneGenerator for WhiteNoise {
 }
 
 impl VariableFrequency for WhiteNoise {
-    fn change_frequency(&mut self, _: f32, _: super::FrequencyTransition) {}
+    fn change_frequency(&mut self, _: f32, _: FrequencyTransition) {}
 }
 
 impl VariableToneGenerator for WhiteNoise {}
