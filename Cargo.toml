@@ -8,21 +8,6 @@ edition = "2021"
 name = "rustic"
 path = "./src/main.rs"
 
-[[bin]]
-name = "input"
-path = "./src/bin/input.rs"
-required-features = ["input"]
-
-[[bin]]
-name = "keyboard"
-path = "./src/bin/keyboard.rs"
-required-features = ["input"]
-
-[[bin]]
-name = "test_meta"
-path = "./src/bin/test_meta.rs"
-required-features = ["meta"]
-
 [dependencies]
 chrono = "0.4.38"
 clap = { version = "4.5.15", features = ["derive"] }
@@ -47,8 +32,10 @@ toml = "0.8.19"
 pretty_assertions = "1.1.0"
 
 [features]
+default = []
 plotting = ["plotters", "plotters-backend"]
 meta = ["rustic-derive", "rustic-meta"]
-linux = ["evdev"]
+input = ["evdev"]
+linux = ["input"]
 macos = []
 windows = []
