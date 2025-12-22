@@ -1,9 +1,8 @@
 use crate::Note;
 
-/// Drum related modules
-mod drum;
+mod voices;
 
-/// Keyboard related modules
+mod drum;
 mod keyboard;
 
 pub mod prelude {
@@ -11,8 +10,6 @@ pub mod prelude {
     pub use super::keyboard::*;
 }
 
-/// The `Instrument` trait unifies different instruments structure,
-/// allowing to play complex graphs using a simple interface.
 pub trait Instrument: std::fmt::Debug {
     /// Starts playing the given note
     fn start_note(&mut self, note: Note, velocity: f32);
