@@ -13,7 +13,7 @@ use super::cli::Cli;
 use super::filesystem::FSConfig;
 use super::system::SystemConfig;
 use super::Commands;
-use crate::instruments::prelude::Keyboard;
+use crate::instruments::prelude::{Keyboard, KeyboardBuilder};
 use crate::prelude::Instrument;
 
 use super::row::Row;
@@ -80,7 +80,7 @@ impl Default for App {
             config,
             run_mode: RunMode::Unknown,
             mode: AppMode::Input,
-            instruments: vec![Box::new(Keyboard::<4>::new())],
+            instruments: vec![Box::new(KeyboardBuilder::new().build())],
             rows: [Row::default(), Row::default()],
             buffer: Vec::new(),
         }

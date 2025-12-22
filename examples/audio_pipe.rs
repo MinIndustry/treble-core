@@ -6,15 +6,13 @@ use log::{error, info, trace};
 use rodio::buffer::SamplesBuffer;
 use rodio::{OutputStream, Sink};
 
-use rustic::core::envelope::prelude::ADSREnvelope;
 use rustic::core::filters::prelude::{
     CombinatorFilter, DelayFilter, DuplicateFilter, GainFilter, Tremolo,
 };
-use rustic::core::generator::GENERATORS;
 use rustic::core::graph::{
     AudioGraphElement, Filter, SimpleSink, Sink as SystemSink, Source, System,
 };
-use rustic::core::utils::{Note, NOTES, TONES_FREQ};
+use rustic::core::utils::{Note, NOTES};
 
 #[derive(Debug)]
 struct Player {
@@ -25,20 +23,9 @@ struct Player {
 
 impl Player {
     fn new() -> Self {
-        let envelope = ADSREnvelope::new()
-            .with_attack(0.1, 1.0, None)
-            .with_decay(0.0, 1.0, None)
-            .with_release(20.0, 0.0, None);
-
-        let initial_note = Note::new(TONES_FREQ[NOTES::C as usize][4], 0.0, 0.2)
-            .with_generator(GENERATORS::SINE)
-            .with_envelope(Box::from(envelope.clone()));
-        let second_note = Note::new(TONES_FREQ[NOTES::D as usize][3], 2.0, 0.2)
-            .with_generator(GENERATORS::SINE)
-            .with_envelope(Box::from(envelope.clone()));
-        let third_note = Note::new(TONES_FREQ[NOTES::FS as usize][5], 4.0, 0.2)
-            .with_generator(GENERATORS::SINE)
-            .with_envelope(Box::from(envelope.clone()));
+        let initial_note = Note::new(NOTES::C, 4);
+        let second_note = Note::new(NOTES::D, 3);
+        let third_note = Note::new(NOTES::FS, 5);
 
         let notes = vec![initial_note, second_note, third_note];
 

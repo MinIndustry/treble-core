@@ -1,9 +1,6 @@
-/// The ADSR Envelope module.
 mod adsr;
+mod adsr_builder;
 
-/// The segment envelope module.
-/// This module contains the implementation of the segment envelope.
-/// The segment is capable of doing either a linear or a bezier interpolation.
 mod segment;
 
 /// An envelope that can be used to modulate a signal over time.

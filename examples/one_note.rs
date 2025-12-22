@@ -1,6 +1,4 @@
 use rustic::core::envelope::prelude::ADSREnvelope;
-use rustic::core::generator::GENERATORS;
-use rustic::core::utils::tones::{NOTES, TONES_FREQ};
 
 use rustic::prelude::App;
 

@@ -112,6 +112,6 @@ impl Instrument for Keyboard {
                 }
             })
             .sum::<f32>()
-            / VOICES as f32
+            / self.generators.len() as f32
     }
 }

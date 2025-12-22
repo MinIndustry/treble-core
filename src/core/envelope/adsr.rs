@@ -1,58 +1,61 @@
+//! # The ADSR Envelope module.
+//! 
+//! This module contains the implementaion of the ADSR envelope.
+//! 
+//! An ADSR envelope is a common type of envelope constisting of four segments
+//! 
+//! ## Attack
+//! 
+//! The attack segment represents the time it takes for a note, once triggered, to reach its maximum amplitude.
+//! 
+//! ## Decay
+//! 
+//! Once the note has reached its maximum amplitude, the decay segment represents the time it takes to transition from the maximum amplitude to the sustain level.
+//! 
+//! ## Sustain
+//! 
+//! The sustain segment represents the constant amplitude during the duration of the note.
+//! 
+//! ## Release
+//! 
+//! The release segment represents the time it takes to transition from the sustain level to 0 amplitude once the note is released.
+//! 
+//! # Representation
+//! 
+//! The ADSR envelope is represented using four `Segment` structs, each representing one of the segments of the envelope.
+//! These segments can be linear, bezier interpolations or any other function implemented in the `Segment` struct.
+
 use std::{default::Default, fmt};
 
-use super::{segment::Segment, Envelope};
-use crate::core::generator::prelude::SimpleGenerator;
+use super::{segment::{Segment, SustainSegment, LinearSegment, ConstantSegment}, Envelope};
+use crate::core::{generator::prelude::SimpleGenerator};
 use crate::core::generator::VariableToneGenerator;
 
-/// ADSR Envelope. Consists of four segments;
-/// * Attack: The beginning of the envelope, where the amplitude increases from 0 to the maximum value.
-/// * Decay: The transition from the maximum amplitude to the sustain level.
-/// * Sustain: The constant amplitude during the duration of the note.
-/// * Release: The transition from the sustain level to 0 amplitude once the note is released.
-///
-/// The ADSR envelope contains three segments for the attack, decay and release phases. This
-/// allows the envelope to use either linear or exponential interpolation.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ADSREnvelope {
-    pub attack: Segment,
-    pub decay: Segment,
-    pub release: Segment,
+    pub attack: Box<dyn Segment>,
+    pub decay: Box<dyn Segment>,
+    pub sustain: Box<dyn SustainSegment>,
+    pub release: Box<dyn Segment>,
+}
+
+impl Default for ADSREnvelope {
+    fn default() -> Self {
+        super::adsr_builder::ADSREnvelopeBuider::default().build()
+    }
 }
 
 impl ADSREnvelope {
     /// Creates a new Envelope with
     pub fn new() -> Self {
-        Self {
-            attack: Segment::default(),
-            decay: Segment::default(),
-            release: Segment::default(),
-        }
-    }
-
-    pub fn with_attack(mut self, duration: f32, to: f32, control: Option<(f32, f32)>) -> Self {
-        self.set_attack(duration, to, control);
-        self
-    }
-
-    pub fn with_decay(mut self, duration: f32, to: f32, control: Option<(f32, f32)>) -> Self {
-        self.set_decay(duration, to, control);
-        self
-    }
-
-    pub fn with_release(mut self, duration: f32, to: f32, control: Option<(f32, f32)>) -> Self {
-        self.set_release(duration, to, control);
-        self
+        Self::default()
     }
 
     /// Creates a simple constant envelope.
     /// The note reaches the maximum amplitude as soon as it is played and
     /// the minimum as soon as it is released.
     pub fn constant() -> Self {
-        Self {
-            attack: Segment::new(0.0, 1.0, 0.0, 0.0, None),
-            decay: Segment::new(1.0, 1.0, 0.0, 0.0, None),
-            release: Segment::new(1.0, 0.0, 0.0, 0.0, None),
-        }
+        super::adsr_builder::ADSREnvelopeBuider::constant().build()
     }
 
     /// Creates a generator from a tone generator and the envelope (cloned)
@@ -64,31 +67,6 @@ impl ADSREnvelope {
     pub fn sustain(&self) -> f32 {
         self.decay.end_value()
     }
-
-    /// Sets the attack segment of the envelope.
-    pub fn set_attack(&mut self, duration: f32, to: f32, control: Option<(f32, f32)>) -> bool {
-        self.attack = Segment::new(0.0, to, duration, 0.0, control);
-        true
-    }
-
-    /// Sets the decay segment of the envelope.
-    pub fn set_decay(&mut self, duration: f32, to: f32, control: Option<(f32, f32)>) -> bool {
-        // TODO: Check decay is correct
-        self.decay = Segment::new(
-            self.attack.end_value(),
-            to,
-            duration,
-            self.attack.end(),
-            control,
-        );
-        true
-    }
-
-    /// Sets the release section of the envelope.
-    pub fn set_release(&mut self, duration: f32, to: f32, control: Option<(f32, f32)>) -> bool {
-        self.release = Segment::new(self.decay.end_value(), to, duration, 0.0, control);
-        true
-    }
 }
 
 impl fmt::Display for ADSREnvelope {
@@ -98,7 +76,7 @@ impl fmt::Display for ADSREnvelope {
             "ADSR: Attack: {}, Decay: {}, Sustain: {}, Release: {}",
             self.attack,
             self.decay,
-            self.sustain(),
+            self.sustain,
             self.release
         )
     }
