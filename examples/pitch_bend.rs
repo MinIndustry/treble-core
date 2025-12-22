@@ -1,6 +1,6 @@
 use rustic::core::envelope::prelude::{ADSREnvelope, Segment};
 use rustic::core::generator::GENERATORS;
-use rustic::core::{note::Note, score::Score};
+use rustic::core::utils::Note;
 
 #[cfg(feature = "plotting")]
 use rustic::plotting::plot_data;

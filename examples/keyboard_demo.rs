@@ -8,7 +8,7 @@ use log::{error, info, warn};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use rustic::core::tones::NOTES;
+use rustic::core::utils::tones::NOTES;
 use rustic::inputs::keyboard::*;
 use rustic::instruments::{prelude::Keyboard, Instrument};
 use rustic::Note;

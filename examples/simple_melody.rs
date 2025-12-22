@@ -1,7 +1,6 @@
 use rustic::core::envelope::prelude::ADSREnvelope;
 use rustic::core::generator::GENERATORS;
-use rustic::core::tones::{NOTES, TONES_FREQ};
-use rustic::core::{note::Note, score::Score};
+use rustic::core::utils::tones::{NOTES, TONES_FREQ};
 
 #[cfg(feature = "plotting")]
 use rustic::plotting::plot_data;

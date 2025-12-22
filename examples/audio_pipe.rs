@@ -14,8 +14,7 @@ use rustic::core::generator::GENERATORS;
 use rustic::core::graph::{
     AudioGraphElement, Filter, SimpleSink, Sink as SystemSink, Source, System,
 };
-use rustic::core::note::Note;
-use rustic::core::tones::{NOTES, TONES_FREQ};
+use rustic::core::utils::{Note, NOTES, TONES_FREQ};
 
 #[derive(Debug)]
 struct Player {

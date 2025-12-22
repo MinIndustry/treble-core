@@ -33,11 +33,11 @@ fn main() {
         values.clear();
 
         if i % 4 == 1 {
-            kick.start_note(Note(rustic::core::tones::NOTES::A, 0), 0.0);
+            kick.start_note(Note(rustic::core::utils::tones::NOTES::A, 0), 0.0);
         } else if i % 4 == 3 {
-            snare.start_note(Note(rustic::core::tones::NOTES::A, 0), 0.0);
+            snare.start_note(Note(rustic::core::utils::tones::NOTES::A, 0), 0.0);
         } else if i < 39 {
-            hihat.start_note(Note(rustic::core::tones::NOTES::A, 0), 0.0);
+            hihat.start_note(Note(rustic::core::utils::tones::NOTES::A, 0), 0.0);
         }
 
         for _ in 0..(app.config.system.sample_rate as usize / 4) {
@@ -55,8 +55,8 @@ fn main() {
             complete_value_list.push(full);
         }
 
-        kick.stop_note(Note(rustic::core::tones::NOTES::A, 0));
-        hihat.stop_note(Note(rustic::core::tones::NOTES::A, 0));
+        kick.stop_note(Note(rustic::core::utils::tones::NOTES::A, 0));
+        hihat.stop_note(Note(rustic::core::utils::tones::NOTES::A, 0));
 
         sink.append(SamplesBuffer::new(
             2 as u16,

@@ -1,7 +1,6 @@
 use rustic::core::envelope::prelude::ADSREnvelope;
 use rustic::core::generator::GENERATORS;
-use rustic::core::tones::{NOTES, TONES_FREQ};
-use rustic::core::{note::Note, score::Score};
+use rustic::core::utils::tones::{NOTES, TONES_FREQ};
 
 use rustic::prelude::App;
 
@@ -18,15 +17,9 @@ fn main() {
         env
     };
 
-    let notes = vec![Note::new(666.0, 0.0, 5.0)
-        .with_generator(GENERATORS::SINE)
-        .with_envelope(Box::from(envelope.clone()))];
-
-    let mut score = Score::new("Long note".to_string(), sample_rate as i32);
-
-    for note in notes.into_iter() {
-        score.add_note(note);
-    }
-
-    score.play();
+    // This example needs to be updated to work with the new architecture
+    // For now, we'll just print the configuration
+    println!("Sample rate: {}", sample_rate);
+    println!("Master volume: {}", scale);
+    println!("This example needs to be updated for the new core structure");
 }
