@@ -12,7 +12,7 @@ use crate::core::generator::VariableToneGenerator;
 ///
 /// The ADSR envelope contains three segments for the attack, decay and release phases. This
 /// allows the envelope to use either linear or exponential interpolation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ADSREnvelope {
     pub attack: Segment,
     pub decay: Segment,
