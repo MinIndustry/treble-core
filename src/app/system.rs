@@ -1,3 +1,5 @@
+//! The System module is used to interact with the system.
+//! Its purpose is to help organize the system and provide a way to interact with it.
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]

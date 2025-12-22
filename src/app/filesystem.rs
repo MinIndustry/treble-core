@@ -1,3 +1,5 @@
+//! The filesystem module is used to interact with the filesystem.
+//! Its purpose is to help organize the filesystem and provide a way to interact with it.
 use serde::{Deserialize, Serialize};
 
 use log::error;

@@ -1,4 +1,4 @@
-use crate::core::tones::NOTES;
+use crate::core::utils::tones::NOTES;
 use crate::Note;
 
 pub struct Row {

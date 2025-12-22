@@ -1,3 +1,6 @@
+//! The keys module provides mapping between keyboard input and application events.
+//! It can be used to handle user input and trigger actions within the application.
+
 #[derive(Debug)]
 pub enum KeyType {
     Note,

@@ -1,3 +1,5 @@
+//! The tones module contains the mapping between musical notes and their corresponding frequencies.
+//! It can be used to generate audio signals for different musical notes.
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, Debug, Serialize, Deserialize)]

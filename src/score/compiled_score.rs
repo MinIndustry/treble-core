@@ -20,13 +20,13 @@ fn play_chord(instrument: &mut Box<dyn crate::instruments::Instrument>, chord: &
         // Convert score note to the crate::Note type expected by instruments
         // This is a simplified conversion and should be implemented properly
         let note_type = match score_note.note {
-            super::notes::NoteName::A => crate::core::tones::NOTES::A,
-            super::notes::NoteName::B => crate::core::tones::NOTES::B,
-            super::notes::NoteName::C => crate::core::tones::NOTES::C,
-            super::notes::NoteName::D => crate::core::tones::NOTES::D,
-            super::notes::NoteName::E => crate::core::tones::NOTES::E,
-            super::notes::NoteName::F => crate::core::tones::NOTES::F,
-            super::notes::NoteName::G => crate::core::tones::NOTES::G,
+            super::notes::NoteName::A => crate::core::utils::tones::NOTES::A,
+            super::notes::NoteName::B => crate::core::utils::tones::NOTES::B,
+            super::notes::NoteName::C => crate::core::utils::tones::NOTES::C,
+            super::notes::NoteName::D => crate::core::utils::tones::NOTES::D,
+            super::notes::NoteName::E => crate::core::utils::tones::NOTES::E,
+            super::notes::NoteName::F => crate::core::utils::tones::NOTES::F,
+            super::notes::NoteName::G => crate::core::utils::tones::NOTES::G,
             super::notes::NoteName::Pause => continue, // Skip pauses
         };
 

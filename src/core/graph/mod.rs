@@ -1,3 +1,6 @@
+//! Graphs are used to build audio pipelines for the application.
+//! They serve as metastructures for filters.
+//! Graphs can be used to create complex audio effects and processing chains.
 use dyn_clone::DynClone;
 use std::fmt;
 

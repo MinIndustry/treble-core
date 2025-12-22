@@ -1,3 +1,7 @@
+//! The `app` module contains the main application data structures and functions.
+//! It provides CLI utilities for managing the application as well as filesystem
+//! utilities for managing files and directories.
+
 use std::default::Default;
 use std::path::{Path, PathBuf};
 

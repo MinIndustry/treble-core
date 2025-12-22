@@ -2,16 +2,15 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use log::error;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
 
-/// The `app` module contains the main application data structures and functions.
-/// It provides CLI utilities for managing the application as well as filesystem
-/// utilities for managing files and directories.
 mod app;
 
 /// The core module of rustic. Contains the envelopes, filters, generators and the
 /// graph building utilities.
 pub mod core;
+
+/// Input handling module for hardware devices
+pub mod inputs;
 
 /// Instruments are structures that implement the `Instrument` trait.
 pub mod instruments;
@@ -48,7 +47,6 @@ pub mod prelude {
 }
 
 use crate::core::generator::{Bendable, Generator};
-use core::tones::NOTES;
 
 #[cfg(feature = "plotting")]
 pub mod plotting;
@@ -58,9 +56,8 @@ pub mod tests;
 
 pub trait KeyboardGenerator: Generator + Bendable + Send + Sync {}
 
-/// A note with its octave
-#[derive(Hash, Eq, PartialEq, Debug, Copy, Clone)]
-pub struct Note(pub NOTES, pub u8);
+// Re-export Note from core utils
+pub use core::{Note, NOTES};
 
 pub fn start_app(
     sender: Sender<prelude::Commands>,
@@ -84,7 +81,7 @@ pub fn start_app(
         let mut config = supported_config.config();
         config.buffer_size = cpal::BufferSize::Fixed(64);
         rustic_app.config.system.sample_rate = config.sample_rate.0;
-        let mut command_batch = Vec::with_capacity(16);
+        let mut command_batch: Vec<prelude::Commands> = Vec::with_capacity(16);
 
         let stream = device
             .build_output_stream(
