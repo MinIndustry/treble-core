@@ -1,4 +1,4 @@
-use crate::core::envelope::prelude::{ADSREnvelope, Segment};
+use crate::core::envelope::prelude::{ADSREnvelope, ADSREnvelopeBuilder, LinearSegment, ConstantSegment, BezierSegment};
 use crate::core::envelope::Envelope;
 use crate::core::generator::prelude::{
     tones::{SineWave, WhiteNoise},
@@ -31,21 +31,23 @@ impl Kick {
             ),
             envelopes: (
                 Box::from(
-                    ADSREnvelope::new()
-                        .with_attack(0.001, 1.0, Some((0.0, 1.0)))
-                        .with_decay(0.1, 0.0, None)
-                        .with_release(0.0, 0.0, Some((0.0, 0.0))),
+                    ADSREnvelopeBuilder::new()
+                        .attack(Box::new(BezierSegment::new(0.0, 1.0, 0.001, (0.0, 1.0))))
+                        .decay(Box::new(LinearSegment::new(1.0, 0.0, 0.1)))
+                        .release(Box::new(ConstantSegment::new(0.0, Some(0.0))))
+                        .build(),
                 ),
                 {
                     Box::from(
-                        ADSREnvelope::new()
-                            .with_attack(0.001, 1.0, Some((0.0, 1.0)))
-                            .with_decay(0.5, 0.0, None)
-                            .with_release(0.0, 0.0, Some((0.0, 0.0))),
+                        ADSREnvelopeBuilder::new()
+                            .attack(Box::new(BezierSegment::new(0.0, 1.0, 0.001, (0.0, 1.0))))
+                            .decay(Box::new(LinearSegment::new(1.0, 0.0, 0.5)))
+                            .release(Box::new(ConstantSegment::new(0.0, Some(0.0))))
+                            .build(),
                     )
                 },
             ),
-            pitch_curve: Box::from(Segment::new(1.4, 0.1, 0.3, 0.0, Some((2.0, 0.2)))),
+            pitch_curve: Box::from(BezierSegment::new(1.4, 0.1, 0.3, (2.0, 0.2))),
             current_tick: 0,
             playing: false,
             output: 0.0,
