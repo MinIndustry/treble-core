@@ -1,96 +1,92 @@
-use crate::core::envelope::prelude::*;
-use crate::core::envelope::Envelope;
-use crate::KeyboardGenerator;
+mod tone;
+mod composite;
 
-/// The different types of generator shapes.
-pub enum GENERATORS {
-    SINE,
-    SAW,
-    SQUARE,
-    NOISE,
-    BLANK,
-}
-
-/// Defines the available type of frequency transitions
-pub enum FrequencyTransition {
-    /// Immediate switch (useful for polyphonic instruments with limited generators)
-    DIRECT,
-    /// Smooth transition following an envelope
-    ENVELOPE(Box<dyn Envelope>),
-    /// Simple linear transition accross the given duration
-    LINEAR(f32),
-}
-
-/// A trait that implements a tone generator. This is a simple generator with no envelope
-pub trait ToneGenerator: std::fmt::Debug {
-    /// Ticks the generator and returns the current amplitude.
-    /// The amplitude is in the range of -1.0 to 1.0.
-    fn tick(&mut self, elapsed_time: f32) -> f32;
-}
-
-/// The generator trait represents a complete generator,
-/// It contains a ToneGenerator & an Envelope
-pub trait Generator: std::fmt::Debug + Sync + Send {
-    /// Starts the generator. Resets the envelope timer
-    /// and start playing the note
+/// The generator trait.
+/// An abstract trait for all sound generators.
+pub trait Generator {
     fn start(&mut self);
-
-    /// Stops playing the note. This simply means that the
-    /// Envelope will enter its `Release` phase, not that the
-    /// note is necessarily over yet.
     fn stop(&mut self);
-
-    /// Ticks the generator of `elapsed_time` seconds.
-    fn tick(&mut self, elapsed_time: f32) -> f32;
-
-    /// Whether the generator's envelope has finished its
-    /// release phase.
+    fn tick(&mut self, time_elapsed: f32) -> f32;
     fn completed(&self) -> bool;
+}
 
+/// A generator that produces a single tone.
+pub trait SingleToneGenerator: Generator {
     fn set_frequency(&mut self, frequency: f32);
 }
 
-/// A Generator with an envelope shaping its amplitude
-pub trait EnvelopedGenerator: Generator {
-    fn set_envelope(&mut self, envelope: Box<dyn Envelope + Send + Sync>);
+/// A generator that produces multiple tones. Each
+/// tone can have its own frequency relation, waveform,
+/// and envelopes.
+pub trait MultiToneGenerator: Generator {
+    fn set_base_frequency(&mut self, frequency: f32);
+    fn add_tone(&mut self, tone: tone::ToneGenerator);
+    fn with_tone(self, tone: tone::ToneGenerator) -> Self;
+    fn tone_count(&self) -> usize;
 }
-
-/// Allows an generator to bend its frequency following an envelope
-pub trait Bendable: Generator {
-    fn set_pitch_bend(&mut self, pitch: f32);
-}
-
-/// Allows a generator to change its frequency
-pub trait VariableFrequency: ToneGenerator {
-    fn change_frequency(&mut self, frequency: f32, transistion: FrequencyTransition);
-}
-
-/// Allows a generator to change its pitch
-pub trait BendableGenerator: Generator + Bendable {}
-
-/// Allows a generator to change its frequency
-pub trait VariableToneGenerator: ToneGenerator + VariableFrequency + Send + Sync {}
-
-/// Allows a generator to change its frequency and pitch
-pub trait VariableBendableGenerator: ToneGenerator + Bendable {}
-
-mod constant_generator;
-mod multisource_generator;
-mod simple_generator;
-mod tone;
 
 pub mod prelude {
-    pub use super::constant_generator::ConstantGenerator;
-    pub use super::multisource_generator::MultiSourceGenerator;
-    pub use super::simple_generator::SimpleGenerator;
-    pub use super::{ToneGenerator, GENERATORS};
+    pub use super::tone::ToneGenerator;
+    pub use super::composite::CompositeGenerator;
 
-    use super::tone;
-    pub mod tones {
-        pub use super::tone::Blank;
-        pub use super::tone::SawTooth;
-        pub use super::tone::SineWave;
-        pub use super::tone::SquareWave;
-        pub use super::tone::WhiteNoise;
+    /// A mixing mode for combining multiple tone generators in the
+    /// `CompositeGenerator`.
+    /// - Sum: Adds the outputs of all tone generators together.
+    /// - Multiply: Multiplies the outputs of all tone generators together.
+    /// - Max: Takes the maximum output value from all tone generators.
+    /// - Average: Averages the outputs of all tone generators.
+    pub enum MixMode {
+        Sum,
+        Multiply,
+        Max,
+        Average,
+    }
+
+    /// A waveform type for tone generation.
+    /// - Sine: A smooth periodic oscillation.
+    /// - Square: A waveform that alternates between high and low states.
+    /// - Sawtooth: A waveform that rises linearly and then drops sharply.
+    /// - Triangle: A waveform that rises and falls linearly.
+    /// - WhiteNoise: A random signal with equal intensity at different frequencies.
+    /// - PinkNoise: A random signal with equal energy per octave.
+    /// - Blank: A constant output defined by amplitude.
+    pub enum Waveform {
+        Sine,
+        Square,
+        Sawtooth,
+        Triangle,
+        WhiteNoise,
+        PinkNoise,
+        Blank,
+    }
+
+    /// A frequency relation type for tone generation.
+    /// - Identity: The frequency is the same as the base frequency.
+    /// - Constant(f32): A fixed frequency value.
+    /// - Harmonic(u8): A frequency that is a harmonic multiple of a base frequency
+    /// - Ratio(f32): A frequency that is a ratio of a base frequency.
+    /// - Offset(f32): A frequency that is an offset from a base frequency.
+    /// - Semitones(i32): A frequency that is a number of semitones
+    pub enum FrequencyRelation {
+        Identity,
+        Constant(f32),
+        Harmonic(u8),
+        Ratio(f32),
+        Offset(f32),
+        Semitones(i32)
+    }
+
+    impl FrequencyRelation {
+        /// Computes the actual frequency based on the base frequency.
+        pub fn compute(self, base_freq: f32) -> f32 {
+            match self {
+                FrequencyRelation::Identity => base_freq,
+                FrequencyRelation::Constant(freq) => freq,
+                FrequencyRelation::Harmonic(harmonic) => base_freq * harmonic as f32,
+                FrequencyRelation::Ratio(ratio) => base_freq * ratio,
+                FrequencyRelation::Offset(offset) => base_freq + offset,
+                FrequencyRelation::Semitones(semitones) => base_freq * 2.0_f32.powi(semitones),
+            }
+        }
     }
 }
