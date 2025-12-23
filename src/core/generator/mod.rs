@@ -1,5 +1,7 @@
 mod tone;
+mod tone_builder;
 mod composite;
+mod composite_builder;
 
 /// The generator trait.
 /// An abstract trait for all sound generators.
@@ -28,6 +30,13 @@ pub trait MultiToneGenerator: Generator {
 pub mod prelude {
     pub use super::tone::ToneGenerator;
     pub use super::composite::CompositeGenerator;
+
+    pub use super::{MultiToneGenerator, SingleToneGenerator, Generator};
+
+    pub mod builder {
+        pub use super::super::composite_builder::CompositeGeneratorBuilder;
+        pub use super::super::tone_builder::ToneGeneratorBuilder;
+    }
 
     /// A mixing mode for combining multiple tone generators in the
     /// `CompositeGenerator`.
