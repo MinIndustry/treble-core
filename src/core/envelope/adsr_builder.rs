@@ -1,14 +1,14 @@
 use super::segment::{Segment, SustainSegment, ConstantSegment, LinearSegment};
 
 #[derive(Debug, Clone)]
-pub struct ADSREnvelopeBuider {
+pub struct ADSREnvelopeBuilder {
     attack: Box<dyn Segment>,
     decay: Box<dyn Segment>,
     sustain: Box<dyn SustainSegment>,
     release: Box<dyn Segment>,
 }
 
-impl Default for ADSREnvelopeBuider {
+impl Default for ADSREnvelopeBuilder {
     fn default() -> Self {
         Self {
             attack: Box::new(LinearSegment::default_attack()),
@@ -19,7 +19,7 @@ impl Default for ADSREnvelopeBuider {
     }
 }
 
-impl ADSREnvelopeBuider {
+impl ADSREnvelopeBuilder {
     pub fn new() -> Self {
         Self::default()
     }

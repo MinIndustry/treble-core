@@ -41,7 +41,7 @@ pub struct ADSREnvelope {
 
 impl Default for ADSREnvelope {
     fn default() -> Self {
-        super::adsr_builder::ADSREnvelopeBuider::default().build()
+        super::adsr_builder::ADSREnvelopeBuilder::default().build()
     }
 }
 
@@ -55,7 +55,7 @@ impl ADSREnvelope {
     /// The note reaches the maximum amplitude as soon as it is played and
     /// the minimum as soon as it is released.
     pub fn constant() -> Self {
-        super::adsr_builder::ADSREnvelopeBuider::constant().build()
+        super::adsr_builder::ADSREnvelopeBuilder::constant().build()
     }
 
     /// Creates a generator from a tone generator and the envelope (cloned)
