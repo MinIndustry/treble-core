@@ -1,55 +1,45 @@
-use crate::core::envelope::prelude::{ADSREnvelope, ADSREnvelopeBuilder, LinearSegment, ConstantSegment, BezierSegment};
+use crate::core::envelope::prelude::{ADSREnvelopeBuilder, LinearSegment, ConstantSegment, BezierSegment};
 use crate::core::envelope::Envelope;
-use crate::core::generator::prelude::{
-    tones::{SineWave, WhiteNoise},
-    SimpleGenerator,
-};
-use crate::core::generator::BendableGenerator;
-use crate::core::generator::ToneGenerator;
+use crate::core::generator::prelude::{builder::{ToneGeneratorBuilder, CompositeGeneratorBuilder}, Waveform, MixMode, FrequencyRelation, MultiToneGenerator};
 use crate::instruments::Instrument;
 use crate::Note;
 
 #[derive(Debug)]
 pub struct Kick {
-    generators: (Box<dyn ToneGenerator>, Box<dyn BendableGenerator>),
-    envelopes: (Box<dyn Envelope>, Box<dyn Envelope>),
-    pitch_curve: Box<dyn Envelope>,
+    generator: Box<dyn MultiToneGenerator>,
     current_tick: u32,
-    playing: bool,
     output: f32,
 }
 
 impl Kick {
     pub fn new() -> Self {
         Self {
-            generators: (
-                Box::from(WhiteNoise::new(0.02)),
-                Box::from(SimpleGenerator::new(
-                    Box::from(ADSREnvelope::constant()),
-                    Box::from(SineWave::new(58.0, 1.0)),
-                )),
-            ),
-            envelopes: (
-                Box::from(
-                    ADSREnvelopeBuilder::new()
-                        .attack(Box::new(BezierSegment::new(0.0, 1.0, 0.001, (0.0, 1.0))))
-                        .decay(Box::new(LinearSegment::new(1.0, 0.0, 0.1)))
-                        .release(Box::new(ConstantSegment::new(0.0, Some(0.0))))
-                        .build(),
-                ),
-                {
-                    Box::from(
-                        ADSREnvelopeBuilder::new()
+            generator: CompositeGeneratorBuilder::new()
+                .add_generator(
+                    ToneGeneratorBuilder::new()
+                        .waveform(Waveform::WhiteNoise)
+                        .frequency_relation(FrequencyRelation::Constant(1.0))
+                        .amplitude_envelope(
+                            ADSREnvelopeBuilder::new()
                             .attack(Box::new(BezierSegment::new(0.0, 1.0, 0.001, (0.0, 1.0))))
-                            .decay(Box::new(LinearSegment::new(1.0, 0.0, 0.5)))
+                            .decay(Box::new(LinearSegment::new(1.0, 0.0, 0.1)))
                             .release(Box::new(ConstantSegment::new(0.0, Some(0.0))))
-                            .build(),
-                    )
-                },
-            ),
-            pitch_curve: Box::from(BezierSegment::new(1.4, 0.1, 0.3, (2.0, 0.2))),
-            current_tick: 0,
-            playing: false,
+                            .build()
+                        )
+                        .build())
+                .add_generator(
+                    ToneGeneratorBuilder::new()
+                        .waveform(Waveform::Sine)
+                        .frequency_relation(FrequencyRelation::Ratio(1.0))
+                        .amplitude_envelope(
+                            ADSREnvelopeBuilder::constant()
+                                .build())
+                        .build())
+            .pitch_envelope(Some(Box::from(BezierSegment::new(1.4, 0.1, 0.3, (2.0, 0.2)))))
+            .mix_mode(MixMode::Sum)
+            .frequency(58.0)
+            .build(),
+                        current_tick: 0,
             output: 0.0,
         }
     }
@@ -58,12 +48,12 @@ impl Kick {
 impl Instrument for Kick {
     fn start_note(&mut self, _note: Note, _velocity: f32) {
         self.current_tick = 0;
-        self.playing = true;
+        self.generator.start();
     }
 
     fn stop_note(&mut self, _note: crate::Note) {
         // The note will continue playing until completed
-        self.playing = false;
+        self.genrator.stop();
     }
 
     fn get_output(&mut self) -> f32 {
