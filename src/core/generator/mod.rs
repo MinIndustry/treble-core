@@ -1,3 +1,5 @@
+use std::fmt;
+
 mod tone;
 mod tone_builder;
 mod composite;
@@ -5,7 +7,7 @@ mod composite_builder;
 
 /// The generator trait.
 /// An abstract trait for all sound generators.
-pub trait Generator {
+pub trait Generator: fmt::Debug + Send + Sync {
     fn start(&mut self);
     fn stop(&mut self);
     fn tick(&mut self, time_elapsed: f32) -> f32;
@@ -15,6 +17,8 @@ pub trait Generator {
 /// A generator that produces a single tone.
 pub trait SingleToneGenerator: Generator {
     fn set_frequency(&mut self, frequency: f32);
+    fn has_frequency_relation(&self) -> bool;
+    fn update_frequency(&mut self, base_frequency: f32);
 }
 
 /// A generator that produces multiple tones. Each
@@ -23,7 +27,6 @@ pub trait SingleToneGenerator: Generator {
 pub trait MultiToneGenerator: Generator {
     fn set_base_frequency(&mut self, frequency: f32);
     fn add_tone(&mut self, tone: tone::ToneGenerator);
-    fn with_tone(self, tone: tone::ToneGenerator) -> Self;
     fn tone_count(&self) -> usize;
 }
 
@@ -44,6 +47,7 @@ pub mod prelude {
     /// - Multiply: Multiplies the outputs of all tone generators together.
     /// - Max: Takes the maximum output value from all tone generators.
     /// - Average: Averages the outputs of all tone generators.
+    #[derive(Debug)]
     pub enum MixMode {
         Sum,
         Multiply,
@@ -59,6 +63,7 @@ pub mod prelude {
     /// - WhiteNoise: A random signal with equal intensity at different frequencies.
     /// - PinkNoise: A random signal with equal energy per octave.
     /// - Blank: A constant output defined by amplitude.
+    #[derive(Debug)]
     pub enum Waveform {
         Sine,
         Square,
@@ -76,6 +81,7 @@ pub mod prelude {
     /// - Ratio(f32): A frequency that is a ratio of a base frequency.
     /// - Offset(f32): A frequency that is an offset from a base frequency.
     /// - Semitones(i32): A frequency that is a number of semitones
+    #[derive(Debug)]
     pub enum FrequencyRelation {
         Identity,
         Constant(f32),
@@ -87,14 +93,14 @@ pub mod prelude {
 
     impl FrequencyRelation {
         /// Computes the actual frequency based on the base frequency.
-        pub fn compute(self, base_freq: f32) -> f32 {
+        pub fn compute(&self, base_freq: f32) -> f32 {
             match self {
                 FrequencyRelation::Identity => base_freq,
-                FrequencyRelation::Constant(freq) => freq,
-                FrequencyRelation::Harmonic(harmonic) => base_freq * harmonic as f32,
+                FrequencyRelation::Constant(freq) => *freq,
+                FrequencyRelation::Harmonic(harmonic) => base_freq * (*harmonic) as f32,
                 FrequencyRelation::Ratio(ratio) => base_freq * ratio,
                 FrequencyRelation::Offset(offset) => base_freq + offset,
-                FrequencyRelation::Semitones(semitones) => base_freq * 2.0_f32.powi(semitones),
+                FrequencyRelation::Semitones(semitones) => base_freq * 2.0_f32.powi(*semitones),
             }
         }
     }
