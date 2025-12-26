@@ -1,12 +1,13 @@
-use crate::core::envelope::prelude::Segment;
+use crate::core::envelope::prelude::{BezierSegment, ConstantSegment};
 use crate::core::envelope::Envelope;
 use crate::core::filters::prelude::{CombinatorFilter, GainFilter, ResonantBandpassFilter};
-use crate::core::generator::prelude::*;
 use crate::core::graph::simple_source;
 use crate::core::graph::SimpleSink;
 use crate::core::graph::System;
 use crate::instruments::Instrument;
 use crate::Note;
+
+use crate::core::generator::prelude::{builder::ToneGeneratorBuilder, Waveform};
 
 #[cfg(debug_assertions)]
 use std::fs::File;
@@ -31,12 +32,36 @@ pub struct HiHat {
 impl HiHat {
     pub fn new() -> Result<Self, String> {
         let sources = [
-            simple_source(tones::SquareWave::new(123.0, 1.0)),
-            simple_source(tones::SquareWave::new(150.0, 1.0)),
-            simple_source(tones::SquareWave::new(180.0, 1.0)),
-            simple_source(tones::SquareWave::new(219.0, 1.0)),
-            simple_source(tones::SquareWave::new(240.0, 1.0)),
-            simple_source(tones::SquareWave::new(261.0, 1.0)),
+            simple_source(ToneGeneratorBuilder::new()
+                .waveform(Waveform::Square)
+                .frequency(123.0)
+                .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
+                .build()),
+            simple_source(ToneGeneratorBuilder::new()
+                .waveform(Waveform::Square)
+                .frequency(150.0)
+                .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
+                .build()),
+            simple_source(ToneGeneratorBuilder::new()
+                .waveform(Waveform::Square)
+                .frequency(180.0)
+                .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
+                .build()),
+            simple_source(ToneGeneratorBuilder::new()
+                .waveform(Waveform::Square)
+                .frequency(219.0)
+                .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
+                .build()),
+            simple_source(ToneGeneratorBuilder::new()
+                .waveform(Waveform::Square)
+                .frequency(240.0)
+                .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
+                .build()),
+            simple_source(ToneGeneratorBuilder::new()
+                .waveform(Waveform::Square)
+                .frequency(261.0)
+                .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
+                .build()),
         ];
 
         let mut system = System::<6, 1>::new();
@@ -75,7 +100,7 @@ impl HiHat {
             Err(_) => warn!("Failed to build path to save hihat graph"),
         }
 
-        let amplitude_envelope = Box::new(Segment::new(4.0, 0.0, 0.2, 0.0, Some((0.0, 0.0))));
+        let amplitude_envelope = Box::new(BezierSegment::new(4.0, 0.0, 0.2, (0.0, 0.0)));
 
         #[cfg(debug_assertions)]
         let output_path = crate::app::FSConfig::debug_dir("HiHat", "hihat_output.txt").unwrap();

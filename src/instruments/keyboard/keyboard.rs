@@ -1,19 +1,19 @@
 use std::collections::HashMap;
 
-use crate::core::envelope::prelude::ADSREnvelope;
+use crate::core::envelope::prelude::{ADSREnvelope, ConstantSegment};
 use crate::core::generator::prelude::{
-    tones::{SineWave, WhiteNoise},
-    MultiSourceGenerator,
+    MultiToneGenerator,
+    builder::{CompositeGeneratorBuilder, ToneGeneratorBuilder},
+    Waveform, FrequencyRelation
 };
-use crate::core::utils::tones::{NOTES, TONES_FREQ};
+use crate::core::utils::tones::TONES_FREQ;
 use crate::instruments::voices::{PolyVoiceAllocator, PolyphonicVoice};
 use crate::instruments::Instrument;
-use crate::KeyboardGenerator;
 use crate::Note;
 
 #[derive(Debug)]
 pub struct Keyboard {
-    generators: Vec<(Box<dyn KeyboardGenerator>, bool)>,
+    generators: Vec<(Box<dyn MultiToneGenerator>, bool)>,
     allocator: PolyVoiceAllocator,
     note_indices: HashMap<Note, usize>,
     output: f32,
@@ -34,12 +34,19 @@ impl PolyphonicVoice for Keyboard {
 impl Keyboard {
     pub fn new(voices: usize, voice_allocator: PolyVoiceAllocator, envelope: ADSREnvelope) -> Self {
         let generators = std::iter::repeat_with(|| {
-            let generator = MultiSourceGenerator::new(
-                Box::from(envelope.clone()),
-                Box::from(SineWave::new(0.0, 1.0)),
-            )
-            .add_generator(Box::from(WhiteNoise::new(1.0)), 0.01);
-            let generator: Box<dyn KeyboardGenerator> = Box::from(generator);
+            let generator = CompositeGeneratorBuilder::new()
+            .add_generator(Box::new(ToneGeneratorBuilder::new()
+                .amplitude_envelope(Box::new(envelope.clone()))
+                .waveform(Waveform::Sine)
+                .frequency_relation(FrequencyRelation::Identity)
+                .build()))
+            .add_generator(Box::new(ToneGeneratorBuilder::new()
+                .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
+                .waveform(Waveform::WhiteNoise)
+                .build()))
+            .build();
+
+            let generator: Box<dyn MultiToneGenerator> = Box::from(generator);
             (generator, false)
         })
         .take(voices)
@@ -69,7 +76,7 @@ impl Instrument for Keyboard {
             // If there is a free generator, we use it
             self.generators[position]
                 .0
-                .set_frequency(TONES_FREQ[note.0 as usize][note.1 as usize]);
+                .set_base_frequency(TONES_FREQ[note.0 as usize][note.1 as usize]);
             self.generators[position].0.start();
             self.generators[position].1 = true;
             self.note_indices.insert(note, position);

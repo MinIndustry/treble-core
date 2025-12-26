@@ -20,37 +20,37 @@ pub struct Snare {
 impl Snare {
     pub fn new() -> Self {
         Self {
-            generator: CompositeGeneratorBuilder::new()
+            generator: Box::new(CompositeGeneratorBuilder::new()
                 .add_generator(
-                    ToneGeneratorBuilder::new()
+                    Box::new(ToneGeneratorBuilder::new()
                         .waveform(Waveform::WhiteNoise)
                         .frequency_relation(FrequencyRelation::Constant(1.0))  // Frequency is irrelevant for noise. This is to avoid warnings
                         .amplitude_envelope(
-                            ADSREnvelopeBuilder::new()
+                            Box::new(ADSREnvelopeBuilder::new()
                                 .attack(Box::new(BezierSegment::new(0.0, 1.0, 0.001, (0.0, 1.0))))
                                 .decay(Box::new(LinearSegment::new(1.0, 0.0, 0.3)))
                                 .release(Box::new(LinearSegment::new(0.0, 0.0, 0.0)))
-                                .build())
-                        .build()
+                                .build()))
+                        .build())
                 )
                 .add_generator(
-                    ToneGeneratorBuilder::new()
+                    Box::new(ToneGeneratorBuilder::new()
                         .waveform(Waveform::Sine)
                         .frequency_relation(FrequencyRelation::Ratio(1.0))
                         .amplitude_envelope(
-                            ADSREnvelopeBuilder::new()
+                            Box::new(ADSREnvelopeBuilder::new()
                                 .attack(Box::new(BezierSegment::new(0.0, 1.0, 0.001, (0.0, 1.0))))
                                 .decay(Box::new(LinearSegment::new(1.0, 0.0, 0.5)))
                                 .release(Box::new(LinearSegment::new(0.0, 0.0, 0.0)))
-                                .build())
-                        .build()
+                                .build()))
+                        .build())
                 )
                 .pitch_envelope(Some(
                     Box::from(BezierSegment::new(1.2, 1.0, 0.3, (0.0, 1.0)))
                 ))
                 .mix_mode(MixMode::Sum)
                 .frequency(58.0)
-                .build(),
+                .build()),
             current_tick: 0,
             output: 0.0,
         }

@@ -1,5 +1,4 @@
 use crate::core::envelope::prelude::{ADSREnvelopeBuilder, LinearSegment, ConstantSegment, BezierSegment};
-use crate::core::envelope::Envelope;
 use crate::core::generator::prelude::{builder::{ToneGeneratorBuilder, CompositeGeneratorBuilder}, Waveform, MixMode, FrequencyRelation, MultiToneGenerator};
 use crate::instruments::Instrument;
 use crate::Note;
@@ -14,32 +13,31 @@ pub struct Kick {
 impl Kick {
     pub fn new() -> Self {
         Self {
-            generator: CompositeGeneratorBuilder::new()
+            generator: Box::new(CompositeGeneratorBuilder::new()
                 .add_generator(
-                    ToneGeneratorBuilder::new()
+                    Box::new(ToneGeneratorBuilder::new()
                         .waveform(Waveform::WhiteNoise)
                         .frequency_relation(FrequencyRelation::Constant(1.0))
                         .amplitude_envelope(
-                            ADSREnvelopeBuilder::new()
+                            Box::new(ADSREnvelopeBuilder::new()
                             .attack(Box::new(BezierSegment::new(0.0, 1.0, 0.001, (0.0, 1.0))))
                             .decay(Box::new(LinearSegment::new(1.0, 0.0, 0.1)))
                             .release(Box::new(ConstantSegment::new(0.0, Some(0.0))))
-                            .build()
+                            .build())
                         )
-                        .build())
+                        .build()))
                 .add_generator(
-                    ToneGeneratorBuilder::new()
+                    Box::new(ToneGeneratorBuilder::new()
                         .waveform(Waveform::Sine)
                         .frequency_relation(FrequencyRelation::Ratio(1.0))
                         .amplitude_envelope(
-                            ADSREnvelopeBuilder::constant()
-                                .build())
-                        .build())
-            .pitch_envelope(Some(Box::from(BezierSegment::new(1.4, 0.1, 0.3, (2.0, 0.2)))))
-            .mix_mode(MixMode::Sum)
-            .frequency(58.0)
-            .build(),
-                        current_tick: 0,
+                            Box::new(ConstantSegment::new(1.0, None)))
+                        .build()))
+                .pitch_envelope(Some(Box::from(BezierSegment::new(1.4, 0.1, 0.3, (2.0, 0.2)))))
+                .mix_mode(MixMode::Sum)
+                .frequency(58.0)
+                .build()),
+            current_tick: 0,
             output: 0.0,
         }
     }
@@ -53,7 +51,7 @@ impl Instrument for Kick {
 
     fn stop_note(&mut self, _note: crate::Note) {
         // The note will continue playing until completed
-        self.genrator.stop();
+        self.generator.stop();
     }
 
     fn get_output(&mut self) -> f32 {
@@ -61,13 +59,6 @@ impl Instrument for Kick {
     }
 
     fn tick(&mut self) {
-        self.current_tick += 1;
-        let current_time: f32 = self.current_tick as f32 / 44100.0;
-        let current_pitch = self.pitch_curve.at(current_time, -1.0);
-        self.generators.1.set_pitch_bend(current_pitch);
-
-        self.output = self.generators.0.tick(1.0 / 44100.0)
-            * self.envelopes.0.at(current_time, -1.0)
-            + self.generators.1.tick(1.0 / 44100.0) * self.envelopes.1.at(current_time, -1.0);
+        self.output = self.generator.tick(1.0 / 44100.0);
     }
 }
