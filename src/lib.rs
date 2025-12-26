@@ -46,21 +46,17 @@ pub mod prelude {
     pub use super::instruments::Instrument;
 }
 
-use crate::core::generator::{Bendable, Generator};
-
 #[cfg(feature = "plotting")]
 pub mod plotting;
 
 #[cfg(test)]
 pub mod tests;
 
-pub trait KeyboardGenerator: Generator + Bendable + Send + Sync {}
-
 // Re-export Note from core utils
 pub use core::{Note, NOTES};
 
 pub fn start_app(
-    sender: Sender<prelude::Commands>,
+    _sender: Sender<prelude::Commands>,
     receiver: Receiver<prelude::Commands>,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
