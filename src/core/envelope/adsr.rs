@@ -27,9 +27,7 @@
 
 use std::{default::Default, fmt};
 
-use super::{segment::{Segment, SustainSegment, LinearSegment, ConstantSegment}, Envelope};
-use crate::core::{generator::prelude::SimpleGenerator};
-use crate::core::generator::VariableToneGenerator;
+use super::{segment::{Segment, SustainSegment}, Envelope};
 
 #[derive(Debug, Clone)]
 pub struct ADSREnvelope {
@@ -51,21 +49,9 @@ impl ADSREnvelope {
         Self::default()
     }
 
-    /// Creates a simple constant envelope.
-    /// The note reaches the maximum amplitude as soon as it is played and
-    /// the minimum as soon as it is released.
-    pub fn constant() -> Self {
-        super::adsr_builder::ADSREnvelopeBuilder::constant().build()
-    }
-
-    /// Creates a generator from a tone generator and the envelope (cloned)
-    pub fn attach_amplitude(&self, generator: Box<dyn VariableToneGenerator>) -> SimpleGenerator {
-        SimpleGenerator::new(Box::from(self.clone()), generator)
-    }
-
     /// Returns the sustain value of the envelope
     pub fn sustain(&self) -> f32 {
-        self.decay.end_value()
+        self.decay.at(1.0)
     }
 }
 
@@ -84,24 +70,24 @@ impl fmt::Display for ADSREnvelope {
 
 impl Envelope for ADSREnvelope {
     fn at(&self, time: f32, note_off: f32) -> f32 {
-        if self.attack.covers(time) {
-            self.attack.at(time)
-        } else if self.decay.covers(time) {
-            self.decay.at(time)
+        if self.attack.get_duration() > time {  // Still in attack phase
+            self.attack.at(self.attack.map_time(0.0, time))
+        } else if self.decay.get_duration() > (time - self.attack.get_duration()) {  // In decay phase
+            self.decay.at(self.attack.map_time(self.attack.get_duration(), time))
         } else {
             if note_off > 0.0 {
-                if self.release.covers(time - note_off) {
-                    self.release.at(time - note_off)
+                if self.release.get_duration() > (time - note_off) {  // In release
+                    self.release.at(self.release.map_time(note_off, time))
                 } else {
                     0.0
                 }
             } else {
-                self.decay.end_value()
+                self.decay.at(self.decay.get_duration())
             }
         }
     }
 
     fn completed(&self, time: f32, note_off: f32) -> bool {
-        note_off > 0.0 && time - note_off > self.release.end()
+        note_off > 0.0 && self.release.map_time(note_off, time) >= 1.0
     }
 }

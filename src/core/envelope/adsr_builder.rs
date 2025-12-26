@@ -24,15 +24,6 @@ impl ADSREnvelopeBuilder {
         Self::default()
     }
 
-    pub fn constant() -> Self {
-        Self {
-            attack: Box::new(ConstantSegment::new(1.0, 0.0)),
-            decay: Box::new(ConstantSegment::new(1.0, 0.0)),
-            sustain: Box::new(ConstantSegment::default_sustain()),
-            release: Box::new(ConstantSegment::new(1.0, 0.0)),
-        }
-    }
-
     pub fn build(self) -> super::adsr::ADSREnvelope {
         super::adsr::ADSREnvelope {
             attack: self.attack,
