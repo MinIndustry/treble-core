@@ -1,12 +1,12 @@
 use crate::core::envelope::Envelope;
 
-use super::tone::ToneGenerator;
+use crate::core::generator::SingleToneGenerator;
 use super::composite::CompositeGenerator;
 
 /// Builder for the `CompositeGenerator`.
 pub struct CompositeGeneratorBuilder {
     base_freq: f32,
-    generators: Vec<ToneGenerator>,
+    generators: Vec<Box<dyn SingleToneGenerator>>,
     mix_mode: super::prelude::MixMode,
     pitch: Option<Box<dyn Envelope>>,
     amplitude: Option<Box<dyn Envelope>>,
@@ -57,7 +57,7 @@ impl CompositeGeneratorBuilder {
 
     pub fn add_generator(
         mut self,
-        generator: ToneGenerator,
+        generator: Box<dyn SingleToneGenerator>,
     ) -> Self {
         if !generator.has_frequency_relation() {
             log::warn!("Adding a tone generator without a frequency relation to a composite generator. The generator will not get updated");
