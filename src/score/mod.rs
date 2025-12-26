@@ -8,9 +8,14 @@ pub mod staff;
 pub mod notes;
 pub mod score;
 
+pub mod score_builder;
+
 // Re-export essential types directly from the score module
-pub use instances::StaffInstance;
-pub use measure::{Chord, ChordModifier, Measure};
-pub use notes::{DurationModifier, Note, NoteDuration, NoteModifier, NoteName};
-pub use score::{Score, TimeSignature};
-pub use staff::Staff;
+pub mod prelude {
+    pub use super::instances::StaffInstance;
+    pub use super::measure::{Chord, ChordModifier, Measure};
+    pub use super::notes::{DurationModifier, Note, NoteDuration, NoteModifier, NoteName};
+    pub use super::score::{Score, TimeSignature};
+    pub use super::staff::Staff;
+    pub use super::score_builder;
+}
