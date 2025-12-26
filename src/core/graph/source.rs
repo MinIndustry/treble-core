@@ -1,5 +1,5 @@
 use super::{AudioGraphElement, Source};
-use crate::core::generator::ToneGenerator;
+use crate::core::generator::prelude::Generator;
 
 #[derive(Debug)]
 pub struct SimpleSource<T> {
@@ -34,7 +34,7 @@ impl<T: std::fmt::Debug> AudioGraphElement for SimpleSource<T> {
 
 impl<T> Source for SimpleSource<T>
 where
-    T: ToneGenerator,
+    T: Generator,
 {
     fn pull(&mut self) -> f32 {
         self.generator.tick(1.0 / self.sample_rate)
@@ -42,7 +42,7 @@ where
 }
 
 /// Creates a simple source with a given generator and frequency
-pub fn simple_source<T: ToneGenerator + 'static>(generator: T) -> Box<dyn Source> {
+pub fn simple_source<T: Generator + 'static>(generator: T) -> Box<dyn Source> {
     let source = SimpleSource {
         generator,
         sample_rate: 44100.0,
