@@ -1,5 +1,7 @@
 use std::fmt;
 
+use crate::core::envelope::Envelope;
+
 /// A constant segment for the sustain phase of an envelope.
 #[derive(Debug, Clone)]
 pub struct ConstantSegment {
@@ -45,6 +47,20 @@ impl ConstantSegment {
         Self {
             value,
             duration: duration,
+        }
+    }
+}
+
+impl Envelope for ConstantSegment {
+    fn at(&self, time: f32, note_off: f32) -> f32 {
+        self.completed(time, note_off) as i32 as f32 * self.value
+    }
+
+    fn completed(&self, time: f32, note_off: f32) -> bool {
+        if let Some(duration) = self.duration {
+            (time - note_off) < duration
+        } else {
+            false
         }
     }
 }
