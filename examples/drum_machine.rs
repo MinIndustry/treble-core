@@ -2,6 +2,8 @@ use rodio::buffer::SamplesBuffer;
 use rodio::{OutputStream, Sink};
 
 use log::error;
+use simplelog::*;
+use std::fs::File;
 
 use rustic::instruments::prelude::{HiHat, Kick, Snare};
 use rustic::instruments::Instrument;
@@ -9,7 +11,10 @@ use rustic::prelude::App;
 use rustic::Note;
 
 fn main() {
-    colog::init();
+    CombinedLogger::init(vec![
+        TermLogger::new(LevelFilter::Info, Config::default(), TerminalMode::Mixed, ColorChoice::Auto),
+        WriteLogger::new(LevelFilter::Trace, Config::default(), File::create("app.log").unwrap()),
+    ]).unwrap();
 
     let app = App::init();
 

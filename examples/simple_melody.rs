@@ -1,6 +1,9 @@
-use rustic::core::envelope::prelude::ADSREnvelope;
+use rustic::core::envelope::prelude::{ADSREnvelopeBuilder, BezierSegment, LinearSegment};
 use rustic::core::generator::GENERATORS;
 use rustic::core::utils::tones::{NOTES, TONES_FREQ};
+use rustic::instruments::prelude::{KeyboardBuilder, PolyVoiceAllocator};
+
+use crate::score::score_builder::ScoreBuilder;
 
 #[cfg(feature = "plotting")]
 use rustic::plotting::plot_data;
@@ -9,13 +12,20 @@ fn main() {
     let scale = 0.1; // Master volume
     let sample_rate = 44100; // Sample rate
 
-    let envelope = {
-        let mut env = ADSREnvelope::new();
-        env.set_attack(0.1, scale * 1.0, Some((0.05, 0.0)));
-        env.set_decay(1.0, scale * 0.8, None);
-        env.set_release(0.2, scale * 0.0, Some((0.5, 0.0)));
-        env
-    };
+    let envelope = ADSREnvelopeBuilder::new()
+            .attack(Box::new(BezierSegment::new(0.0, scale * 1.0, 0.1, (0.05, 0.0))))
+            .decay(Box::new(LinearSegment::new(1.0, scale * 0.8, 1.0)))
+            .release(Box::new(BezierSegment::new(scale * 0.8, 0.0, 0.2, (0.5, 0.0))))
+            .build();
+
+    let score = ScoreBuilder::new()
+        .name("Morrowind")
+        .with_instrument(
+            Box::from(KeyboardBuilder::new()
+                .with_note_envelope(envelope)
+                .with_allocator(PolyVoiceAllocator::DropOldest)
+                .with_voices(8)
+                .build()));
 
     let notes = {
         let note_duration: f32 = 0.3;
