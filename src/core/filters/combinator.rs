@@ -61,13 +61,6 @@ impl Filter for CombinatorFilter {
             .map(|(source, weight)| source * weight)
             .sum();
 
-        trace!(
-            "Combinator filter running [{}, {}] -> {}",
-            self.sources[0],
-            self.sources[1],
-            output
-        );
-
         vec![output; self.outputs]
     }
 

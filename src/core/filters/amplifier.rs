@@ -47,7 +47,6 @@ impl Filter for GainFilter {
     /// the sources multiplied by the factor.
     fn transform(&mut self) -> Vec<f32> {
         let output: f32 = self.sources.map(|f| f * self.factor).iter().sum();
-        trace!("Gain filter running {} -> {}", self.sources[0], output);
         vec![output]
     }
 

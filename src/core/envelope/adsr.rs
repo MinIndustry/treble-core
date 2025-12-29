@@ -75,7 +75,7 @@ impl Envelope for ADSREnvelope {
         } else if self.decay.get_duration() > (time - self.attack.get_duration()) {  // In decay phase
             self.decay.at(self.attack.map_time(self.attack.get_duration(), time))
         } else {
-            if note_off > 0.0 {
+            if note_off > 0.0 {  // In release phase
                 if self.release.get_duration() > (time - note_off) {  // In release
                     self.release.at(self.release.map_time(note_off, time))
                 } else {
