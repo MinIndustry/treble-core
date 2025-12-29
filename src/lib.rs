@@ -1,3 +1,37 @@
+//! Rustic — Core synthesis library
+//!
+//! # Overview
+//! Rustic is the workspace's core crate providing the DSP building blocks used by
+//! frontends and examples. It exposes composable primitives for sound generation
+//! (oscillators, noise), envelopes (ADSR, segments), filters (LP/HP, band-pass,
+//! tremolo, delays), and signal graph utilities. The crate is intentionally
+//! frontend-agnostic so it can be used by GUI frontends, headless tools, and
+//! testing utilities alike.
+//!
+//! # Purpose
+//! - Provide clear, composable primitives for building instruments and audio
+//!   processing pipelines.
+//! - Offer a canonical API for frontends (Tauri GUI, CLI) to build on.
+//! - Contain reusable utilities (notes, tone tables, plotting helpers) for both
+//!   musical and DSP workflows.
+//!
+//! # Quick example
+//! ```rust
+//! use rustic::prelude::*;
+//! // Build a simple sine tone generator (see `core::generator` docs for details)
+//! let mut gen = core::generator::ToneGenerator::new(440.0, core::generator::Waveform::Sine);
+//! gen.start();
+//! let sample = gen.tick(1.0 / 44100.0);
+//! ```
+//!
+//! # Features
+//! - `plotting`: utilities to render and inspect signal plots
+//! - `meta`: filter/instrument metadata used by GUI frontends
+//!
+//! # Audio I/O
+//! See `start_app` for an example that uses `cpal` for audio output and a simple
+//! audio callback loop used in the examples folder.
+
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use log::error;
 use std::sync::mpsc::{Receiver, Sender};

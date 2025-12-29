@@ -1,7 +1,19 @@
 //! Core utilities module
 //!
-//! This module contains shared utility functions and types used throughout
-//! the core audio processing system.
+//! ## Overview
+//! This module contains shared types and helpers used throughout the core DSP
+//! system including musical note types, tone frequency tables, and keyboard
+//! mapping utilities.
+//!
+//! ## Notes & Tones
+//! - `Note`: musical note representation (name, octave, modifiers)
+//! - `NOTES` / `TONES_FREQ`: precomputed frequency tables used for note-to-frequency
+//!   lookups. Frequencies are provided per semitone and octave to simplify
+//!   instrument construction.
+//!
+//! ## Input helpers
+//! Keyboard-related types and key mappings are provided to support the
+//! `inputs` module and example frontends.
 
 /// Musical tone definitions and frequency mappings
 pub mod tones;

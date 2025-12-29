@@ -1,3 +1,22 @@
+//! Generators — oscillators and tone combiners
+//!
+//! ## Overview
+//! Generators produce audio samples over time. Common single-tone generators
+//! produce waveforms like sine, square or sawtooth where a single sample at time
+//! t can be expressed (for a sine) as: $y(t) = A \sin(2\pi f t + \phi)$ where
+//! `A` is amplitude, `f` frequency in Hz and `\phi` phase.
+//!
+//! The module provides both single-tone generators and composite generators
+//! that mix or combine multiple tones. Frequency relations (identity,
+//! harmonic, ratio, semitone offsets) allow building harmonic partials easily.
+//!
+//! ## Implementation notes
+//! - `SingleToneGenerator` exposes fine-grained control of frequency and phase.
+//! - `MultiToneGenerator` and `CompositeGenerator` provide mixing strategies
+//!   (`MixMode`) to sum, multiply or average multiple tone sources.
+//! - Be mindful of Nyquist (sample_rate/2) when composing high-frequency
+//!   content; aliasing can occur without bandlimiting.
+
 use std::fmt;
 
 mod tone;

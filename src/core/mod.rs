@@ -1,7 +1,27 @@
 //! Core audio processing module
 //!
-//! This module contains the fundamental audio processing components:
-//! generators, envelopes, filters, and signal graph processing.
+//! ## Overview
+//! The `core` module provides the foundational DSP abstractions and primitives
+//! used across the workspace: `Generator`s (oscillators and tone combiners),
+//! `Envelope`s (ADSR and segment-based curves), `Filter`s (frequency and time
+//! domain processors), and graph utilities for routing signals between nodes.
+//!
+//! ## Purpose
+//! This module exists to expose composable, well-tested building blocks so
+//! frontends and higher-level APIs (in `instruments` and `score`) can assemble
+//! musical behaviours without re-implementing low-level DSP logic.
+//!
+//! ## Key components
+//! - `generator`: Oscillators, noise sources and multi-tone combiners.
+//! - `envelope`: Time-based modulation (ADSR, segments) that shapes amplitude or
+//!   other parameters.
+//! - `filters`: Audio processors (amplifiers, tremolo, delays, resonant filters).
+//! - `graph`: Utilities to wire processors together and build signal graphs.
+//! - `utils`: Shared types, e.g. `Note` and tone frequency tables.
+//!
+//! ## Usage
+//! Prefer using `core::prelude` for common types. See module docs for examples
+//! and mathematical foundations (e.g., sine wave generation and ADSR equations).
 
 /// Defines the different envelope shapes & types
 /// Envelopes implement the `Envelope` trait and can

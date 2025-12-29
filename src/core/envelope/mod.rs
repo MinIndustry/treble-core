@@ -1,3 +1,21 @@
+//! Envelopes — time-based modulators (ADSR and segments)
+//!
+//! # Overview
+//! Envelopes are functions over time used to modulate signal parameters such
+//! as amplitude or frequency. A common envelope is ADSR (Attack-Decay-Sustain-Release),
+//! defined by four stages where amplitude evolves over time. ADSR is typically
+//! implemented using linear or exponential segments.
+//!
+//! # Mathematical note
+//! For an ADSR envelope the amplitude can be represented piecewise. For example,
+//! - Attack (0 -> A) over t_a seconds
+//! - Decay (A -> S) over t_d seconds
+//! - Sustain S for the note duration
+//! - Release (S -> 0) over t_r seconds after note off
+//!
+//! Implementations should map `time` and `note_off` to the appropriate stage
+//! and return a normalized amplitude in `[0.0, 1.0]`.
+
 mod adsr;
 mod adsr_builder;
 
