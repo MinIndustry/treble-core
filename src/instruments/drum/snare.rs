@@ -49,7 +49,7 @@ impl Snare {
                     Box::from(BezierSegment::new(1.2, 1.0, 0.3, (0.0, 1.0)))
                 ))
                 .mix_mode(MixMode::Sum)
-                .frequency(58.0)
+                .frequency(158.0)
                 .build()),
             current_tick: 0,
             output: 0.0,
@@ -59,11 +59,13 @@ impl Snare {
 
 impl Instrument for Snare {
     fn start_note(&mut self, _note: Note, _velocity: f32) {
+        log::trace!("Starting snare");
         self.current_tick = 0;
         self.generator.start();
     }
 
     fn stop_note(&mut self, _note: crate::Note) {
+        log::trace!("Stopping snare");
         // The note will continue playing until completed
         self.generator.stop();
     }

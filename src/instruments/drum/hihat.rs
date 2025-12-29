@@ -14,8 +14,6 @@ use std::fs::File;
 #[cfg(debug_assertions)]
 use std::io::Write;
 
-use log::{info, warn};
-
 /// A HiHat instrument.
 /// It consists of six square wave sources connected to a combinator filter. The result is then passed through a resonant bandpass filter,
 /// before being shaped by an envelope generator.
@@ -94,10 +92,10 @@ impl HiHat {
         match crate::app::FSConfig::debug_dir("HiHat", "hihat.viz") {
             Ok(path) => {
                 if let Err(e) = system.save_to_file(&path) {
-                    warn!("Failed to save visualization: {}", e);
+                    log::warn!("Failed to save visualization: {}", e);
                 }
             }
-            Err(_) => warn!("Failed to build path to save hihat graph"),
+            Err(_) => log::warn!("Failed to build path to save hihat graph"),
         }
 
         let amplitude_envelope = Box::new(BezierSegment::new(4.0, 0.0, 0.2, (0.0, 0.0)));
@@ -118,13 +116,13 @@ impl HiHat {
 
 impl Instrument for HiHat {
     fn start_note(&mut self, _note: Note, _velocity: f32) {
-        info!("Starting HiHat note");
+        log::trace!("Starting HiHat note");
         self.playing = true;
         self.time = 0.0;
     }
 
     fn stop_note(&mut self, _note: Note) {
-        info!("Stopping HiHat note");
+        log::trace!("Stopping HiHat note");
         self.playing = false;
     }
 
@@ -141,11 +139,11 @@ impl Instrument for HiHat {
             // Check if the output buffer is empty
             if self.output_buffer.metadata().unwrap().len() > 0 {
                 if let Err(e) = self.output_buffer.write(format!(" {}", value).as_bytes()) {
-                    warn!("Failed to write to output buffer: {}", e);
+                    log::warn!("Failed to write to output buffer: {}", e);
                 }
             } else {
                 if let Err(e) = self.output_buffer.write(format!("{}", value).as_bytes()) {
-                    warn!("Failed to write to output buffer: {}", e);
+                    log::warn!("Failed to write to output buffer: {}", e);
                 }
             }
         }

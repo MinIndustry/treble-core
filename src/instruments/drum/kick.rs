@@ -45,11 +45,13 @@ impl Kick {
 
 impl Instrument for Kick {
     fn start_note(&mut self, _note: Note, _velocity: f32) {
+        log::trace!("Starting Kick");
         self.current_tick = 0;
         self.generator.start();
     }
 
     fn stop_note(&mut self, _note: crate::Note) {
+        log::trace!("Stopping Kick");
         // The note will continue playing until completed
         self.generator.stop();
     }
