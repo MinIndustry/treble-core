@@ -1,7 +1,8 @@
 use log::info;
 
+use crate::core::envelope::prelude::ConstantSegment;
 use crate::core::filters::prelude::*;
-use crate::core::generator::prelude::ConstantGenerator;
+use crate::core::generator::prelude::{builder::ToneGeneratorBuilder, Waveform};
 use crate::core::graph::{simple_source, SimpleSink, System};
 
 #[test]
@@ -13,7 +14,10 @@ fn test_system() {
     let filt_1 = system.add_filter(Box::from(filter));
     let filt_2 = system.add_filter(Box::from(filter2));
 
-    let source = simple_source(ConstantGenerator::new(1.0));
+    let source = simple_source(ToneGeneratorBuilder::new()
+        .waveform(Waveform::Blank)
+        .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
+        .build());
     system.set_source(0, Box::from(source));
 
     let sink = SimpleSink::new();
@@ -54,7 +58,11 @@ fn stress_test() {
     let filt_1 = system.add_filter(Box::from(filter));
     let filt_2 = system.add_filter(Box::from(filter2));
 
-    let source = simple_source(ConstantGenerator::new(1.0));
+    let source = simple_source(
+        ToneGeneratorBuilder::new()
+            .waveform(Waveform::Blank)
+            .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
+            .build());
     system.set_source(0, Box::from(source));
 
     let sink = SimpleSink::new();
@@ -110,7 +118,10 @@ fn stress_test_2() {
     system.connect(filt_1, filt_3, 0, 0);
     system.connect(filt_2, filt_3, 0, 1);
 
-    let source = simple_source(ConstantGenerator::new(1.0));
+    let source = simple_source(ToneGeneratorBuilder::new()
+        .waveform(Waveform::Blank)
+        .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
+        .build());
     system.set_source(0, Box::from(source));
 
     let sink = SimpleSink::new();
