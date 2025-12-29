@@ -1,8 +1,7 @@
 use dyn_clone::DynClone;
 use std::fmt;
 
-#[cfg(test)]
-mod tests;
+// Tests moved to `src/tests/generator.rs` to centralize test cases.
 
 mod bezier;
 mod constant;

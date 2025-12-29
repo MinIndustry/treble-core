@@ -106,42 +106,5 @@ impl std::fmt::Display for Note {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_note_creation() {
-        let note = Note::new(NOTES::A, 4);
-        assert_eq!(note.note(), NOTES::A);
-        assert_eq!(note.octave(), 4);
-    }
-
-    #[test]
-    fn test_frequency_calculation() {
-        let a4 = Note::new(NOTES::A, 4);
-        assert!((a4.frequency() - 440.0).abs() < 0.1);
-    }
-
-    #[test]
-    fn test_midi_conversion() {
-        let c4 = Note::from_midi(60);
-        assert_eq!(c4.note(), NOTES::C);
-        assert_eq!(c4.octave(), 4);
-        assert_eq!(c4.to_midi(), 60);
-    }
-
-    #[test]
-    fn test_transpose() {
-        let c4 = Note::new(NOTES::C, 4);
-        let d4 = c4.transpose(2);
-        assert_eq!(d4.note(), NOTES::D);
-        assert_eq!(d4.octave(), 4);
-    }
-
-    #[test]
-    fn test_display() {
-        let note = Note::new(NOTES::CS, 4);
-        assert_eq!(format!("{}", note), "C#4");
-    }
-}
+// Note: unit tests for `Note` have been moved to `src/tests/notes.rs` to
+// centralize the test suite. See that file for coverage and additional cases.
