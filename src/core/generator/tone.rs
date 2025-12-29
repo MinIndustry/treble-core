@@ -1,8 +1,8 @@
-use rand;
+use rand::{self, Rng};
 use core::f32;
 use std::ops::Rem;
 
-use crate::core::{envelope::Envelope, generator::{SingleToneGenerator, prelude::FrequencyRelation}};
+use crate::core::{envelope::Envelope, generator::{SingleToneGenerator, prelude::{FrequencyRelation, Waveform}}};
 use super::Generator;
 
 #[derive(Debug)]
@@ -12,30 +12,49 @@ pub struct ToneGenerator {
     pitch_envelope: Option<Box<dyn Envelope>>,
     amplitude_envelope: Box<dyn Envelope>,
     phase: f32,
-    normalized_time: f32,
-    is_stopped: bool,
+    note_off: Option<f32>,  // Time when the note turned off (stop was called)
+    time: f32,
     current_frequency: f32,
 }
 
 impl Generator for ToneGenerator {
     fn start(&mut self) {
-        self.normalized_time = 0.0;
+        self.time = 0.0;
     }
 
     fn stop(&mut self) {
-        self.normalized_time = 1.0;
+        self.note_off = Some(self.time);
     }
 
     fn completed(&self) -> bool {
-        self.normalized_time >= 1.0
+        self.note_off.map(|note_off| self.amplitude_envelope.completed(self.time, note_off)) == Some(true)
     }
 
     fn tick(&mut self, time_elapsed: f32) -> f32 {
-        // 2 * pi * [[ (t - t0) / T ]]
-        self.phase += 2.0 * f32::consts::PI * time_elapsed * self.current_frequency;
-        println!("Angle: {} - f: {}", f32::to_degrees(self.phase).rem(360.0), self.current_frequency);
+        const TAU: f32 = 2.0 * f32::consts::PI;
 
-        0.0
+        // Map true time elapsed for pitch bend
+        let actual_elapsed = if let Some(envelope) = &self.pitch_envelope {
+            time_elapsed * envelope.at(self.time, self.note_off.unwrap_or(0.0))
+        } else {
+            time_elapsed
+        };
+        self.time += time_elapsed;
+        
+        // 2 * pi * [[ (t - t0) / T ]]
+        self.phase = (self.phase + TAU * actual_elapsed * self.current_frequency) % TAU;
+
+        let tone_value = match self.waveform {
+            Waveform::Blank => 1.0, // Returns 1.0 that will be mapped to the amplitude envelope
+            Waveform::PinkNoise => 1.0,  // TODO impl pink noise
+            Waveform::Sawtooth => (self.phase * std::f32::consts::FRAC_1_PI) - 1.0,
+            Waveform::Sine => f32::sin(self.phase),
+            Waveform::Square => if self.phase > f32::consts::PI { 1.0 } else { -1.0 },
+            Waveform::Triangle => 1.0 - 2.0 * ((self.phase * std::f32::consts::FRAC_1_PI) - 1.0).abs(),
+            Waveform::WhiteNoise => rand::thread_rng().gen_range(-1.0..1.0),
+        };
+
+        tone_value * self.amplitude_envelope.at(self.time, self.note_off.unwrap_or(0.0))
     }
 }
 
@@ -69,8 +88,8 @@ impl ToneGenerator {
             pitch_envelope,
             amplitude_envelope,
             phase: rand::random::<f32>().rem(360.0),
-            normalized_time: 0.0,
-            is_stopped: true,
+            time: 0.0,
+            note_off: None,
             current_frequency: frequency,
         }
     }
