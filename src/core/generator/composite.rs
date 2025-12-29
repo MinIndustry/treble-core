@@ -1,4 +1,6 @@
-use crate::core::{envelope::Envelope, generator::{Generator, MultiToneGenerator, SingleToneGenerator}};
+use log::trace;
+
+use crate::core::{envelope::Envelope, generator::{Generator, MultiToneGenerator, SingleToneGenerator, prelude::MixMode}};
 
 #[derive(Debug)]
 pub struct CompositeGenerator {
@@ -7,26 +9,70 @@ pub struct CompositeGenerator {
     mix_mode: super::prelude::MixMode,
     global_pitch_envelope: Option<Box<dyn Envelope>>,
     global_amplitude_envelope: Option<Box<dyn Envelope>>,
-    normalized_time: f32,
-    is_stopped: bool,
+    time: f32,
+    note_off: Option<f32>,
 }
 
 impl Generator for CompositeGenerator {
     fn start(&mut self) {
-        self.normalized_time = 0.0;
+        trace!("Composite Generator starting ({}Hz)", self.base_frequency);
+        self.time = 0.0;
     }
 
     fn stop(&mut self) {
-        self.normalized_time = 1.0;
+        trace!("Composite Generator stopping: {} ({}Hz)", self.time, self.base_frequency);
+        self.note_off = Some(self.time);
+        self.tone_generators.iter_mut().for_each(|tg| tg.stop());
     }
 
     fn completed(&self) -> bool {
-        self.normalized_time >= 1.0
+        self.time >= 1.0
     }
 
-    fn tick(&mut self, _time_elapsed: f32) -> f32 {
-        // TODO: Implement
-        0.0
+    fn tick(&mut self, time_elapsed: f32) -> f32 {
+        let actual_elapsed = if let Some(envelope) = &self.global_pitch_envelope {
+            time_elapsed * envelope.at(self.time, self.note_off.unwrap_or(0.0))
+        } else {
+            time_elapsed
+        };
+
+        // Map true time elapsed for pitch bend
+        self.time += time_elapsed;
+
+        let values = self.tone_generators.iter_mut().map(|g| g.tick(actual_elapsed)).collect::<Vec<f32>>();
+        
+        let ampl = match self.mix_mode {
+            MixMode::Average => {
+                values.iter().sum::<f32>() / values.len() as f32
+            },
+            MixMode::Multiply => {
+                values.iter().fold(1.0, |a, v| a * v)
+            },
+            MixMode::Max => {
+                values.iter().fold(f32::NEG_INFINITY, |a, v| a.max(*v))
+            },
+            MixMode::Sum => {
+                values.iter().sum()
+            }
+        };
+        
+        if let Some(envelope) = &self.global_amplitude_envelope {
+            trace!("Composite Generator ticking: t:{} e:{} a:{} ae:{} ({}Hz)",
+                self.time,
+                envelope.at(self.time, self.note_off.unwrap_or(0.0)),
+                ampl,
+                ampl * envelope.at(self.time, self.note_off.unwrap_or(0.0)),
+                self.base_frequency);
+
+            ampl * envelope.at(self.time, self.note_off.unwrap_or(0.0))
+        } else {
+            trace!("Composite Generator ticking: t:{} a:{} ({}Hz)",
+                self.time,
+                ampl,
+                self.base_frequency);
+
+            ampl
+        }
     }
 }
 
@@ -60,7 +106,7 @@ impl CompositeGenerator {
             if !tg.has_frequency_relation() {
                 log::warn!("Adding a tone generator without a frequency relation to a composite generator. The generator will not get updated");
             } else {
-                log::info!("Here we need to set the tone generator frequency from the base freq (using relations)");
+                tg.update_frequency(base_frequency);
             }
         });
 
@@ -70,8 +116,8 @@ impl CompositeGenerator {
             mix_mode,
             global_pitch_envelope,
             global_amplitude_envelope,
-            normalized_time: 0.0,
-            is_stopped: true,
+            time: 0.0,
+            note_off: None,
         }
     }
 }

@@ -16,8 +16,12 @@ pub trait Generator: fmt::Debug + Send + Sync {
 
 /// A generator that produces a single tone.
 pub trait SingleToneGenerator: Generator {
+    /// Sets the generator's frequency to the given value
     fn set_frequency(&mut self, frequency: f32);
+
     fn has_frequency_relation(&self) -> bool;
+
+    // Sets the generator's frequency based on its frequency relation (if any)
     fn update_frequency(&mut self, base_frequency: f32);
 }
 
