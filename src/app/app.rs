@@ -9,11 +9,9 @@ use clap::Parser;
 use log::{error, info, trace};
 use serde::{Deserialize, Serialize};
 
-use super::cli::Cli;
-use super::filesystem::FSConfig;
-use super::system::SystemConfig;
-use super::Commands;
-use crate::instruments::prelude::{Keyboard, KeyboardBuilder};
+use super::prelude::*;
+
+use crate::instruments::prelude::KeyboardBuilder;
 use crate::prelude::Instrument;
 
 use super::row::Row;
@@ -23,6 +21,12 @@ use super::row::Row;
 pub struct AppConfig {
     pub fs: FSConfig,
     pub system: SystemConfig,
+
+    #[serde(default)]
+    pub audio: crate::audio::AudioConfig,
+
+    #[serde(default)]
+    pub logging: crate::audio::LogConfig,
 }
 
 #[derive(Default)]
@@ -54,7 +58,7 @@ pub struct App {
 
 impl Default for App {
     fn default() -> Self {
-        let root_path = match crate::app::FSConfig::app_root_dir() {
+        let root_path = match FSConfig::app_root_dir() {
             Ok(path) => path,
             Err(e) => {
                 error!("Unable to build app root dir: {}", e);
@@ -165,7 +169,11 @@ impl App {
                 }
 
                 let note = self.rows[row as usize].get_note(note);
-                self.instruments[self.rows[row as usize].instrument].start_note(note, force);
+                if self.rows[row as usize].instrument >= self.instruments.len() {
+                    log::warn!("Instrument out of bounds");
+                } else {
+                    self.instruments[self.rows[row as usize].instrument].start_note(note, force);
+                }
             }
             Commands::NoteStop(note, row) => {
                 if row > 2 {
@@ -173,7 +181,11 @@ impl App {
                 }
 
                 let note = self.rows[row as usize].get_note(note);
-                self.instruments[self.rows[row as usize].instrument].stop_note(note);
+                if self.rows[row as usize].instrument >= self.instruments.len() {
+                    log::warn!("Instrument out of bounds");
+                } else {
+                    self.instruments[self.rows[row as usize].instrument].stop_note(note);
+                }
             }
             Commands::OctaveDown(row) => {
                 if row > 2 {

@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use super::prelude::*;
+
 /// Commands for a keyboard-based music application
 ///
 /// This enum represents all possible commands that can be issued through
@@ -176,4 +178,84 @@ pub enum Commands {
     /// Copy settings from one row to the other
     /// Parameters: source_row, destination_row
     CopyRowSettings(u8, u8),
+}
+
+impl Commands {
+    /// Validate a command against the current app state
+    pub fn validate(&self, _app: &App) -> Result<(), crate::audio::CommandError> {
+        use crate::audio::CommandError;
+
+        match self {
+            Commands::NoteStart(_, row, velocity) => {
+                if *row >= 2 {
+                    return Err(CommandError::RowOutOfBounds(*row));
+                }
+                if *velocity < 0.0 || *velocity > 1.0 {
+                    return Err(CommandError::InvalidVolume(*velocity));
+                }
+                Ok(())
+            }
+            Commands::NoteStop(_, row) => {
+                if *row >= 2 {
+                    return Err(CommandError::RowOutOfBounds(*row));
+                }
+                Ok(())
+            }
+            Commands::SetOctave(octave, row) => {
+                if *row >= 2 {
+                    return Err(CommandError::RowOutOfBounds(*row));
+                }
+                if *octave > 8 {
+                    return Err(CommandError::InvalidOctave(*octave));
+                }
+                Ok(())
+            }
+            Commands::OctaveUp(row) | Commands::OctaveDown(row) => {
+                if *row >= 2 {
+                    return Err(CommandError::RowOutOfBounds(*row));
+                }
+                Ok(())
+            }
+            // Most commands don't need validation
+            _ => Ok(()),
+        }
+    }
+
+    /// Translate a command to an audio message for the audio render thread
+    pub fn translate_to_audio_message(
+        &self,
+        app: &mut App,
+    ) -> Option<crate::audio::AudioMessage> {
+        use crate::audio::AudioMessage;
+
+        match self {
+            Commands::NoteStart(note, row, velocity) => {
+                let note = app.rows[*row as usize].get_note(*note);
+                let instrument_idx = app.rows[*row as usize].instrument;
+                Some(AudioMessage::NoteStart {
+                    instrument_idx,
+                    note,
+                    velocity: *velocity,
+                })
+            }
+            Commands::NoteStop(note, row) => {
+                let note = app.rows[*row as usize].get_note(*note);
+                let instrument_idx = app.rows[*row as usize].instrument;
+                Some(AudioMessage::NoteStop {
+                    instrument_idx,
+                    note,
+                })
+            }
+            Commands::OctaveUp(row) | Commands::OctaveDown(row) | Commands::SetOctave(_, row) => {
+                // Octave changes are handled in the command thread
+                Some(AudioMessage::SetOctave {
+                    row: *row as usize,
+                    octave: app.rows[*row as usize].octave,
+                })
+            }
+            Commands::Quit => Some(AudioMessage::Shutdown),
+            // Most commands don't directly affect audio rendering
+            _ => None,
+        }
+    }
 }
