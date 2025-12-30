@@ -1,11 +1,18 @@
-use evdev::EventType;
-use log::info;
 use std::io;
 
-use rustic::inputs;
-use rustic::prelude::App;
-
+#[cfg(not(feature = "linux"))]
 fn main() -> io::Result<()> {
+    println!("Missing feature linux for this example");
+    Ok(())
+}
+
+#[cfg(feature = "linux")]
+fn main() -> io::Result<()> {
+    use evdev::EventType;
+
+    use rustic::inputs;
+    use rustic::prelude::App;
+
     let app: App = App::init();
 
     let mapping = app.get_key_mapping();
@@ -30,7 +37,7 @@ fn main() -> io::Result<()> {
                     }
                 }
                 Err(_) => {
-                    info!("Error fetching events");
+                    log::info!("Error fetching events");
                 }
             }
         },

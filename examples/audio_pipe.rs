@@ -1,6 +1,9 @@
 //! Pipe and Filter Architecture test
 //!! Run with `cargo run --bin pipe | uv too run pipeplot` to plot the output
 
+use simplelog::*;
+use std::fs::File;
+
 use log::{error, info, trace};
 
 use rodio::buffer::SamplesBuffer;
@@ -41,9 +44,10 @@ impl Source for Player {
     fn pull(&mut self) -> f32 {
         trace!("Player::pull");
         self.i += 1;
-        self.notes[0].tick(self.sample_rate as i32)
-            + self.notes[1].tick(self.sample_rate as i32)
-            + self.notes[2].tick(self.sample_rate as i32)
+        // self.notes[0].tick(self.sample_rate as i32)
+        //     + self.notes[1].tick(self.sample_rate as i32)
+        //     + self.notes[2].tick(self.sample_rate as i32)
+        0.0
     }
 }
 
@@ -60,7 +64,10 @@ impl AudioGraphElement for Player {
 }
 
 fn main() {
-    colog::init();
+    CombinedLogger::init(vec![
+        TermLogger::new(LevelFilter::Info, Config::default(), TerminalMode::Mixed, ColorChoice::Auto),
+        WriteLogger::new(LevelFilter::Trace, Config::default(), File::create("app.log").unwrap()),
+    ]).unwrap();
 
     let master_volume = 0.2;
     let sample_rate = 44100.0; // 44100 Hz

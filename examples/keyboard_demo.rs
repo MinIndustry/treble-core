@@ -1,12 +1,18 @@
 use rodio::buffer::SamplesBuffer;
 use rodio::{OutputStream, Sink};
+use rustic::core::envelope::prelude::{ADSREnvelopeBuilder, BezierSegment};
 use std::collections::HashMap;
-use std::{thread, time};
+use std::thread;
 
-use evdev::EventType;
+use simplelog::*;
+use std::fs::File;
+
 use log::{error, info, warn};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
+
+#[cfg(feature = "linux")]
+use evdev::EventType;
 
 use rustic::core::utils::tones::NOTES;
 use rustic::inputs::keyboard::*;
@@ -14,14 +20,25 @@ use rustic::instruments::{prelude::Keyboard, Instrument};
 use rustic::Note;
 
 fn main() {
-    colog::init();
+    CombinedLogger::init(vec![
+        TermLogger::new(LevelFilter::Info, Config::default(), TerminalMode::Mixed, ColorChoice::Auto),
+        WriteLogger::new(LevelFilter::Trace, Config::default(), File::create("app.log").unwrap()),
+    ]).unwrap();
 
     let sample_rate = 44100.0; // 44100 Hz
 
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     let sink = Sink::try_new(&stream_handle).unwrap();
 
-    let keyboard: Keyboard<4> = Keyboard::new();
+    let keyboard: Keyboard = Keyboard::new(
+        4,
+        rustic::instruments::prelude::PolyVoiceAllocator::DropOldest,
+        ADSREnvelopeBuilder::new()
+            .attack(Box::new(BezierSegment::new(0.0, 1.0, 0.2, (0.2, 0.0))))
+            .decay(Box::new(BezierSegment::new(1.0, 0.8, 0.3, (0.3, 1.0))))
+            .release(Box::new(BezierSegment::new(0.8, 0.0, 1.5, (0.0, 0.0))))
+            .build());
+
     let keyboard = Arc::new(Mutex::new(keyboard));
     let keyboard_2 = keyboard.clone();
 
@@ -48,6 +65,7 @@ fn main() {
             (27, Note(NOTES::B, 4)),
         ]);
 
+        #[cfg(feature = "linux")]
         loop {
             match input_device.fetch_events() {
                 Ok(events) => {

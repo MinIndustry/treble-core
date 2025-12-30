@@ -19,7 +19,7 @@ struct Cli {
 
 /// Dumps a default score to a file
 fn dump_default(output_path: String) {
-    let score = Score::new("Example Score", TimeSignature(4, 4), 120);
+    let score = Score::new("Example Score", TimeSignature(4, 4), 120, vec![], vec![]);
 
     let toml_score = match score.dump_toml() {
         Err(e) => {
@@ -55,7 +55,7 @@ fn main() {
 
         println!("Loaded score: {}", score.name);
     } else {
-        let mut score = Score::new("Test", TimeSignature(4, 4), 120);
+        let mut score = Score::new("Test", TimeSignature(4, 4), 120, vec![], vec![]);
         let _kick_index = score.add_instrument(Box::new(Kick::new()));
         let _snare_index = score.add_instrument(Box::new(Snare::new()));
         let _hihat_index = score.add_instrument(Box::new(HiHat::new().unwrap()));

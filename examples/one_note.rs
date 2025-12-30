@@ -1,4 +1,4 @@
-use rustic::core::envelope::prelude::ADSREnvelope;
+use rustic::core::envelope::prelude::{ADSREnvelopeBuilder, BezierSegment};
 
 use rustic::prelude::App;
 
@@ -7,13 +7,11 @@ fn main() {
     let scale = app.config.system.master_volume;
     let sample_rate = app.config.system.sample_rate;
 
-    let envelope = {
-        let mut env = ADSREnvelope::new();
-        env.set_attack(0.1, scale * 1.0, Some((0.1, 0.0)));
-        env.set_decay(0.4, scale * 0.2, Some((0.5, scale * 1.0)));
-        env.set_release(0.5, scale * 0.0, Some((0.5, 0.0)));
-        env
-    };
+    let envelope = ADSREnvelopeBuilder::new()
+        .attack(Box::new(BezierSegment::new(0.0, scale * 1.0, 0.1, (0.1, 0.0))))
+        .decay(Box::new(BezierSegment::new(scale * 1.0, scale * 0.2, 0.4, (0.5, scale * 1.0))))
+        .release(Box::new(BezierSegment::new(scale * 0.2, 0.0, 0.5, (0.5, 0.0))))
+        .build();
 
     // This example needs to be updated to work with the new architecture
     // For now, we'll just print the configuration
