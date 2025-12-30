@@ -49,6 +49,15 @@ impl ResonantBandpassFilter {
             zs: [0.0; 2],
         }
     }
+
+    /// Resets the filter's internal state (delay elements).
+    /// This is critical for percussive sounds where each hit should start with clean filter state.
+    /// Without reset, residual energy from previous notes can cause tonal artifacts and
+    /// reduced transient clarity.
+    pub fn reset(&mut self) {
+        self.zs = [0.0; 2];
+        self.source = 0.0;
+    }
 }
 
 impl Entry for ResonantBandpassFilter {
@@ -68,6 +77,10 @@ impl Filter for ResonantBandpassFilter {
 
     fn postponable(&self) -> bool {
         false
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 }
 

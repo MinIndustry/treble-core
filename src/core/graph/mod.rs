@@ -47,6 +47,10 @@ pub trait Filter: Entry + AudioGraphElement + fmt::Display + fmt::Debug {
     /// An postonable element must be present in a cycle of the graph to avoid infinite looping.
     /// E.g. a delay filter can be postponed if it lies within a feedback loop.
     fn postponable(&self) -> bool;
+
+    /// Enables downcasting from trait object to concrete type.
+    /// This is required to access type-specific methods (like reset()) that aren't part of the Filter trait.
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 }
 
 /// The sink module provides implementations for various types of sinks.

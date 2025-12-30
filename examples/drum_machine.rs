@@ -12,8 +12,8 @@ use rustic::Note;
 
 fn main() {
     CombinedLogger::init(vec![
-        TermLogger::new(LevelFilter::Info, Config::default(), TerminalMode::Mixed, ColorChoice::Auto),
-        WriteLogger::new(LevelFilter::Trace, Config::default(), File::create("app.log").unwrap()),
+        TermLogger::new(LevelFilter::Warn, Config::default(), TerminalMode::Mixed, ColorChoice::Auto),
+        WriteLogger::new(LevelFilter::Warn, Config::default(), File::create("app.log").unwrap()),
     ]).unwrap();
 
     let app = App::init();
@@ -62,6 +62,7 @@ fn main() {
 
         kick.stop_note(Note(rustic::core::utils::tones::NOTES::A, 0));
         hihat.stop_note(Note(rustic::core::utils::tones::NOTES::A, 0));
+        snare.stop_note(Note(rustic::core::utils::tones::NOTES::A, 0));
 
         sink.append(SamplesBuffer::new(
             2 as u16,

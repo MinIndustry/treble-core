@@ -17,6 +17,9 @@ impl Generator for CompositeGenerator {
     fn start(&mut self) {
         trace!("Composite Generator starting ({}Hz)", self.base_frequency);
         self.time = 0.0;
+        self.note_off = None;
+        // Reset all child tone generators to ensure clean retriggering
+        self.tone_generators.iter_mut().for_each(|tg| tg.start());
     }
 
     fn stop(&mut self) {
@@ -26,7 +29,14 @@ impl Generator for CompositeGenerator {
     }
 
     fn completed(&self) -> bool {
-        self.time >= 1.0
+        // A composite generator is completed when all its tone generators are completed
+        // or when there's a note_off and sufficient time has passed for all envelopes to finish
+        if self.tone_generators.is_empty() {
+            return true;
+        }
+
+        // Check if all tone generators have completed
+        self.tone_generators.iter().all(|tg| tg.completed())
     }
 
     fn tick(&mut self, time_elapsed: f32) -> f32 {

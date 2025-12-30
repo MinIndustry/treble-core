@@ -20,6 +20,11 @@ pub struct ToneGenerator {
 impl Generator for ToneGenerator {
     fn start(&mut self) {
         self.time = 0.0;
+        self.note_off = None;
+        // Note: We intentionally do NOT reset phase here to avoid phase discontinuities.
+        // Each oscillator maintains its phase across note boundaries, which prevents clicks
+        // and allows for smooth retriggering. For most musical contexts, this is desirable.
+        // For a phase-reset behavior, we can consider adding a separate reset() method.
     }
 
     fn stop(&mut self) {

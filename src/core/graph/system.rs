@@ -314,6 +314,13 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
             .ok_or("Index out of bounds")
     }
 
+    /// Returns a mutable reference to a filter in the graph by its NodeIndex.
+    /// This allows direct access to filter-specific methods (like reset()) that aren't
+    /// part of the Filter trait.
+    pub fn get_filter_mut(&mut self, index: NodeIndex<u32>) -> Option<&mut Box<dyn Filter>> {
+        self.graph.node_weight_mut(index)
+    }
+
     pub fn save_to_file(&self, path: &Path) -> Result<(), String> {
         let mut output = File::create(path).map_err(|e| e.to_string())?;
         write!(output, "{:?}", Dot::with_config(&self.graph, &[])).map_err(|e| e.to_string())

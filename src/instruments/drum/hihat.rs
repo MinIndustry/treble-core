@@ -7,7 +7,9 @@ use crate::core::graph::System;
 use crate::instruments::Instrument;
 use crate::Note;
 
-use crate::core::generator::prelude::{builder::ToneGeneratorBuilder, Waveform};
+use crate::core::generator::prelude::{builder::{ToneGeneratorBuilder, CompositeGeneratorBuilder}, Waveform};
+
+use petgraph::prelude::NodeIndex;
 
 #[cfg(debug_assertions)]
 use std::fs::File;
@@ -19,7 +21,8 @@ use std::io::Write;
 /// before being shaped by an envelope generator.
 #[derive(Debug)]
 pub struct HiHat {
-    graph: System<6, 1>,
+    graph: System<1, 1>,
+    bandpass_filter_index: NodeIndex<u32>,
     playing: bool,
     time: f32,
     amplitude_envelope: Box<dyn Envelope>,
@@ -29,48 +32,36 @@ pub struct HiHat {
 
 impl HiHat {
     pub fn new() -> Result<Self, String> {
-        let sources = [
-            simple_source(ToneGeneratorBuilder::new()
+        let source = simple_source(CompositeGeneratorBuilder::new()
+            .add_generator(Box::new(ToneGeneratorBuilder::new()
                 .waveform(Waveform::Square)
                 .frequency(123.0)
-                .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
-                .build()),
-            simple_source(ToneGeneratorBuilder::new()
+                .build()))
+            .add_generator(Box::new(ToneGeneratorBuilder::new()
                 .waveform(Waveform::Square)
                 .frequency(150.0)
-                .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
-                .build()),
-            simple_source(ToneGeneratorBuilder::new()
+                .build()))
+            .add_generator(Box::new(ToneGeneratorBuilder::new()
                 .waveform(Waveform::Square)
                 .frequency(180.0)
-                .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
-                .build()),
-            simple_source(ToneGeneratorBuilder::new()
+                .build()))
+            .add_generator(Box::new(ToneGeneratorBuilder::new()
                 .waveform(Waveform::Square)
                 .frequency(219.0)
-                .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
-                .build()),
-            simple_source(ToneGeneratorBuilder::new()
+                .build()))
+            .add_generator(Box::new(ToneGeneratorBuilder::new()
                 .waveform(Waveform::Square)
                 .frequency(240.0)
-                .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
-                .build()),
-            simple_source(ToneGeneratorBuilder::new()
+                .build()))
+            .add_generator(Box::new(ToneGeneratorBuilder::new()
                 .waveform(Waveform::Square)
                 .frequency(261.0)
-                .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
-                .build()),
-        ];
+                .build()))
+            .amplitude_envelope(Some(Box::new(ConstantSegment::new(1.0, None))))
+            .build());
 
-        let mut system = System::<6, 1>::new();
-        let combinator: CombinatorFilter = CombinatorFilter::new(6, 1);
-        let combinator_index = system.add_filter(Box::from(combinator));
-        sources.into_iter().enumerate().for_each(|(index, source)| {
-            system.set_source(index, source);
-            system.connect_source(index, combinator_index, index);
-        });
-
-        let gain_normalization = system.add_filter(Box::from(GainFilter::new(1.0 / 12.0))); // Normalize the output to prevent overflows
+        let mut system = System::<1, 1>::new();
+        system.set_source(0, source);
 
         let bandpass = system.add_filter(Box::from(ResonantBandpassFilter::new(
             (10.0e3 + 400.0) / 2.0,
@@ -78,8 +69,7 @@ impl HiHat {
             44100.0,
         )));
 
-        system.connect(combinator_index, gain_normalization, 0, 0);
-        system.connect(gain_normalization, bandpass, 0, 0);
+        system.connect_source(0, bandpass, 0);
 
         let sink: SimpleSink = SimpleSink::new();
         system.set_sink(0, Box::from(sink));
@@ -105,6 +95,7 @@ impl HiHat {
 
         Ok(Self {
             graph: system,
+            bandpass_filter_index: bandpass,
             playing: false,
             amplitude_envelope,
             time: 0.0,
@@ -119,6 +110,18 @@ impl Instrument for HiHat {
         log::trace!("Starting HiHat note");
         self.playing = true;
         self.time = 0.0;
+
+        // Reset the bandpass filter state to ensure clean retriggering.
+        // For percussive sounds, residual filter state from previous hits
+        // causes tonal artifacts and reduces transient clarity.
+        if let Some(filter_box) = self.graph.get_filter_mut(self.bandpass_filter_index) {
+            // Downcast to ResonantBandpassFilter to access its reset method
+            if let Some(bandpass) = filter_box.as_any_mut().downcast_mut::<ResonantBandpassFilter>() {
+                bandpass.reset();
+            } else {
+                log::warn!("Failed to downcast filter to ResonantBandpassFilter");
+            }
+        }
     }
 
     fn stop_note(&mut self, _note: Note) {

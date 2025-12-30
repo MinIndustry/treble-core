@@ -63,6 +63,10 @@ impl Filter for DelayFilter {
     fn postponable(&self) -> bool {
         true
     }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 impl AudioGraphElement for DelayFilter {
