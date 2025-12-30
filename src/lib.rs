@@ -58,7 +58,7 @@ pub mod meta;
 /// Sheets contain instruments layed out on a staff, divided into measures
 /// Notes in the measures are structures that implement the `MeasureNote` trait.
 /// This allows to build complex notes, chords, ...
-// pub mod score;
+pub mod score;
 
 const APP_ID: (&str, &str, &str) = ("rustic", "minigrim0", "xyz");
 
@@ -70,11 +70,11 @@ pub mod prelude {
     // Core exports - only expose the module, details accessed through it
     pub use super::core;
 
-    // Score exports
-    // pub use super::score::{
-    //     Chord, ChordModifier, DurationModifier, Measure, Note, NoteDuration, NoteModifier,
-    //     NoteName, Score, Staff, StaffInstance, TimeSignature,
-    // };
+    // Score exports (legacy) - export individual legacy score types into prelude so tests and callers keep working
+    pub use super::score::prelude::{
+        Chord, ChordModifier, DurationModifier, Measure, Note, NoteDuration, NoteModifier,
+        NoteName, Score, Staff, StaffInstance, TimeSignature,
+    };
 
     // Instruments exports
     pub use super::instruments::Instrument;

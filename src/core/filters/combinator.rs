@@ -4,8 +4,6 @@ use std::fmt;
 #[cfg(feature = "meta")]
 use rustic_derive::FilterMetaData;
 
-use log::{error, trace};
-
 /// A filter that take input from two sources and combines them into a single
 /// output by adding them together.
 #[derive(Clone, Debug)]
@@ -40,7 +38,7 @@ impl CombinatorFilter {
 impl Entry for CombinatorFilter {
     fn push(&mut self, value: f32, port: usize) {
         if port >= self.inputs {
-            error!("Port {} out of bounds for CombinatorFilter", port);
+            log::error!("Port {} out of bounds for CombinatorFilter", port);
         }
         self.sources[port] = value;
     }
