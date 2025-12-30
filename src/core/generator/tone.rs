@@ -2,13 +2,13 @@ use rand::{self, Rng};
 use core::f32;
 use std::ops::Rem;
 
-use crate::core::{envelope::Envelope, generator::{SingleToneGenerator, prelude::{FrequencyRelation, Waveform}}};
+use crate::core::{envelope::Envelope, generator::prelude::*};
 use super::Generator;
 
 #[derive(Debug)]
 pub struct ToneGenerator {
-    waveform: super::prelude::Waveform,
-    frequency_relation: Option<super::prelude::FrequencyRelation>,
+    waveform: Waveform,
+    frequency_relation: Option<FrequencyRelation>,
     pitch_envelope: Option<Box<dyn Envelope>>,
     amplitude_envelope: Box<dyn Envelope>,
     phase: f32,

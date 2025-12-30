@@ -4,8 +4,6 @@ use std::fmt;
 #[cfg(feature = "meta")]
 use rustic_derive::FilterMetaData;
 
-use log::trace;
-
 /// A filter that returns the input value multiplied by a constant factor.
 /// Note: a factor < 1.0 will attenuate the input signal, while a factor > 1.0
 /// will amplify it.

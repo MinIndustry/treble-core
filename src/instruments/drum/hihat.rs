@@ -89,7 +89,7 @@ impl HiHat {
             .compute()
             .map_err(|_| "Failed to compute".to_string())?;
 
-        match crate::app::FSConfig::debug_dir("HiHat", "hihat.viz") {
+        match crate::app::prelude::FSConfig::debug_dir("HiHat", "hihat.viz") {
             Ok(path) => {
                 if let Err(e) = system.save_to_file(&path) {
                     log::warn!("Failed to save visualization: {}", e);
@@ -101,7 +101,7 @@ impl HiHat {
         let amplitude_envelope = Box::new(BezierSegment::new(4.0, 0.0, 0.2, (0.0, 0.0)));
 
         #[cfg(debug_assertions)]
-        let output_path = crate::app::FSConfig::debug_dir("HiHat", "hihat_output.txt").unwrap();
+        let output_path = crate::app::prelude::FSConfig::debug_dir("HiHat", "hihat_output.txt").unwrap();
 
         Ok(Self {
             graph: system,
