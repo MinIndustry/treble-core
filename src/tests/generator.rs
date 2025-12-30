@@ -1,5 +1,5 @@
-use crate::core::envelope::segment::ConstantSegment;
-use crate::core::envelope::segment::Segment;
+use crate::core::envelope::prelude::ConstantSegment;
+use crate::core::envelope::prelude::Segment;
 
 #[test]
 pub fn test_constant_segment_boundaries() {

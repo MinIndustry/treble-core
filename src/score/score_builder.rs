@@ -14,7 +14,8 @@ impl Default for ScoreBuilder {
             tempo: 120,
             signature: TimeSignature::C,
             name: String::from("New score"),
-            instruments: Vec::new()
+            instruments: Vec::new(),
+            staves: Vec::new()
         }
     }
 }
