@@ -45,7 +45,7 @@ impl Generator for ToneGenerator {
             time_elapsed
         };
         self.time += time_elapsed;
-        
+
         // 2 * pi * [[ (t - t0) / T ]]
         self.phase = (self.phase + TAU * actual_elapsed * self.current_frequency) % TAU;
 

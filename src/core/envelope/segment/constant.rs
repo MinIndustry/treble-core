@@ -53,7 +53,7 @@ impl ConstantSegment {
 
 impl Envelope for ConstantSegment {
     fn at(&self, time: f32, note_off: f32) -> f32 {
-        self.completed(time, note_off) as i32 as f32 * self.value
+        !(self.completed(time, note_off)) as i32 as f32 * self.value
     }
 
     fn completed(&self, time: f32, note_off: f32) -> bool {
