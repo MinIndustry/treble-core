@@ -2,6 +2,7 @@ use log::info;
 
 use crate::core::envelope::prelude::ConstantSegment;
 use crate::core::filters::prelude::*;
+use crate::core::generator::Generator;
 use crate::core::generator::prelude::{builder::ToneGeneratorBuilder, Waveform};
 use crate::core::graph::{simple_source, SimpleSink, System};
 
@@ -14,11 +15,13 @@ fn test_system() {
     let filt_1 = system.add_filter(Box::from(filter));
     let filt_2 = system.add_filter(Box::from(filter2));
 
-    let source = simple_source(ToneGeneratorBuilder::new()
+    let mut generator = ToneGeneratorBuilder::new()
         .waveform(Waveform::Blank)
         .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
-        .build());
-    system.set_source(0, Box::from(source));
+        .build();
+    generator.start();
+
+    system.set_source(0, Box::from(simple_source(generator)));
 
     let sink = SimpleSink::new();
     system.set_sink(0, Box::from(sink));
