@@ -58,6 +58,12 @@ impl Generator for ToneGenerator {
             Waveform::Triangle => 1.0 - 2.0 * ((self.phase * std::f32::consts::FRAC_1_PI) - 1.0).abs(),
             Waveform::WhiteNoise => rand::thread_rng().gen_range(-1.0..1.0),
         };
+        log::trace!("Tone Generator ticking: t:{} e:{} a:{} ae:{} ({}Hz)",
+            self.time,
+            self.amplitude_envelope.at(self.time, self.note_off.unwrap_or(0.0)),
+            tone_value,
+            tone_value * self.amplitude_envelope.at(self.time, self.note_off.unwrap_or(0.0)),
+            self.current_frequency);
 
         tone_value * self.amplitude_envelope.at(self.time, self.note_off.unwrap_or(0.0))
     }
