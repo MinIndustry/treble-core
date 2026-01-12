@@ -25,7 +25,6 @@ pub struct HiHat {
     bandpass_filter_index: NodeIndex<u32>,
     playing: bool,
     time: f32,
-    amplitude_envelope: Box<dyn Envelope>,
     #[cfg(debug_assertions)]
     output_buffer: File,
 }
@@ -57,7 +56,7 @@ impl HiHat {
                 .waveform(Waveform::Square)
                 .frequency(261.0)
                 .build()))
-            .amplitude_envelope(Some(Box::new(ConstantSegment::new(1.0, None))))
+            .amplitude_envelope(Some(Box::new(BezierSegment::new(2.0, 0.0, 0.2, (0.0, 0.0)))))
             .build());
 
         let mut system = System::<1, 1>::new();
@@ -65,7 +64,7 @@ impl HiHat {
 
         let bandpass = system.add_filter(Box::from(ResonantBandpassFilter::new(
             (10.0e3 + 400.0) / 2.0,
-            20.0,
+            100.0,
             44100.0,
         )));
 
@@ -88,8 +87,6 @@ impl HiHat {
             Err(_) => log::warn!("Failed to build path to save hihat graph"),
         }
 
-        let amplitude_envelope = Box::new(BezierSegment::new(4.0, 0.0, 0.2, (0.0, 0.0)));
-
         #[cfg(debug_assertions)]
         let output_path = crate::app::prelude::FSConfig::debug_dir("HiHat", "hihat_output.txt").unwrap();
 
@@ -97,7 +94,6 @@ impl HiHat {
             graph: system,
             bandpass_filter_index: bandpass,
             playing: false,
-            amplitude_envelope,
             time: 0.0,
             #[cfg(debug_assertions)]
             output_buffer: File::create(output_path).unwrap(),
@@ -150,7 +146,7 @@ impl Instrument for HiHat {
                 }
             }
         }
-        value * self.amplitude_envelope.at(self.time, -1.0)
+        value
     }
 
     fn tick(&mut self) {

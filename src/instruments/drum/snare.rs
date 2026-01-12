@@ -1,4 +1,4 @@
-use crate::core::envelope::prelude::{ADSREnvelopeBuilder, BezierSegment, LinearSegment};
+use crate::core::envelope::prelude::{ADSREnvelopeBuilder, BezierSegment, ConstantSegment, LinearSegment};
 use crate::core::generator::prelude::{
     builder::{CompositeGeneratorBuilder, ToneGeneratorBuilder},
     FrequencyRelation,
@@ -24,29 +24,24 @@ impl Snare {
                 .add_generator(
                     Box::new(ToneGeneratorBuilder::new()
                         .waveform(Waveform::WhiteNoise)
-                        .frequency_relation(FrequencyRelation::Constant(0.03))  // Frequency is irrelevant for noise. This is to avoid warnings
-                        .amplitude_envelope(
-                            Box::new(ADSREnvelopeBuilder::new()
-                                .attack(Box::new(BezierSegment::new(0.0, 0.01, 0.001, (0.0, 0.3))))
-                                .decay(Box::new(LinearSegment::new(0.01, 0.0, 0.04)))
-                                .release(Box::new(LinearSegment::new(0.0, 0.0, 0.5)))
-                                .build()))
+                        .frequency_relation(FrequencyRelation::Constant(1.0))  // Frequency is irrelevant for noise. This is to avoid warnings
+                        .amplitude_envelope(Box::new(ConstantSegment::new(0.1, None)))
                         .build())
                 )
                 .add_generator(
                     Box::new(ToneGeneratorBuilder::new()
                         .waveform(Waveform::Sine)
                         .frequency_relation(FrequencyRelation::Ratio(1.0))
-                        .amplitude_envelope(
-                            Box::new(ADSREnvelopeBuilder::new()
-                                .attack(Box::new(BezierSegment::new(0.0, 1.0, 0.001, (0.0, 1.0))))
-                                .decay(Box::new(LinearSegment::new(1.0, 0.0, 0.04)))
-                                .release(Box::new(LinearSegment::new(0.0, 0.0, 0.5)))
-                                .build()))
                         .build())
                 )
+                .amplitude_envelope(  // TODO: Test envelope segments
+                    Some(Box::new(ADSREnvelopeBuilder::new()
+                        .attack(Box::new(BezierSegment::new(0.0, 1.0, 0.001, (0.0, 1.0))))
+                        .decay(Box::new(LinearSegment::new(1.0, 0.0, 0.2)))
+                        .release(Box::new(LinearSegment::new(0.0, 0.0, 0.0)))
+                        .build())))
                 .pitch_envelope(Some(
-                    Box::from(BezierSegment::new(1.2, 1.0, 0.3, (0.0, 1.0)))
+                    Box::from(BezierSegment::new(1.2, 0.8, 0.2, (0.0, 1.0)))
                 ))
                 .mix_mode(MixMode::Sum)
                 .frequency(158.0)
