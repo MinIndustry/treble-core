@@ -1,6 +1,8 @@
-use pretty_assertions::assert_eq;
+//! Core Utilities Unit Tests
+//! Tests for utility functions including note representation, keys, and tone tables
 
-use crate::core::utils::{Note, NOTES};
+use pretty_assertions::assert_eq;
+use rustic::core::utils::{Note, NOTES};
 
 #[test]
 fn test_note_creation() {
@@ -77,4 +79,19 @@ fn test_note_equality() {
 
     assert_eq!(note1, note2);
     assert_ne!(note1, note3);
+}
+
+#[cfg(test)]
+mod keys_tests {
+    // TODO: Add tests for key/scale utilities
+    // - Test scale generation
+    // - Test key transposition
+    // - Test chord generation from scales
+}
+
+#[cfg(test)]
+mod tones_tests {
+    // TODO: Add tests for tone table utilities
+    // - Test tone frequency calculations
+    // - Test tone mappings
 }

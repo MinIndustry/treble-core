@@ -89,9 +89,6 @@ pub mod plotting;
 #[cfg(feature = "testing")]
 pub mod testing;
 
-#[cfg(test)]
-pub mod tests;
-
 // Re-export Note from core utils
 pub use core::{Note, NOTES};
 

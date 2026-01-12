@@ -1,10 +1,12 @@
-use log::info;
+//! Signal Graph Unit Tests
+//! Tests for the audio signal graph system including sources, sinks, and connections
 
-use crate::core::envelope::prelude::ConstantSegment;
-use crate::core::filters::prelude::*;
-use crate::core::generator::Generator;
-use crate::core::generator::prelude::{builder::ToneGeneratorBuilder, Waveform};
-use crate::core::graph::{simple_source, SimpleSink, System};
+use log::info;
+use rustic::core::envelope::prelude::ConstantSegment;
+use rustic::core::filters::prelude::*;
+use rustic::core::generator::Generator;
+use rustic::core::generator::prelude::{builder::ToneGeneratorBuilder, Waveform};
+use rustic::core::graph::{simple_source, SimpleSink, System};
 
 #[test]
 fn test_system() {
@@ -65,7 +67,8 @@ fn stress_test() {
         ToneGeneratorBuilder::new()
             .waveform(Waveform::Blank)
             .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
-            .build());
+            .build(),
+    );
     system.set_source(0, Box::from(source));
 
     let sink = SimpleSink::new();
@@ -80,7 +83,10 @@ fn stress_test() {
     }
 
     for sample_size in [100_000, 1_000_000, 10_000_000] {
-        info!("Working on sample size {} at 44100 samples/s", sample_size);
+        info!(
+            "Working on sample size {} at 44100 samples/s",
+            sample_size
+        );
         let start = std::time::Instant::now();
         for _ in 0..sample_size {
             system.run();
@@ -121,10 +127,12 @@ fn stress_test_2() {
     system.connect(filt_1, filt_3, 0, 0);
     system.connect(filt_2, filt_3, 0, 1);
 
-    let source = simple_source(ToneGeneratorBuilder::new()
-        .waveform(Waveform::Blank)
-        .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
-        .build());
+    let source = simple_source(
+        ToneGeneratorBuilder::new()
+            .waveform(Waveform::Blank)
+            .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
+            .build(),
+    );
     system.set_source(0, Box::from(source));
 
     let sink = SimpleSink::new();
@@ -138,7 +146,10 @@ fn stress_test_2() {
     }
 
     for sample_size in [100_000, 1_000_000, 10_000_000] {
-        info!("Working on sample size {} at 44100 samples/s", sample_size);
+        info!(
+            "Working on sample size {} at 44100 samples/s",
+            sample_size
+        );
         let start = std::time::Instant::now();
         for _ in 0..sample_size {
             system.run();
@@ -154,4 +165,29 @@ fn stress_test_2() {
             "Test went over time !"
         );
     }
+}
+
+#[cfg(test)]
+mod source_tests {
+    // TODO: Add tests for Source trait implementations
+    // - Test source initialization
+    // - Test sample generation
+    // - Test source chaining
+}
+
+#[cfg(test)]
+mod sink_tests {
+    // TODO: Add tests for Sink trait implementations
+    // - Test sink consumption
+    // - Test buffer management
+    // - Test multiple sinks
+}
+
+#[cfg(test)]
+mod system_tests {
+    // TODO: Add more System tests
+    // - Test graph validation
+    // - Test cycle detection
+    // - Test disconnection
+    // - Test dynamic reconfiguration
 }
