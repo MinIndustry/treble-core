@@ -53,8 +53,8 @@ fn main() {
             let hihat_output = hihat.get_output();
             let full = hihat_output + kick.get_output() + snare.get_output();
 
-            values.push(full);
-            values.push(full);
+            values.push(full);  // Left
+            values.push(full);  // Right
 
             complete_value_list.push(full);
             complete_value_list.push(full);
