@@ -83,30 +83,35 @@ impl PlotBuilder {
 
     /// Sets the plot title
     pub fn title<S: AsRef<str>>(mut self, title: S) -> Self {
+        log::trace!("Setting plot title to {}", title.as_ref());
         self.title = title.as_ref().to_string();
         self
     }
 
     /// Sets the X-axis range
     pub fn x_range(mut self, min: f32, max: f32) -> Self {
+        log::trace!("Setting plot x range to {}, {}", min, max);
         self.x_range = (min, max);
         self
     }
 
     /// Sets the Y-axis range
     pub fn y_range(mut self, min: f32, max: f32) -> Self {
+        log::trace!("Setting plot y range to {}, {}", min, max);
         self.y_range = (min, max);
         self
     }
 
     /// Sets the X-axis label
     pub fn x_label<S: AsRef<str>>(mut self, label: S) -> Self {
+        log::trace!("Setting plot x label to {}", label.as_ref());
         self.x_label = Some(label.as_ref().to_string());
         self
     }
 
     /// Sets the Y-axis label
     pub fn y_label<S: AsRef<str>>(mut self, label: S) -> Self {
+        log::trace!("Setting plot y label to {}", label.as_ref());
         self.y_label = Some(label.as_ref().to_string());
         self
     }
@@ -135,6 +140,7 @@ impl PlotBuilder {
         label: S,
         color: Option<(u8, u8, u8)>,
     ) -> Self {
+        log::info!("Adding a series of {} element(s) to the plot", data.len());
         let color = color.unwrap_or_else(|| Self::auto_color(self.series.len()));
         self.series.push(SeriesConfig {
             data,

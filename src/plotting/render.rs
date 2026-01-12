@@ -121,8 +121,10 @@ pub(crate) fn render_plot(config: &PlotBuilder, path: &Path) -> Result<(), PlotE
         }
     }
 
+    log::info!("Presenting final plot");
     root.present()
         .map_err(|e| PlotError::Rendering(e.to_string()))?;
 
+    log::info!("Plot presented");
     Ok(())
 }
