@@ -23,12 +23,11 @@ impl super::Segment for LinearSegment {
     fn at(&self, time: f32) -> f32 {
         if time <= 0.0 {
             return self.from;
-        } else if time >= self.duration {
+        } else if time >= 1.0 {
             return self.to;
         }
 
-        let t = time / self.duration;
-        self.from + t * (self.to - self.from)
+        self.from + time * (self.to - self.from)
     }
 
     fn get_duration(&self) -> f32 {
