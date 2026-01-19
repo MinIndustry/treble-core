@@ -47,6 +47,9 @@ impl super::Segment for BezierSegment {
 
 impl super::super::Envelope for BezierSegment {
     fn at(&self, time: f32, note_off: f32) -> f32 {
+        if (note_off > 0.0 && time >= note_off) || time >= self.duration {
+            return self.to;
+        }
         super::Segment::at(self, (time - note_off) / super::Segment::get_duration(self))
     }
 

@@ -1,20 +1,18 @@
+#[cfg(debug_assertions)]
+use std::fs::File;
+#[cfg(debug_assertions)]
+use std::io::Write;
+
+use petgraph::prelude::NodeIndex;
+
 use crate::core::envelope::prelude::{BezierSegment, ConstantSegment};
-use crate::core::envelope::Envelope;
 use crate::core::filters::prelude::{ResonantBandpassFilter};
+use crate::core::generator::prelude::{builder::{ToneGeneratorBuilder, CompositeGeneratorBuilder}, Waveform, MixMode};
 use crate::core::graph::simple_source;
 use crate::core::graph::SimpleSink;
 use crate::core::graph::System;
 use crate::instruments::Instrument;
 use crate::Note;
-
-use crate::core::generator::prelude::{builder::{ToneGeneratorBuilder, CompositeGeneratorBuilder}, Waveform};
-
-use petgraph::prelude::NodeIndex;
-
-#[cfg(debug_assertions)]
-use std::fs::File;
-#[cfg(debug_assertions)]
-use std::io::Write;
 
 /// A HiHat instrument.
 /// It consists of six square wave sources connected to a combinator filter. The result is then passed through a resonant bandpass filter,
@@ -56,7 +54,8 @@ impl HiHat {
                 .waveform(Waveform::Square)
                 .frequency(261.0)
                 .build()))
-            .amplitude_envelope(Some(Box::new(BezierSegment::new(2.0, 0.0, 0.2, (0.0, 0.0)))))
+            .amplitude_envelope(Some(Box::new(BezierSegment::new(1.0, 0.0, 0.5, (0.0, 0.0)))))
+            .mix_mode(MixMode::Average)
             .build());
 
         let mut system = System::<1, 1>::new();
@@ -64,7 +63,7 @@ impl HiHat {
 
         let bandpass = system.add_filter(Box::from(ResonantBandpassFilter::new(
             (10.0e3 + 400.0) / 2.0,
-            100.0,
+            20.0,
             44100.0,
         )));
 
