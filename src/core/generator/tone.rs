@@ -4,7 +4,7 @@ use core::f32;
 use std::ops::Rem;
 
 use crate::core::{envelope::Envelope, generator::prelude::*};
-use super::Generator;
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SingleToneGenerator {
@@ -18,8 +18,27 @@ pub struct SingleToneGenerator {
     current_frequency: f32,
 }
 
-impl Generator for SingleToneGenerator {
-    fn start(&mut self) {
+impl SingleToneGenerator {
+    pub fn new(
+        waveform: super::prelude::Waveform,
+        frequency_relation: Option<super::prelude::FrequencyRelation>,
+        pitch_envelope: Option<Box<dyn Envelope>>,
+        amplitude_envelope: Box<dyn Envelope>,
+        frequency: f32,
+    ) -> Self {
+        Self {
+            waveform,
+            frequency_relation,
+            pitch_envelope,
+            amplitude_envelope,
+            phase: rand::random::<f32>().rem(360.0),
+            time: 0.0,
+            note_off: None,
+            current_frequency: frequency,
+        }
+    }
+
+    pub fn start(&mut self) {
         self.time = 0.0;
         self.note_off = None;
         // Note: We intentionally do NOT reset phase here to avoid phase discontinuities.
@@ -28,15 +47,15 @@ impl Generator for SingleToneGenerator {
         // For a phase-reset behavior, we can consider adding a separate reset() method.
     }
 
-    fn stop(&mut self) {
+    pub fn stop(&mut self) {
         self.note_off = Some(self.time);
     }
 
-    fn completed(&self) -> bool {
+    pub fn completed(&self) -> bool {
         self.note_off.map(|note_off| self.amplitude_envelope.completed(self.time, note_off)) == Some(true)
     }
 
-    fn tick(&mut self, time_elapsed: f32) -> f32 {
+    pub fn tick(&mut self, time_elapsed: f32) -> f32 {
         const TAU: f32 = 2.0 * f32::consts::PI;
 
         // Map true time elapsed for pitch bend
@@ -67,27 +86,6 @@ impl Generator for SingleToneGenerator {
             self.current_frequency);
 
         tone_value * self.amplitude_envelope.at(self.time, self.note_off.unwrap_or(0.0))
-    }
-}
-
-impl SingleToneGenerator {
-    pub fn new(
-        waveform: super::prelude::Waveform,
-        frequency_relation: Option<super::prelude::FrequencyRelation>,
-        pitch_envelope: Option<Box<dyn Envelope>>,
-        amplitude_envelope: Box<dyn Envelope>,
-        frequency: f32,
-    ) -> Self {
-        Self {
-            waveform,
-            frequency_relation,
-            pitch_envelope,
-            amplitude_envelope,
-            phase: rand::random::<f32>().rem(360.0),
-            time: 0.0,
-            note_off: None,
-            current_frequency: frequency,
-        }
     }
 
     pub fn set_frequency(&mut self, frequency: f32) {

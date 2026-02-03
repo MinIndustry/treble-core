@@ -1,15 +1,15 @@
 use super::{AudioGraphElement, Source};
-use crate::core::generator::prelude::Generator;
+use crate::core::generator::prelude::MultiToneGenerator;
 
 #[derive(Debug)]
-pub struct SimpleSource<T> {
-    generator: T,
+pub struct SimpleSource {
+    generator: MultiToneGenerator,
     sample_rate: f32,
     index: usize,
 }
 
-impl<T> SimpleSource<T> {
-    pub fn new(generator: T, sample_rate: f32) -> Self {
+impl SimpleSource {
+    pub fn new(generator: MultiToneGenerator, sample_rate: f32) -> Self {
         Self {
             generator,
             sample_rate,
@@ -18,7 +18,7 @@ impl<T> SimpleSource<T> {
     }
 }
 
-impl<T: std::fmt::Debug> AudioGraphElement for SimpleSource<T> {
+impl AudioGraphElement for SimpleSource {
     fn get_name(&self) -> &str {
         "Simple Sine Source"
     }
@@ -32,17 +32,14 @@ impl<T: std::fmt::Debug> AudioGraphElement for SimpleSource<T> {
     }
 }
 
-impl<T> Source for SimpleSource<T>
-where
-    T: Generator,
-{
+impl Source for SimpleSource {
     fn pull(&mut self) -> f32 {
         self.generator.tick(1.0 / self.sample_rate)
     }
 }
 
 /// Creates a simple source with a given generator and frequency
-pub fn simple_source<T: Generator + 'static>(generator: T) -> Box<dyn Source> {
+pub fn simple_source(generator: MultiToneGenerator) -> Box<dyn Source> {
     let source = SimpleSource {
         generator,
         sample_rate: 44100.0,

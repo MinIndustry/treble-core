@@ -1,7 +1,7 @@
 use log::trace;
 use serde::{Serialize, Deserialize};
 
-use crate::core::{envelope::Envelope, generator::{Generator, tone::SingleToneGenerator, prelude::MixMode}};
+use crate::core::{envelope::Envelope, generator::{tone::SingleToneGenerator, prelude::MixMode}};
 
 #[derive(Debug, Serialize, Deserialize)]
 /// A generator that produces multiple tones. Each
@@ -17,8 +17,35 @@ pub struct MultiToneGenerator {
     note_off: Option<f32>,
 }
 
-impl Generator for MultiToneGenerator {
-    fn start(&mut self) {
+impl MultiToneGenerator {
+    pub fn new(
+        base_frequency: f32,
+        mut tone_generators: Vec<super::tone::SingleToneGenerator>,
+        mix_mode: super::prelude::MixMode,
+        global_pitch_envelope: Option<Box<dyn Envelope>>,
+        global_amplitude_envelope: Option<Box<dyn Envelope>>,
+    ) -> Self {
+        // Setup individual tone generators' frequencies
+        tone_generators.iter_mut().for_each(|tg| {
+            if !tg.has_frequency_relation() {
+                log::warn!("Adding a tone generator without a frequency relation to a composite generator. The generator will not get updated");
+            } else {
+                tg.update_frequency(base_frequency);
+            }
+        });
+
+        Self {
+            base_frequency,
+            tone_generators,
+            mix_mode,
+            global_pitch_envelope,
+            global_amplitude_envelope,
+            time: 0.0,
+            note_off: None,
+        }
+    }
+
+    pub fn start(&mut self) {
         trace!("Composite Generator starting ({}Hz)", self.base_frequency);
         self.time = 0.0;
         self.note_off = None;
@@ -26,13 +53,13 @@ impl Generator for MultiToneGenerator {
         self.tone_generators.iter_mut().for_each(|tg| tg.start());
     }
 
-    fn stop(&mut self) {
+    pub fn stop(&mut self) {
         trace!("Composite Generator stopping: {} ({}Hz)", self.time, self.base_frequency);
         self.note_off = Some(self.time);
         self.tone_generators.iter_mut().for_each(|tg| tg.stop());
     }
 
-    fn completed(&self) -> bool {
+    pub fn completed(&self) -> bool {
         // A composite generator is completed when all its tone generators are completed
         // or when there's a note_off and sufficient time has passed for all envelopes to finish
         if self.tone_generators.is_empty() {
@@ -43,7 +70,7 @@ impl Generator for MultiToneGenerator {
         self.tone_generators.iter().all(|tg| tg.completed())
     }
 
-    fn tick(&mut self, time_elapsed: f32) -> f32 {
+    pub fn tick(&mut self, time_elapsed: f32) -> f32 {
         let actual_elapsed = if let Some(envelope) = &self.global_pitch_envelope {
             time_elapsed * envelope.at(self.time, self.note_off.unwrap_or(0.0))
         } else {
@@ -86,35 +113,6 @@ impl Generator for MultiToneGenerator {
                 self.base_frequency);
 
             ampl
-        }
-    }
-}
-
-impl MultiToneGenerator {
-    pub fn new(
-        base_frequency: f32,
-        mut tone_generators: Vec<super::tone::SingleToneGenerator>,
-        mix_mode: super::prelude::MixMode,
-        global_pitch_envelope: Option<Box<dyn Envelope>>,
-        global_amplitude_envelope: Option<Box<dyn Envelope>>,
-    ) -> Self {
-        // Setup individual tone generators' frequencies
-        tone_generators.iter_mut().for_each(|tg| {
-            if !tg.has_frequency_relation() {
-                log::warn!("Adding a tone generator without a frequency relation to a composite generator. The generator will not get updated");
-            } else {
-                tg.update_frequency(base_frequency);
-            }
-        });
-
-        Self {
-            base_frequency,
-            tone_generators,
-            mix_mode,
-            global_pitch_envelope,
-            global_amplitude_envelope,
-            time: 0.0,
-            note_off: None,
         }
     }
 

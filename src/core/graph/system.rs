@@ -10,7 +10,7 @@ use petgraph::Graph;
 use petgraph::{algo::toposort, Direction};
 
 use crate::core::generator::prelude::Waveform;
-use crate::core::generator::prelude::builder::ToneGeneratorBuilder;
+use crate::core::generator::prelude::builder::{ToneGeneratorBuilder, MultiToneGeneratorBuilder};
 
 use super::sink::simple_sink;
 use super::{simple_source, Filter, Sink, Source};
@@ -57,8 +57,11 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
     pub fn new() -> Self {
         let sources: [(Box<dyn Source>, (NodeIndex<u32>, usize)); INPUTS] =
             core::array::from_fn(|_| (simple_source(
-                ToneGeneratorBuilder::new()
-                    .waveform(Waveform::Blank)
+                MultiToneGeneratorBuilder::new()
+                    .add_generator(
+                        ToneGeneratorBuilder::new()
+                            .waveform(Waveform::Blank)
+                            .build())
                     .build()), (NodeIndex::new(0), 0)));
         let sinks: [((NodeIndex<u32>, usize), Box<dyn Sink>); OUTPUTS] =
             core::array::from_fn(|_| ((NodeIndex::new(0), 0), simple_sink()));

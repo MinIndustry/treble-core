@@ -26,23 +26,11 @@ mod composite_builder;
 
 use crate::core::generator::prelude::Waveform;
 
-/// The generator trait.
-/// An abstract trait for all sound generators.
-pub trait Generator: fmt::Debug + Send + Sync {
-    fn start(&mut self);
-    fn stop(&mut self);
-    fn tick(&mut self, time_elapsed: f32) -> f32;
-    fn completed(&self) -> bool;
-}
-
-
 pub mod prelude {
     use serde::{Serialize, Deserialize};
 
     pub use super::tone::SingleToneGenerator;
     pub use super::composite::MultiToneGenerator;
-
-    pub use super::Generator;
 
     pub mod builder {
         pub use super::super::composite_builder::MultiToneGeneratorBuilder;
