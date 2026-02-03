@@ -24,6 +24,8 @@ mod tone_builder;
 mod composite;
 mod composite_builder;
 
+use crate::core::generator::prelude::Waveform;
+
 /// The generator trait.
 /// An abstract trait for all sound generators.
 pub trait Generator: fmt::Debug + Send + Sync {
@@ -39,6 +41,8 @@ pub trait SingleToneGenerator: Generator {
     fn set_frequency(&mut self, frequency: f32);
 
     fn has_frequency_relation(&self) -> bool;
+
+    fn get_waveform(&self) -> &Waveform;
 
     // Sets the generator's frequency based on its frequency relation (if any)
     fn update_frequency(&mut self, base_frequency: f32);

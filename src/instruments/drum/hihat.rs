@@ -5,7 +5,7 @@ use std::io::Write;
 
 use petgraph::prelude::NodeIndex;
 
-use crate::core::envelope::prelude::{BezierSegment, ConstantSegment};
+use crate::core::envelope::prelude::BezierSegment;
 use crate::core::filters::prelude::{ResonantBandpassFilter};
 use crate::core::generator::prelude::{builder::{ToneGeneratorBuilder, CompositeGeneratorBuilder}, Waveform, MixMode};
 use crate::core::graph::simple_source;

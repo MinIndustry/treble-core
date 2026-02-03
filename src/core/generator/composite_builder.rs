@@ -1,6 +1,7 @@
 use crate::core::envelope::Envelope;
 
 use crate::core::generator::SingleToneGenerator;
+use crate::core::generator::prelude::Waveform;
 use super::composite::CompositeGenerator;
 
 /// Builder for the `CompositeGenerator`.
@@ -59,7 +60,7 @@ impl CompositeGeneratorBuilder {
         mut self,
         generator: Box<dyn SingleToneGenerator>,
     ) -> Self {
-        if !generator.has_frequency_relation() {
+        if !generator.has_frequency_relation() && !matches!(generator.get_waveform(), Waveform::WhiteNoise | Waveform::PinkNoise) {
             log::warn!("Adding a tone generator without a frequency relation to a composite generator. The generator will not get updated");
         }
 

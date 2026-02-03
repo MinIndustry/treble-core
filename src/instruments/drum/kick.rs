@@ -20,8 +20,8 @@ impl Kick {
                         .frequency_relation(FrequencyRelation::Constant(1.0))
                         .amplitude_envelope(
                             Box::new(ADSREnvelopeBuilder::new()
-                            .attack(Box::new(BezierSegment::new(0.0, 1.0, 0.001, (0.0, 1.0))))
-                            .decay(Box::new(LinearSegment::new(1.0, 0.0, 0.1)))
+                            .attack(Box::new(BezierSegment::new(0.0, 0.1, 0.001, (0.0, 1.0))))
+                            .decay(Box::new(LinearSegment::new(0.1, 0.0, 0.1)))
                             .release(Box::new(ConstantSegment::new(0.0, Some(0.0))))
                             .build())
                         )
@@ -33,7 +33,7 @@ impl Kick {
                         .amplitude_envelope(
                             Box::new(ConstantSegment::new(1.0, None)))
                         .build()))
-                .pitch_envelope(Some(Box::from(BezierSegment::new(1.4, 0.1, 0.3, (2.0, 0.2)))))
+                .pitch_envelope(Some(Box::from(BezierSegment::new(1.0, 0.5, 0.3, (2.0, 0.2)))))
                 .mix_mode(MixMode::Sum)
                 .frequency(58.0)
                 .build()),
@@ -45,13 +45,11 @@ impl Kick {
 
 impl Instrument for Kick {
     fn start_note(&mut self, _note: Note, _velocity: f32) {
-        log::trace!("Starting Kick");
         self.current_tick = 0;
         self.generator.start();
     }
 
     fn stop_note(&mut self, _note: crate::Note) {
-        log::trace!("Stopping Kick");
         // The note will continue playing until completed
         self.generator.stop();
     }

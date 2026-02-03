@@ -78,6 +78,10 @@ impl SingleToneGenerator for ToneGenerator {
         self.frequency_relation.is_some()
     }
 
+    fn get_waveform(&self) -> &Waveform {
+        &self.waveform
+    }
+
     fn update_frequency(&mut self, base_frequency: f32) {
         if let Some(relation) = &self.frequency_relation {
             self.current_frequency = relation.compute(base_frequency);
