@@ -7,7 +7,7 @@ use petgraph::prelude::NodeIndex;
 
 use crate::core::envelope::prelude::BezierSegment;
 use crate::core::filters::prelude::{ResonantBandpassFilter};
-use crate::core::generator::prelude::{builder::{ToneGeneratorBuilder, CompositeGeneratorBuilder}, Waveform, MixMode};
+use crate::core::generator::prelude::{builder::{ToneGeneratorBuilder, MultiToneGeneratorBuilder}, Waveform, MixMode};
 use crate::core::graph::simple_source;
 use crate::core::graph::SimpleSink;
 use crate::core::graph::System;
@@ -29,31 +29,31 @@ pub struct HiHat {
 
 impl HiHat {
     pub fn new() -> Result<Self, String> {
-        let source = simple_source(CompositeGeneratorBuilder::new()
-            .add_generator(Box::new(ToneGeneratorBuilder::new()
+        let source = simple_source(MultiToneGeneratorBuilder::new()
+            .add_generator(ToneGeneratorBuilder::new()
                 .waveform(Waveform::Square)
                 .frequency(123.0)
-                .build()))
-            .add_generator(Box::new(ToneGeneratorBuilder::new()
+                .build())
+            .add_generator(ToneGeneratorBuilder::new()
                 .waveform(Waveform::Square)
                 .frequency(150.0)
-                .build()))
-            .add_generator(Box::new(ToneGeneratorBuilder::new()
+                .build())
+            .add_generator(ToneGeneratorBuilder::new()
                 .waveform(Waveform::Square)
                 .frequency(180.0)
-                .build()))
-            .add_generator(Box::new(ToneGeneratorBuilder::new()
+                .build())
+            .add_generator(ToneGeneratorBuilder::new()
                 .waveform(Waveform::Square)
                 .frequency(219.0)
-                .build()))
-            .add_generator(Box::new(ToneGeneratorBuilder::new()
+                .build())
+            .add_generator(ToneGeneratorBuilder::new()
                 .waveform(Waveform::Square)
                 .frequency(240.0)
-                .build()))
-            .add_generator(Box::new(ToneGeneratorBuilder::new()
+                .build())
+            .add_generator(ToneGeneratorBuilder::new()
                 .waveform(Waveform::Square)
                 .frequency(261.0)
-                .build()))
+                .build())
             .amplitude_envelope(Some(Box::new(BezierSegment::new(1.0, 0.0, 0.5, (0.0, 0.0)))))
             .mix_mode(MixMode::Average)
             .build());

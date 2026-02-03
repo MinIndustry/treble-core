@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::core::envelope::prelude::{ADSREnvelope, ConstantSegment};
 use crate::core::generator::prelude::{
     MultiToneGenerator,
-    builder::{CompositeGeneratorBuilder, ToneGeneratorBuilder},
+    builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder},
     Waveform, FrequencyRelation
 };
 use crate::core::utils::tones::TONES_FREQ;
@@ -13,7 +13,7 @@ use crate::Note;
 
 #[derive(Debug)]
 pub struct Keyboard {
-    generators: Vec<(Box<dyn MultiToneGenerator>, bool)>,
+    generators: Vec<(MultiToneGenerator, bool)>,
     allocator: PolyVoiceAllocator,
     note_indices: HashMap<Note, usize>,
     output: f32,
@@ -34,19 +34,18 @@ impl PolyphonicVoice for Keyboard {
 impl Keyboard {
     pub fn new(voices: usize, voice_allocator: PolyVoiceAllocator, envelope: ADSREnvelope) -> Self {
         let generators = std::iter::repeat_with(|| {
-            let generator = CompositeGeneratorBuilder::new()
-            .add_generator(Box::new(ToneGeneratorBuilder::new()
+            let generator = MultiToneGeneratorBuilder::new()
+            .add_generator(ToneGeneratorBuilder::new()
                 .amplitude_envelope(Box::new(envelope.clone()))
                 .waveform(Waveform::Sine)
                 .frequency_relation(FrequencyRelation::Identity)
-                .build()))
-            .add_generator(Box::new(ToneGeneratorBuilder::new()
+                .build())
+            .add_generator(ToneGeneratorBuilder::new()
                 .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
                 .waveform(Waveform::WhiteNoise)
-                .build()))
+                .build())
             .build();
 
-            let generator: Box<dyn MultiToneGenerator> = Box::from(generator);
             (generator, false)
         })
         .take(voices)

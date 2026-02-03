@@ -1,12 +1,13 @@
 use rand::{self, Rng};
+use serde::{Serialize, Deserialize};
 use core::f32;
 use std::ops::Rem;
 
 use crate::core::{envelope::Envelope, generator::prelude::*};
 use super::Generator;
 
-#[derive(Debug)]
-pub struct ToneGenerator {
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SingleToneGenerator {
     waveform: Waveform,
     frequency_relation: Option<FrequencyRelation>,
     pitch_envelope: Option<Box<dyn Envelope>>,
@@ -17,7 +18,7 @@ pub struct ToneGenerator {
     current_frequency: f32,
 }
 
-impl Generator for ToneGenerator {
+impl Generator for SingleToneGenerator {
     fn start(&mut self) {
         self.time = 0.0;
         self.note_off = None;
@@ -69,27 +70,7 @@ impl Generator for ToneGenerator {
     }
 }
 
-impl SingleToneGenerator for ToneGenerator {
-    fn set_frequency(&mut self, frequency: f32) {
-        self.current_frequency = frequency;
-    }
-
-    fn has_frequency_relation(&self) -> bool {
-        self.frequency_relation.is_some()
-    }
-
-    fn get_waveform(&self) -> &Waveform {
-        &self.waveform
-    }
-
-    fn update_frequency(&mut self, base_frequency: f32) {
-        if let Some(relation) = &self.frequency_relation {
-            self.current_frequency = relation.compute(base_frequency);
-        }
-    }
-}
-
-impl ToneGenerator {
+impl SingleToneGenerator {
     pub fn new(
         waveform: super::prelude::Waveform,
         frequency_relation: Option<super::prelude::FrequencyRelation>,
@@ -106,6 +87,24 @@ impl ToneGenerator {
             time: 0.0,
             note_off: None,
             current_frequency: frequency,
+        }
+    }
+
+    pub fn set_frequency(&mut self, frequency: f32) {
+        self.current_frequency = frequency;
+    }
+
+    pub fn has_frequency_relation(&self) -> bool {
+        self.frequency_relation.is_some()
+    }
+
+    pub fn get_waveform(&self) -> &Waveform {
+        &self.waveform
+    }
+
+    pub fn update_frequency(&mut self, base_frequency: f32) {
+        if let Some(relation) = &self.frequency_relation {
+            self.current_frequency = relation.compute(base_frequency);
         }
     }
 }

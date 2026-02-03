@@ -1,4 +1,4 @@
-use crate::core::envelope::{Envelope, prelude::ConstantSegment};
+use crate::core::{envelope::{Envelope, prelude::ConstantSegment}, generator::tone::SingleToneGenerator};
 
 pub struct ToneGeneratorBuilder {
     waveform: super::prelude::Waveform,
@@ -59,8 +59,8 @@ impl ToneGeneratorBuilder {
         self
     }
 
-    pub fn build(self) -> super::tone::ToneGenerator {
-        super::tone::ToneGenerator::new(
+    pub fn build(self) -> SingleToneGenerator {
+        SingleToneGenerator::new(
             self.waveform,
             self.freq_relation,
             self.pitch_envelope,

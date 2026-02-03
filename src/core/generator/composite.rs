@@ -1,11 +1,15 @@
 use log::trace;
+use serde::{Serialize, Deserialize};
 
-use crate::core::{envelope::Envelope, generator::{Generator, MultiToneGenerator, SingleToneGenerator, prelude::MixMode}};
+use crate::core::{envelope::Envelope, generator::{Generator, tone::SingleToneGenerator, prelude::MixMode}};
 
-#[derive(Debug)]
-pub struct CompositeGenerator {
+#[derive(Debug, Serialize, Deserialize)]
+/// A generator that produces multiple tones. Each
+/// tone can have its own frequency relation, waveform,
+/// and envelopes.
+pub struct MultiToneGenerator {
     base_frequency: f32,
-    tone_generators: Vec<Box<dyn super::prelude::SingleToneGenerator>>,
+    tone_generators: Vec<SingleToneGenerator>,
     mix_mode: super::prelude::MixMode,
     global_pitch_envelope: Option<Box<dyn Envelope>>,
     global_amplitude_envelope: Option<Box<dyn Envelope>>,
@@ -13,7 +17,7 @@ pub struct CompositeGenerator {
     note_off: Option<f32>,
 }
 
-impl Generator for CompositeGenerator {
+impl Generator for MultiToneGenerator {
     fn start(&mut self) {
         trace!("Composite Generator starting ({}Hz)", self.base_frequency);
         self.time = 0.0;
@@ -86,27 +90,10 @@ impl Generator for CompositeGenerator {
     }
 }
 
-impl MultiToneGenerator for CompositeGenerator {
-    fn add_tone(&mut self, tone: super::tone::ToneGenerator) {
-        self.tone_generators.push(Box::new(tone));
-    }
-
-    fn set_base_frequency(&mut self, frequency: f32) {
-        self.base_frequency = frequency;
-        for generator in self.tone_generators.iter_mut() {
-            generator.update_frequency(frequency);
-        }
-    }
-
-    fn tone_count(&self) -> usize {
-        self.tone_generators.len()
-    }
-}
-
-impl CompositeGenerator {
+impl MultiToneGenerator {
     pub fn new(
         base_frequency: f32,
-        mut tone_generators: Vec<Box<dyn SingleToneGenerator>>,
+        mut tone_generators: Vec<super::tone::SingleToneGenerator>,
         mix_mode: super::prelude::MixMode,
         global_pitch_envelope: Option<Box<dyn Envelope>>,
         global_amplitude_envelope: Option<Box<dyn Envelope>>,
@@ -129,5 +116,20 @@ impl CompositeGenerator {
             time: 0.0,
             note_off: None,
         }
+    }
+
+    pub fn add_tone(&mut self, tone: super::tone::SingleToneGenerator) {
+        self.tone_generators.push(tone);
+    }
+
+    pub fn set_base_frequency(&mut self, frequency: f32) {
+        self.base_frequency = frequency;
+        for generator in self.tone_generators.iter_mut() {
+            generator.update_frequency(frequency);
+        }
+    }
+
+    pub fn tone_count(&self) -> usize {
+        self.tone_generators.len()
     }
 }

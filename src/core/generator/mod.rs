@@ -35,36 +35,17 @@ pub trait Generator: fmt::Debug + Send + Sync {
     fn completed(&self) -> bool;
 }
 
-/// A generator that produces a single tone.
-pub trait SingleToneGenerator: Generator {
-    /// Sets the generator's frequency to the given value
-    fn set_frequency(&mut self, frequency: f32);
-
-    fn has_frequency_relation(&self) -> bool;
-
-    fn get_waveform(&self) -> &Waveform;
-
-    // Sets the generator's frequency based on its frequency relation (if any)
-    fn update_frequency(&mut self, base_frequency: f32);
-}
-
-/// A generator that produces multiple tones. Each
-/// tone can have its own frequency relation, waveform,
-/// and envelopes.
-pub trait MultiToneGenerator: Generator {
-    fn set_base_frequency(&mut self, frequency: f32);
-    fn add_tone(&mut self, tone: tone::ToneGenerator);
-    fn tone_count(&self) -> usize;
-}
 
 pub mod prelude {
-    pub use super::tone::ToneGenerator;
-    pub use super::composite::CompositeGenerator;
+    use serde::{Serialize, Deserialize};
 
-    pub use super::{MultiToneGenerator, SingleToneGenerator, Generator};
+    pub use super::tone::SingleToneGenerator;
+    pub use super::composite::MultiToneGenerator;
+
+    pub use super::Generator;
 
     pub mod builder {
-        pub use super::super::composite_builder::CompositeGeneratorBuilder;
+        pub use super::super::composite_builder::MultiToneGeneratorBuilder;
         pub use super::super::tone_builder::ToneGeneratorBuilder;
     }
 
@@ -74,7 +55,7 @@ pub mod prelude {
     /// - Multiply: Multiplies the outputs of all tone generators together.
     /// - Max: Takes the maximum output value from all tone generators.
     /// - Average: Averages the outputs of all tone generators.
-    #[derive(Debug)]
+    #[derive(Debug, Serialize, Deserialize)]
     pub enum MixMode {
         Sum,
         Multiply,
@@ -90,7 +71,7 @@ pub mod prelude {
     /// - WhiteNoise: A random signal with equal intensity at different frequencies.
     /// - PinkNoise: A random signal with equal energy per octave.
     /// - Blank: A constant output defined by amplitude.
-    #[derive(Debug)]
+    #[derive(Debug, Serialize, Deserialize)]
     pub enum Waveform {
         Sine,
         Square,
@@ -108,7 +89,7 @@ pub mod prelude {
     /// - Ratio(f32): A frequency that is a ratio of a base frequency.
     /// - Offset(f32): A frequency that is an offset from a base frequency.
     /// - Semitones(i32): A frequency that is a number of semitones
-    #[derive(Debug)]
+    #[derive(Debug, Serialize, Deserialize)]
     pub enum FrequencyRelation {
         Identity,
         Constant(f32),

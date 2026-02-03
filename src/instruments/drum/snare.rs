@@ -1,6 +1,6 @@
 use crate::core::envelope::prelude::{ADSREnvelopeBuilder, BezierSegment, ConstantSegment, LinearSegment};
 use crate::core::generator::prelude::{
-    builder::{CompositeGeneratorBuilder, ToneGeneratorBuilder},
+    builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder},
     FrequencyRelation,
     MixMode,
     MultiToneGenerator,
@@ -12,7 +12,7 @@ use crate::Note;
 /// A snare for the drum kit
 #[derive(Debug)]
 pub struct Snare {
-    generator: Box<dyn MultiToneGenerator>,
+    generator: MultiToneGenerator,
     current_tick: u32,
     output: f32,
 }
@@ -20,19 +20,19 @@ pub struct Snare {
 impl Snare {
     pub fn new() -> Self {
         Self {
-            generator: Box::new(CompositeGeneratorBuilder::new()
+            generator: MultiToneGeneratorBuilder::new()
                 .add_generator(
-                    Box::new(ToneGeneratorBuilder::new()
+                    ToneGeneratorBuilder::new()
                         .waveform(Waveform::WhiteNoise)
                         .frequency_relation(FrequencyRelation::Constant(1.0))  // Frequency is irrelevant for noise. This is to avoid warnings
                         .amplitude_envelope(Box::new(ConstantSegment::new(0.1, None)))
-                        .build())
+                        .build()
                 )
                 .add_generator(
-                    Box::new(ToneGeneratorBuilder::new()
+                    ToneGeneratorBuilder::new()
                         .waveform(Waveform::Sine)
                         .frequency_relation(FrequencyRelation::Ratio(1.0))
-                        .build())
+                        .build()
                 )
                 .amplitude_envelope(  // TODO: Test envelope segments
                     Some(Box::new(ADSREnvelopeBuilder::new()
@@ -45,7 +45,7 @@ impl Snare {
                 ))
                 .mix_mode(MixMode::Sum)
                 .frequency(158.0)
-                .build()),
+                .build(),
             current_tick: 0,
             output: 0.0,
         }
