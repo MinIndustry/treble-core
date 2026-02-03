@@ -1,8 +1,16 @@
 use core::fmt;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone)]
+fn default_function() -> fn(f32) -> f32 {
+    |t| t
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 /// A segment of an envelope defined by a custom function.
+/// Note: the `function` field is not serializable. When deserialized, it defaults to the identity
+/// function `|t| t`. This segment type exists primarily for code-level use, not TOML definitions.
 pub struct FunctionSegment {
+    #[serde(skip, default = "default_function")]
     function: fn(f32) -> f32,
     duration: Option<f32>,
 }
@@ -19,6 +27,7 @@ impl fmt::Display for FunctionSegment {
     }
 }
 
+#[typetag::serde]
 impl super::Segment for FunctionSegment {
     fn at(&self, time: f32) -> f32 {
         (self.function)(time)

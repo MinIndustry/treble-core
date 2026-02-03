@@ -25,15 +25,16 @@
 //! The ADSR envelope is represented using four `Segment` structs, each representing one of the segments of the envelope.
 //! These segments can be linear, bezier interpolations or any other function implemented in the `Segment` struct.
 
+use serde::{Deserialize, Serialize};
 use std::{default::Default, fmt};
 
-use super::{segment::{Segment, SustainSegment}, Envelope};
+use super::{segment::Segment, Envelope};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ADSREnvelope {
     pub attack: Box<dyn Segment>,
     pub decay: Box<dyn Segment>,
-    pub sustain: Box<dyn SustainSegment>,
+    pub sustain: Box<dyn Segment>,
     pub release: Box<dyn Segment>,
 }
 
@@ -68,6 +69,7 @@ impl fmt::Display for ADSREnvelope {
     }
 }
 
+#[typetag::serde]
 impl Envelope for ADSREnvelope {
     fn at(&self, time: f32, note_off: f32) -> f32 {
         if self.attack.get_duration() >= time {  // Still in attack phase

@@ -1,6 +1,7 @@
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Represents a Bezier Segment for an envelope. A bezier segment is defined by a starting point,
 /// an ending point and a control point. Since segments times are normalized between 0.0 and 1.0,
 /// the x axis values for the start and end points are, respectively, 0.0 and 1.0.
@@ -33,6 +34,7 @@ impl fmt::Display for BezierSegment {
     }
 }
 
+#[typetag::serde]
 impl super::Segment for BezierSegment {
     fn at(&self, time: f32) -> f32 {
         (1.0 - time) * ((1.0 - time) * self.from + time * self.control.1)
@@ -45,6 +47,7 @@ impl super::Segment for BezierSegment {
 }
 
 
+#[typetag::serde]
 impl super::super::Envelope for BezierSegment {
     fn at(&self, time: f32, note_off: f32) -> f32 {
         if (note_off > 0.0 && time >= note_off) || time >= self.duration {

@@ -1,8 +1,9 @@
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// A simple linear segment for an envelope.
 /// The segment interpolates linearly between the start and end values over the specified duration.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LinearSegment {
     from: f32,
     to: f32,
@@ -19,6 +20,7 @@ impl fmt::Display for LinearSegment {
     }
 }
 
+#[typetag::serde]
 impl super::Segment for LinearSegment {
     fn at(&self, time: f32) -> f32 {
         if time <= 0.0 {

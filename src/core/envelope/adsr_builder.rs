@@ -1,10 +1,10 @@
-use super::segment::{Segment, SustainSegment, ConstantSegment, LinearSegment};
+use super::segment::{Segment, ConstantSegment, LinearSegment};
 
 #[derive(Debug, Clone)]
 pub struct ADSREnvelopeBuilder {
     attack: Box<dyn Segment>,
     decay: Box<dyn Segment>,
-    sustain: Box<dyn SustainSegment>,
+    sustain: Box<dyn Segment>,
     release: Box<dyn Segment>,
 }
 
@@ -46,8 +46,8 @@ impl ADSREnvelopeBuilder {
         self
     }
 
-    /// Sets the release section of the envelope.
-    pub fn sustain(mut self, segment: Box<dyn SustainSegment>) -> Self {
+    /// Sets the sustain segment of the envelope.
+    pub fn sustain(mut self, segment: Box<dyn Segment>) -> Self {
         self.sustain = segment;
         self
     }

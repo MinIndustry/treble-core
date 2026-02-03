@@ -16,6 +16,7 @@ pub use linear::LinearSegment;
 ///
 /// It is up to the envelope implementation to manage the time mapping and sequencing of segments.
 /// For convenience, the segment trait provides a method to map the global time to the segment's local time.
+#[typetag::serde]
 pub trait Segment: fmt::Display + DynClone + fmt::Debug + Send + Sync {
     /// Returns the amplitude at the given time position within the segment.
     /// Any value of time above one will be clamped to the end value of the segment.

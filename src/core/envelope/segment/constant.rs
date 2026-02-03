@@ -1,9 +1,10 @@
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 use crate::core::envelope::Envelope;
 
 /// A constant segment for the sustain phase of an envelope.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConstantSegment {
     value: f32,
     duration: Option<f32>,
@@ -23,6 +24,7 @@ impl fmt::Display for ConstantSegment {
     }
 }
 
+#[typetag::serde]
 impl super::Segment for ConstantSegment {
     fn at(&self, _time: f32) -> f32 {
         self.value
@@ -51,6 +53,7 @@ impl ConstantSegment {
     }
 }
 
+#[typetag::serde]
 impl Envelope for ConstantSegment {
     fn at(&self, time: f32, note_off: f32) -> f32 {
         !(self.completed(time, note_off)) as i32 as f32 * self.value

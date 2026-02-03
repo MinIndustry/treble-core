@@ -31,6 +31,7 @@ simple-log = "2.4.0"
 simplelog = "0.12.2"
 thiserror = "2.0.12"
 toml = "0.8.19"
+typetag = "0.2.21"
 
 [dev-dependencies]
 pretty_assertions = "1.1.0"
