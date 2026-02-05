@@ -1,4 +1,3 @@
-
 #[cfg(not(feature = "meta"))]
 fn main() {
     println!("This example can only run with the 'meta' feature flag");

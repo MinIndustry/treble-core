@@ -38,7 +38,9 @@ pub enum PlotError {
 }
 
 /// Allow converting from plotters DrawingAreaErrorKind
-impl<T: std::error::Error + Send + Sync> From<plotters::drawing::DrawingAreaErrorKind<T>> for PlotError {
+impl<T: std::error::Error + Send + Sync> From<plotters::drawing::DrawingAreaErrorKind<T>>
+    for PlotError
+{
     fn from(err: plotters::drawing::DrawingAreaErrorKind<T>) -> Self {
         PlotError::Rendering(err.to_string())
     }

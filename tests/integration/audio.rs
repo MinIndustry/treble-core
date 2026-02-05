@@ -237,10 +237,7 @@ fn test_backend_event_metrics() {
             latency_ms,
         } => {
             assert!((cpu_usage - 25.5).abs() < 0.0001, "CPU usage should match");
-            assert!(
-                (latency_ms - 12.3).abs() < 0.0001,
-                "Latency should match"
-            );
+            assert!((latency_ms - 12.3).abs() < 0.0001, "Latency should match");
         }
         _ => panic!("Expected Metrics event"),
     }
@@ -254,12 +251,8 @@ fn test_backend_event_clone() {
 
     match (original, cloned) {
         (
-            BackendEvent::AudioStarted {
-                sample_rate: rate1,
-            },
-            BackendEvent::AudioStarted {
-                sample_rate: rate2,
-            },
+            BackendEvent::AudioStarted { sample_rate: rate1 },
+            BackendEvent::AudioStarted { sample_rate: rate2 },
         ) => {
             assert_eq!(rate1, rate2, "Cloned event should have same sample rate");
         }

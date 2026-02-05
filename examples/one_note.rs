@@ -8,9 +8,24 @@ fn main() {
     let sample_rate = app.config.system.sample_rate;
 
     let envelope = ADSREnvelopeBuilder::new()
-        .attack(Box::new(BezierSegment::new(0.0, scale * 1.0, 0.1, (0.1, 0.0))))
-        .decay(Box::new(BezierSegment::new(scale * 1.0, scale * 0.2, 0.4, (0.5, scale * 1.0))))
-        .release(Box::new(BezierSegment::new(scale * 0.2, 0.0, 0.5, (0.5, 0.0))))
+        .attack(Box::new(BezierSegment::new(
+            0.0,
+            scale * 1.0,
+            0.1,
+            (0.1, 0.0),
+        )))
+        .decay(Box::new(BezierSegment::new(
+            scale * 1.0,
+            scale * 0.2,
+            0.4,
+            (0.5, scale * 1.0),
+        )))
+        .release(Box::new(BezierSegment::new(
+            scale * 0.2,
+            0.0,
+            0.5,
+            (0.5, 0.0),
+        )))
         .build();
 
     // This example needs to be updated to work with the new architecture

@@ -2,9 +2,8 @@ use std::collections::HashMap;
 
 use crate::core::envelope::prelude::{ADSREnvelope, ConstantSegment};
 use crate::core::generator::prelude::{
-    MultiToneGenerator,
     builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder},
-    Waveform, FrequencyRelation
+    FrequencyRelation, MultiToneGenerator, Waveform,
 };
 use crate::core::utils::tones::TONES_FREQ;
 use crate::instruments::voices::{PolyVoiceAllocator, PolyphonicVoice};
@@ -35,16 +34,20 @@ impl Keyboard {
     pub fn new(voices: usize, voice_allocator: PolyVoiceAllocator, envelope: ADSREnvelope) -> Self {
         let generators = std::iter::repeat_with(|| {
             let generator = MultiToneGeneratorBuilder::new()
-            .add_generator(ToneGeneratorBuilder::new()
-                .amplitude_envelope(Box::new(envelope.clone()))
-                .waveform(Waveform::Sine)
-                .frequency_relation(FrequencyRelation::Identity)
-                .build())
-            .add_generator(ToneGeneratorBuilder::new()
-                .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
-                .waveform(Waveform::WhiteNoise)
-                .build())
-            .build();
+                .add_generator(
+                    ToneGeneratorBuilder::new()
+                        .amplitude_envelope(Box::new(envelope.clone()))
+                        .waveform(Waveform::Sine)
+                        .frequency_relation(FrequencyRelation::Identity)
+                        .build(),
+                )
+                .add_generator(
+                    ToneGeneratorBuilder::new()
+                        .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
+                        .waveform(Waveform::WhiteNoise)
+                        .build(),
+                )
+                .build();
 
             (generator, false)
         })
@@ -79,9 +82,6 @@ impl Instrument for Keyboard {
             self.generators[position].0.start();
             self.generators[position].1 = true;
             self.note_indices.insert(note, position);
-        } else {
-            // If there is no free generator, we do not play the note
-            return;
         }
     }
 
@@ -111,8 +111,7 @@ impl Instrument for Keyboard {
             .iter_mut()
             .map(|(generator, is_playing)| {
                 if *is_playing {
-                    let val = generator.tick(1.0 / 44100.0);
-                    val
+                    generator.tick(1.0 / 44100.0)
                 } else {
                     0.0
                 }

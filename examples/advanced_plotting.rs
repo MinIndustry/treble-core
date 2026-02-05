@@ -44,12 +44,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .x_range(0.0, 2.0 * PI)
         .y_range(-1.5, 1.5)
         // Add data series with custom colors
-        .add_series(sine, "sin(x)", Some((255, 0, 0)))   // Red
+        .add_series(sine, "sin(x)", Some((255, 0, 0))) // Red
         .add_series(cosine, "cos(x)", Some((0, 0, 255))) // Blue
         // Add reference lines
-        .add_horizontal_line(0.0, Some((128, 128, 128)))       // Gray zero line
-        .add_vertical_line(PI, Some((0, 128, 0)))              // Green line at π
-        .add_vertical_line(PI / 2.0, Some((200, 200, 200)))    // Light gray at π/2
+        .add_horizontal_line(0.0, Some((128, 128, 128))) // Gray zero line
+        .add_vertical_line(PI, Some((0, 128, 0))) // Green line at π
+        .add_vertical_line(PI / 2.0, Some((200, 200, 200))) // Light gray at π/2
         // Customize appearance
         .resolution(1600, 900)
         .font_family("sans-serif")

@@ -10,19 +10,30 @@ fn main() {
     let scale = 0.1; // Master volume
 
     let envelope = ADSREnvelopeBuilder::new()
-            .attack(Box::new(BezierSegment::new(0.0, scale * 1.0, 0.1, (0.05, 0.0))))
-            .decay(Box::new(LinearSegment::new(1.0, scale * 0.8, 1.0)))
-            .release(Box::new(BezierSegment::new(scale * 0.8, 0.0, 0.2, (0.5, 0.0))))
-            .build();
+        .attack(Box::new(BezierSegment::new(
+            0.0,
+            scale * 1.0,
+            0.1,
+            (0.05, 0.0),
+        )))
+        .decay(Box::new(LinearSegment::new(1.0, scale * 0.8, 1.0)))
+        .release(Box::new(BezierSegment::new(
+            scale * 0.8,
+            0.0,
+            0.2,
+            (0.5, 0.0),
+        )))
+        .build();
 
     let _score = ScoreBuilder::new()
         .name("Morrowind")
-        .with_instrument(
-            Box::from(KeyboardBuilder::new()
+        .with_instrument(Box::from(
+            KeyboardBuilder::new()
                 .with_note_envelope(envelope)
                 .with_allocator(PolyVoiceAllocator::DropOldest)
                 .with_voices(8)
-                .build()));
+                .build(),
+        ));
 
     // let notes = {
     //     let note_duration: f32 = 0.3;

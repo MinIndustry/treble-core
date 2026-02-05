@@ -4,8 +4,8 @@
 use log::info;
 use rustic::core::envelope::prelude::ConstantSegment;
 use rustic::core::filters::prelude::*;
-use rustic::core::generator::Generator;
 use rustic::core::generator::prelude::{builder::ToneGeneratorBuilder, Waveform};
+use rustic::core::generator::Generator;
 use rustic::core::graph::{simple_source, SimpleSink, System};
 
 #[test]
@@ -83,10 +83,7 @@ fn stress_test() {
     }
 
     for sample_size in [100_000, 1_000_000, 10_000_000] {
-        info!(
-            "Working on sample size {} at 44100 samples/s",
-            sample_size
-        );
+        info!("Working on sample size {} at 44100 samples/s", sample_size);
         let start = std::time::Instant::now();
         for _ in 0..sample_size {
             system.run();
@@ -146,10 +143,7 @@ fn stress_test_2() {
     }
 
     for sample_size in [100_000, 1_000_000, 10_000_000] {
-        info!(
-            "Working on sample size {} at 44100 samples/s",
-            sample_size
-        );
+        info!("Working on sample size {} at 44100 samples/s", sample_size);
         let start = std::time::Instant::now();
         for _ in 0..sample_size {
             system.run();

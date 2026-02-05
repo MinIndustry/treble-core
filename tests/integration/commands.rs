@@ -181,10 +181,7 @@ fn test_notestart_invalid_velocity_excessive() {
     let cmd = Commands::NoteStart(0, 0, 1.5);
     let result = cmd.validate(&app);
 
-    assert!(
-        result.is_err(),
-        "NoteStart with velocity > 1.0 should fail"
-    );
+    assert!(result.is_err(), "NoteStart with velocity > 1.0 should fail");
     match result.unwrap_err() {
         CommandError::InvalidVolume(vel) => {
             assert_eq!(vel, 1.5, "Error should report velocity 1.5");
@@ -352,10 +349,7 @@ fn test_translate_setoctave() {
 
     let audio_msg = cmd.translate_to_audio_message(&mut app);
 
-    assert!(
-        audio_msg.is_some(),
-        "SetOctave should produce AudioMessage"
-    );
+    assert!(audio_msg.is_some(), "SetOctave should produce AudioMessage");
 
     match audio_msg.unwrap() {
         AudioMessage::SetOctave { row, octave } => {
@@ -377,10 +371,7 @@ fn test_translate_octaveup() {
     let cmd = Commands::OctaveUp(1);
     let audio_msg = cmd.translate_to_audio_message(&mut app);
 
-    assert!(
-        audio_msg.is_some(),
-        "OctaveUp should produce AudioMessage"
-    );
+    assert!(audio_msg.is_some(), "OctaveUp should produce AudioMessage");
 
     match audio_msg.unwrap() {
         AudioMessage::SetOctave { row, octave } => {

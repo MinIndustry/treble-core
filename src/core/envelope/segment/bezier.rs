@@ -46,7 +46,6 @@ impl super::Segment for BezierSegment {
     }
 }
 
-
 #[typetag::serde]
 impl super::super::Envelope for BezierSegment {
     fn at(&self, time: f32, note_off: f32) -> f32 {

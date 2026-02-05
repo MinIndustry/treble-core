@@ -58,7 +58,10 @@ pub fn spawn_command_thread(
                         if let Some(msg) = cmd.translate_to_audio_message(&mut app) {
                             if message_tx.send(msg.clone()).is_err() {
                                 // Channel closed - audio thread has shut down
-                                log::warn!("Audio message channel closed, dropping command: {:?}", cmd);
+                                log::warn!(
+                                    "Audio message channel closed, dropping command: {:?}",
+                                    cmd
+                                );
                             }
                         }
                     }

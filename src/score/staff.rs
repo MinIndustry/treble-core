@@ -37,7 +37,7 @@ impl Staff {
                 &mut self.measures[next_measure_position]
             } else {
                 self.measures.push(Measure::new(&self.signature));
-                &mut self.measures.last_mut().unwrap()
+                self.measures.last_mut().unwrap()
             };
 
         let position = measure.current_index();

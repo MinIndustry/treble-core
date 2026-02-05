@@ -9,8 +9,8 @@ use petgraph::prelude::NodeIndex;
 use petgraph::Graph;
 use petgraph::{algo::toposort, Direction};
 
+use crate::core::generator::prelude::builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder};
 use crate::core::generator::prelude::Waveform;
-use crate::core::generator::prelude::builder::{ToneGeneratorBuilder, MultiToneGeneratorBuilder};
 
 use super::sink::simple_sink;
 use super::{simple_source, Filter, Sink, Source};
@@ -56,13 +56,20 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
     /// Creates a new system with simple null sources & simple sinks
     pub fn new() -> Self {
         let sources: [(Box<dyn Source>, (NodeIndex<u32>, usize)); INPUTS] =
-            core::array::from_fn(|_| (simple_source(
-                MultiToneGeneratorBuilder::new()
-                    .add_generator(
-                        ToneGeneratorBuilder::new()
-                            .waveform(Waveform::Blank)
-                            .build())
-                    .build()), (NodeIndex::new(0), 0)));
+            core::array::from_fn(|_| {
+                (
+                    simple_source(
+                        MultiToneGeneratorBuilder::new()
+                            .add_generator(
+                                ToneGeneratorBuilder::new()
+                                    .waveform(Waveform::Blank)
+                                    .build(),
+                            )
+                            .build(),
+                    ),
+                    (NodeIndex::new(0), 0),
+                )
+            });
         let sinks: [((NodeIndex<u32>, usize), Box<dyn Sink>); OUTPUTS] =
             core::array::from_fn(|_| ((NodeIndex::new(0), 0), simple_sink()));
 
@@ -91,12 +98,9 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
                 dyn_clone::clone_box(&*other.graph[graph_b_source_descendant_index]);
 
             // Save the new index of the source descendant
-            let new_index = if new_edge_map.contains_key(&graph_b_source_descendant_index) {
-                match new_edge_map.get(&graph_b_source_descendant_index) {
-                    Some(v) => *v,
-                    None => panic!("What ?"),
-                }
-            } else {
+            let new_index = if let std::collections::hash_map::Entry::Vacant(e) =
+                new_edge_map.entry(graph_b_source_descendant_index)
+            {
                 let new_index = self.graph.add_node(source_descendant);
                 self.graph[new_index].set_index(new_index.index());
                 info!(
@@ -104,8 +108,13 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
                     graph_b_source_descendant_index.index(),
                     new_index.index()
                 );
-                new_edge_map.insert(graph_b_source_descendant_index, new_index);
+                e.insert(new_index);
                 new_index
+            } else {
+                match new_edge_map.get(&graph_b_source_descendant_index) {
+                    Some(v) => *v,
+                    None => panic!("What ?"),
+                }
             };
 
             // Connect the sink's predecessors to the source's successors
@@ -129,7 +138,7 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
         // Go through all nodes in the other graph and add them to the new graph
         for node_index in other.graph.node_indices() {
             // Skip already added nodes
-            if let Some(_) = new_edge_map.get(&node_index) {
+            if new_edge_map.get(&node_index).is_some() {
                 info!("Node {} already pushed to new graph", node_index.index());
                 continue;
             }
@@ -196,7 +205,7 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
             "[Graph] Connecting {} (p: {}) to {} (p: {})",
             self.graph[from].get_name(),
             out_port,
-            self.graph[to].get_name().to_string(),
+            self.graph[to].get_name(),
             in_port
         );
         self.graph.add_edge(from, to, (out_port, in_port));
@@ -234,7 +243,7 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
                 if self
                     .graph
                     .edge_endpoints(index)
-                    .and_then(|(_, to)| Some(self.graph[to].postponable()))
+                    .map(|(_, to)| self.graph[to].postponable())
                     == Some(true)
                 {
                     None
@@ -313,7 +322,7 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
     pub fn get_sink(&mut self, index: usize) -> Result<&mut Box<dyn Sink>, &str> {
         self.sinks
             .get_mut(index)
-            .and_then(|s| Some(&mut s.1))
+            .map(|s| &mut s.1)
             .ok_or("Index out of bounds")
     }
 

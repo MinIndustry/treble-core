@@ -1,9 +1,14 @@
-use crate::core::envelope::prelude::{ADSREnvelopeBuilder, LinearSegment, ConstantSegment, BezierSegment};
-use crate::core::generator::prelude::{builder::{ToneGeneratorBuilder, MultiToneGeneratorBuilder}, Waveform, MixMode, FrequencyRelation, MultiToneGenerator};
+use crate::core::envelope::prelude::{
+    ADSREnvelopeBuilder, BezierSegment, ConstantSegment, LinearSegment,
+};
+use crate::core::generator::prelude::{
+    builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder},
+    FrequencyRelation, MixMode, MultiToneGenerator, Waveform,
+};
 use crate::instruments::Instrument;
 use crate::Note;
 
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct Kick {
     generator: MultiToneGenerator,
     current_tick: u32,
@@ -18,22 +23,28 @@ impl Kick {
                     ToneGeneratorBuilder::new()
                         .waveform(Waveform::WhiteNoise)
                         .frequency_relation(FrequencyRelation::Constant(1.0))
-                        .amplitude_envelope(
-                            Box::new(ADSREnvelopeBuilder::new()
-                            .attack(Box::new(BezierSegment::new(0.0, 0.1, 0.001, (0.0, 1.0))))
-                            .decay(Box::new(LinearSegment::new(0.1, 0.0, 0.1)))
-                            .release(Box::new(ConstantSegment::new(0.0, Some(0.0))))
-                            .build())
-                        )
-                        .build())
+                        .amplitude_envelope(Box::new(
+                            ADSREnvelopeBuilder::new()
+                                .attack(Box::new(BezierSegment::new(0.0, 0.1, 0.001, (0.0, 1.0))))
+                                .decay(Box::new(LinearSegment::new(0.1, 0.0, 0.1)))
+                                .release(Box::new(ConstantSegment::new(0.0, Some(0.0))))
+                                .build(),
+                        ))
+                        .build(),
+                )
                 .add_generator(
                     ToneGeneratorBuilder::new()
                         .waveform(Waveform::Sine)
                         .frequency_relation(FrequencyRelation::Ratio(1.0))
-                        .amplitude_envelope(
-                            Box::new(ConstantSegment::new(1.0, None)))
-                        .build())
-                .pitch_envelope(Some(Box::from(BezierSegment::new(1.0, 0.5, 0.3, (2.0, 0.2)))))
+                        .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
+                        .build(),
+                )
+                .pitch_envelope(Some(Box::from(BezierSegment::new(
+                    1.0,
+                    0.5,
+                    0.3,
+                    (2.0, 0.2),
+                ))))
                 .mix_mode(MixMode::Sum)
                 .frequency(58.0)
                 .build(),

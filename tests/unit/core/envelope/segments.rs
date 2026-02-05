@@ -65,15 +65,31 @@ mod linear_segment_tests {
         let segment = LinearSegment::new(0.0, 1.0, 1.0);
         let segment_2 = LinearSegment::new(1.0, 0.0, 0.16);
 
-        assert_eq!(segment.at(0.0), 0.0, "Start of the linear segment should be it minimum value");
-        assert_eq!(segment.at(1.0), 1.0, "End of the linear segment should be its maximum value");
-        assert!({
-            let middle_segment = segment.at(0.5);
+        assert_eq!(
+            segment.at(0.0),
+            0.0,
+            "Start of the linear segment should be it minimum value"
+        );
+        assert_eq!(
+            segment.at(1.0),
+            1.0,
+            "End of the linear segment should be its maximum value"
+        );
+        assert!(
+            {
+                let middle_segment = segment.at(0.5);
 
-            middle_segment > 0.49 && middle_segment < 0.51
-        }, "Middle of the linear segment should be around 0.5");
+                middle_segment > 0.49 && middle_segment < 0.51
+            },
+            "Middle of the linear segment should be around 0.5"
+        );
 
-        assert!(segment_2.at(0.5) > 0.0, "Middle of linear segment {} can't be below 0.0 (reality: {})", segment_2, segment_2.at(0.5));
+        assert!(
+            segment_2.at(0.5) > 0.0,
+            "Middle of linear segment {} can't be below 0.0 (reality: {})",
+            segment_2,
+            segment_2.at(0.5)
+        );
     }
 
     // - Test segment duration
@@ -82,7 +98,11 @@ mod linear_segment_tests {
         let segment = LinearSegment::new(0.0, 1.0, 1.0);
 
         let mapped_duration = segment.map_time(0.0, 0.5);
-        assert_eq!(mapped_duration, 0.5, "The mapped duration for the linear segment should be 0.5 (reality: {})", mapped_duration);
+        assert_eq!(
+            mapped_duration, 0.5,
+            "The mapped duration for the linear segment should be 0.5 (reality: {})",
+            mapped_duration
+        );
 
         let mapped_duration = segment.map_time(0.5, 1.0);
         assert_eq!(mapped_duration, 0.5, "The mapped duration for the linear segment with offset 0.5 should be 0.5 (reality: {})", mapped_duration);
@@ -92,9 +112,17 @@ mod linear_segment_tests {
     #[test]
     fn test_linear_segment_boundaries() {
         let segment = LinearSegment::new(0.0, 1.0, 1.0);
-        
-        assert_eq!(segment.at(1.1), 1.0, "Overflow on the segment value should return its maximum value");
-        assert_eq!(segment.at(-0.1), 0.0, "Underflow on the segment value should return its minimum value");
+
+        assert_eq!(
+            segment.at(1.1),
+            1.0,
+            "Overflow on the segment value should return its maximum value"
+        );
+        assert_eq!(
+            segment.at(-0.1),
+            0.0,
+            "Underflow on the segment value should return its minimum value"
+        );
     }
 }
 

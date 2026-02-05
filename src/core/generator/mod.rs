@@ -19,18 +19,18 @@
 
 use std::fmt;
 
-mod tone;
-mod tone_builder;
 mod composite;
 mod composite_builder;
+mod tone;
+mod tone_builder;
 
 use crate::core::generator::prelude::Waveform;
 
 pub mod prelude {
-    use serde::{Serialize, Deserialize};
+    use serde::{Deserialize, Serialize};
 
-    pub use super::tone::SingleToneGenerator;
     pub use super::composite::MultiToneGenerator;
+    pub use super::tone::SingleToneGenerator;
 
     pub mod builder {
         pub use super::super::composite_builder::MultiToneGeneratorBuilder;
@@ -43,8 +43,9 @@ pub mod prelude {
     /// - Multiply: Multiplies the outputs of all tone generators together.
     /// - Max: Takes the maximum output value from all tone generators.
     /// - Average: Averages the outputs of all tone generators.
-    #[derive(Debug, Serialize, Deserialize)]
+    #[derive(Default, Debug, Serialize, Deserialize)]
     pub enum MixMode {
+        #[default]
         Sum,
         Multiply,
         Max,
@@ -84,7 +85,7 @@ pub mod prelude {
         Harmonic(u8),
         Ratio(f32),
         Offset(f32),
-        Semitones(i32)
+        Semitones(i32),
     }
 
     impl FrequencyRelation {

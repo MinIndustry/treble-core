@@ -1,9 +1,12 @@
 use log::trace;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use crate::core::{envelope::Envelope, generator::{tone::SingleToneGenerator, prelude::MixMode}};
+use crate::core::{
+    envelope::Envelope,
+    generator::{prelude::MixMode, tone::SingleToneGenerator},
+};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 /// A generator that produces multiple tones. Each
 /// tone can have its own frequency relation, waveform,
 /// and envelopes.
@@ -54,7 +57,11 @@ impl MultiToneGenerator {
     }
 
     pub fn stop(&mut self) {
-        trace!("Composite Generator stopping: {} ({}Hz)", self.time, self.base_frequency);
+        trace!(
+            "Composite Generator stopping: {} ({}Hz)",
+            self.time,
+            self.base_frequency
+        );
         self.note_off = Some(self.time);
         self.tone_generators.iter_mut().for_each(|tg| tg.stop());
     }
@@ -80,37 +87,37 @@ impl MultiToneGenerator {
         // Map true time elapsed for pitch bend
         self.time += time_elapsed;
 
-        let values = self.tone_generators.iter_mut().map(|g| g.tick(actual_elapsed)).collect::<Vec<f32>>();
-        
+        let values = self
+            .tone_generators
+            .iter_mut()
+            .map(|g| g.tick(actual_elapsed))
+            .collect::<Vec<f32>>();
+
         let ampl = match self.mix_mode {
-            MixMode::Average => {
-                values.iter().sum::<f32>() / values.len() as f32
-            },
-            MixMode::Multiply => {
-                values.iter().fold(1.0, |a, v| a * v)
-            },
-            MixMode::Max => {
-                values.iter().fold(f32::NEG_INFINITY, |a, v| a.max(*v))
-            },
-            MixMode::Sum => {
-                values.iter().sum()
-            }
+            MixMode::Average => values.iter().sum::<f32>() / values.len() as f32,
+            MixMode::Multiply => values.iter().fold(1.0, |a, v| a * v),
+            MixMode::Max => values.iter().fold(f32::NEG_INFINITY, |a, v| a.max(*v)),
+            MixMode::Sum => values.iter().sum(),
         };
-        
+
         if let Some(envelope) = &self.global_amplitude_envelope {
-            trace!("Composite Generator ticking: t:{} e:{} a:{} ae:{} ({}Hz)",
+            trace!(
+                "Composite Generator ticking: t:{} e:{} a:{} ae:{} ({}Hz)",
                 self.time,
                 envelope.at(self.time, self.note_off.unwrap_or(0.0)),
                 ampl,
                 ampl * envelope.at(self.time, self.note_off.unwrap_or(0.0)),
-                self.base_frequency);
+                self.base_frequency
+            );
 
             ampl * envelope.at(self.time, self.note_off.unwrap_or(0.0))
         } else {
-            trace!("Composite Generator ticking: t:{} a:{} ({}Hz)",
+            trace!(
+                "Composite Generator ticking: t:{} a:{} ({}Hz)",
                 self.time,
                 ampl,
-                self.base_frequency);
+                self.base_frequency
+            );
 
             ampl
         }

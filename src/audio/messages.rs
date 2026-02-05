@@ -17,11 +17,18 @@ pub enum AudioMessage {
     },
 
     // Instrument control
-    SetOctave { row: usize, octave: u8 },
+    SetOctave {
+        row: usize,
+        octave: u8,
+    },
 
     // System control
-    SetMasterVolume { volume: f32 },
-    SetSampleRate { rate: u32 },
+    SetMasterVolume {
+        volume: f32,
+    },
+    SetSampleRate {
+        rate: u32,
+    },
 
     // Lifecycle
     Shutdown,

@@ -1,10 +1,9 @@
-use rand::{self, Rng};
-use serde::{Serialize, Deserialize};
 use core::f32;
+use rand::{self, Rng};
+use serde::{Deserialize, Serialize};
 use std::ops::Rem;
 
 use crate::core::{envelope::Envelope, generator::prelude::*};
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SingleToneGenerator {
@@ -13,7 +12,7 @@ pub struct SingleToneGenerator {
     pitch_envelope: Option<Box<dyn Envelope>>,
     amplitude_envelope: Box<dyn Envelope>,
     phase: f32,
-    note_off: Option<f32>,  // Time when the note turned off (stop was called)
+    note_off: Option<f32>, // Time when the note turned off (stop was called)
     time: f32,
     current_frequency: f32,
 }
@@ -52,7 +51,9 @@ impl SingleToneGenerator {
     }
 
     pub fn completed(&self) -> bool {
-        self.note_off.map(|note_off| self.amplitude_envelope.completed(self.time, note_off)) == Some(true)
+        self.note_off
+            .map(|note_off| self.amplitude_envelope.completed(self.time, note_off))
+            == Some(true)
     }
 
     pub fn tick(&mut self, time_elapsed: f32) -> f32 {
@@ -71,21 +72,38 @@ impl SingleToneGenerator {
 
         let tone_value = match self.waveform {
             Waveform::Blank => 1.0, // Returns 1.0 that will be mapped to the amplitude envelope
-            Waveform::PinkNoise => 1.0,  // TODO impl pink noise
+            Waveform::PinkNoise => 1.0, // TODO impl pink noise
             Waveform::Sawtooth => (self.phase * std::f32::consts::FRAC_1_PI) - 1.0,
             Waveform::Sine => f32::sin(self.phase),
-            Waveform::Square => if self.phase > f32::consts::PI { 1.0 } else { -1.0 },
-            Waveform::Triangle => 1.0 - 2.0 * ((self.phase * std::f32::consts::FRAC_1_PI) - 1.0).abs(),
+            Waveform::Square => {
+                if self.phase > f32::consts::PI {
+                    1.0
+                } else {
+                    -1.0
+                }
+            }
+            Waveform::Triangle => {
+                1.0 - 2.0 * ((self.phase * std::f32::consts::FRAC_1_PI) - 1.0).abs()
+            }
             Waveform::WhiteNoise => rand::thread_rng().gen_range(-1.0..1.0),
         };
-        log::trace!("Tone Generator ticking: t:{} e:{} a:{} ae:{} ({}Hz)",
+        log::trace!(
+            "Tone Generator ticking: t:{} e:{} a:{} ae:{} ({}Hz)",
             self.time,
-            self.amplitude_envelope.at(self.time, self.note_off.unwrap_or(0.0)),
+            self.amplitude_envelope
+                .at(self.time, self.note_off.unwrap_or(0.0)),
             tone_value,
-            tone_value * self.amplitude_envelope.at(self.time, self.note_off.unwrap_or(0.0)),
-            self.current_frequency);
+            tone_value
+                * self
+                    .amplitude_envelope
+                    .at(self.time, self.note_off.unwrap_or(0.0)),
+            self.current_frequency
+        );
 
-        tone_value * self.amplitude_envelope.at(self.time, self.note_off.unwrap_or(0.0))
+        tone_value
+            * self
+                .amplitude_envelope
+                .at(self.time, self.note_off.unwrap_or(0.0))
     }
 
     pub fn set_frequency(&mut self, frequency: f32) {

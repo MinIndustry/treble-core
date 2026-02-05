@@ -12,9 +12,19 @@ use rustic::Note;
 
 fn main() {
     CombinedLogger::init(vec![
-        TermLogger::new(LevelFilter::Warn, Config::default(), TerminalMode::Mixed, ColorChoice::Auto),
-        WriteLogger::new(LevelFilter::Warn, Config::default(), File::create("app.log").unwrap()),
-    ]).unwrap();
+        TermLogger::new(
+            LevelFilter::Warn,
+            Config::default(),
+            TerminalMode::Mixed,
+            ColorChoice::Auto,
+        ),
+        WriteLogger::new(
+            LevelFilter::Warn,
+            Config::default(),
+            File::create("app.log").unwrap(),
+        ),
+    ])
+    .unwrap();
 
     let app = App::init();
 
@@ -53,8 +63,8 @@ fn main() {
             let hihat_output = hihat.get_output();
             let full = hihat_output + kick.get_output() + snare.get_output();
 
-            values.push(full);  // Left
-            values.push(full);  // Right
+            values.push(full); // Left
+            values.push(full); // Right
 
             complete_value_list.push(full);
             complete_value_list.push(full);

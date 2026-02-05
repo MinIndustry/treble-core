@@ -21,9 +21,19 @@ use rustic::Note;
 
 fn main() {
     CombinedLogger::init(vec![
-        TermLogger::new(LevelFilter::Info, Config::default(), TerminalMode::Mixed, ColorChoice::Auto),
-        WriteLogger::new(LevelFilter::Trace, Config::default(), File::create("app.log").unwrap()),
-    ]).unwrap();
+        TermLogger::new(
+            LevelFilter::Info,
+            Config::default(),
+            TerminalMode::Mixed,
+            ColorChoice::Auto,
+        ),
+        WriteLogger::new(
+            LevelFilter::Trace,
+            Config::default(),
+            File::create("app.log").unwrap(),
+        ),
+    ])
+    .unwrap();
 
     let sample_rate = 44100.0; // 44100 Hz
 
@@ -37,7 +47,8 @@ fn main() {
             .attack(Box::new(BezierSegment::new(0.0, 1.0, 0.2, (0.2, 0.0))))
             .decay(Box::new(BezierSegment::new(1.0, 0.8, 0.3, (0.3, 1.0))))
             .release(Box::new(BezierSegment::new(0.8, 0.0, 1.5, (0.0, 0.0))))
-            .build());
+            .build(),
+    );
 
     let keyboard = Arc::new(Mutex::new(keyboard));
     let keyboard_2 = keyboard.clone();

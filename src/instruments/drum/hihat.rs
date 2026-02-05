@@ -6,8 +6,11 @@ use std::io::Write;
 use petgraph::prelude::NodeIndex;
 
 use crate::core::envelope::prelude::BezierSegment;
-use crate::core::filters::prelude::{ResonantBandpassFilter};
-use crate::core::generator::prelude::{builder::{ToneGeneratorBuilder, MultiToneGeneratorBuilder}, Waveform, MixMode};
+use crate::core::filters::prelude::ResonantBandpassFilter;
+use crate::core::generator::prelude::{
+    builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder},
+    MixMode, Waveform,
+};
 use crate::core::graph::simple_source;
 use crate::core::graph::SimpleSink;
 use crate::core::graph::System;
@@ -29,34 +32,53 @@ pub struct HiHat {
 
 impl HiHat {
     pub fn new() -> Result<Self, String> {
-        let source = simple_source(MultiToneGeneratorBuilder::new()
-            .add_generator(ToneGeneratorBuilder::new()
-                .waveform(Waveform::Square)
-                .frequency(123.0)
-                .build())
-            .add_generator(ToneGeneratorBuilder::new()
-                .waveform(Waveform::Square)
-                .frequency(150.0)
-                .build())
-            .add_generator(ToneGeneratorBuilder::new()
-                .waveform(Waveform::Square)
-                .frequency(180.0)
-                .build())
-            .add_generator(ToneGeneratorBuilder::new()
-                .waveform(Waveform::Square)
-                .frequency(219.0)
-                .build())
-            .add_generator(ToneGeneratorBuilder::new()
-                .waveform(Waveform::Square)
-                .frequency(240.0)
-                .build())
-            .add_generator(ToneGeneratorBuilder::new()
-                .waveform(Waveform::Square)
-                .frequency(261.0)
-                .build())
-            .amplitude_envelope(Some(Box::new(BezierSegment::new(1.0, 0.0, 0.5, (0.0, 0.0)))))
-            .mix_mode(MixMode::Average)
-            .build());
+        let source = simple_source(
+            MultiToneGeneratorBuilder::new()
+                .add_generator(
+                    ToneGeneratorBuilder::new()
+                        .waveform(Waveform::Square)
+                        .frequency(123.0)
+                        .build(),
+                )
+                .add_generator(
+                    ToneGeneratorBuilder::new()
+                        .waveform(Waveform::Square)
+                        .frequency(150.0)
+                        .build(),
+                )
+                .add_generator(
+                    ToneGeneratorBuilder::new()
+                        .waveform(Waveform::Square)
+                        .frequency(180.0)
+                        .build(),
+                )
+                .add_generator(
+                    ToneGeneratorBuilder::new()
+                        .waveform(Waveform::Square)
+                        .frequency(219.0)
+                        .build(),
+                )
+                .add_generator(
+                    ToneGeneratorBuilder::new()
+                        .waveform(Waveform::Square)
+                        .frequency(240.0)
+                        .build(),
+                )
+                .add_generator(
+                    ToneGeneratorBuilder::new()
+                        .waveform(Waveform::Square)
+                        .frequency(261.0)
+                        .build(),
+                )
+                .amplitude_envelope(Some(Box::new(BezierSegment::new(
+                    1.0,
+                    0.0,
+                    0.5,
+                    (0.0, 0.0),
+                ))))
+                .mix_mode(MixMode::Average)
+                .build(),
+        );
 
         let mut system = System::<1, 1>::new();
         system.set_source(0, source);
@@ -87,7 +109,8 @@ impl HiHat {
         }
 
         #[cfg(debug_assertions)]
-        let output_path = crate::app::prelude::FSConfig::debug_dir("HiHat", "hihat_output.txt").unwrap();
+        let output_path =
+            crate::app::prelude::FSConfig::debug_dir("HiHat", "hihat_output.txt").unwrap();
 
         Ok(Self {
             graph: system,
@@ -111,7 +134,10 @@ impl Instrument for HiHat {
         // causes tonal artifacts and reduces transient clarity.
         if let Some(filter_box) = self.graph.get_filter_mut(self.bandpass_filter_index) {
             // Downcast to ResonantBandpassFilter to access its reset method
-            if let Some(bandpass) = filter_box.as_any_mut().downcast_mut::<ResonantBandpassFilter>() {
+            if let Some(bandpass) = filter_box
+                .as_any_mut()
+                .downcast_mut::<ResonantBandpassFilter>()
+            {
                 bandpass.reset();
             } else {
                 log::warn!("Failed to downcast filter to ResonantBandpassFilter");
@@ -139,10 +165,8 @@ impl Instrument for HiHat {
                 if let Err(e) = self.output_buffer.write(format!(" {}", value).as_bytes()) {
                     log::warn!("Failed to write to output buffer: {}", e);
                 }
-            } else {
-                if let Err(e) = self.output_buffer.write(format!("{}", value).as_bytes()) {
-                    log::warn!("Failed to write to output buffer: {}", e);
-                }
+            } else if let Err(e) = self.output_buffer.write(format!("{}", value).as_bytes()) {
+                log::warn!("Failed to write to output buffer: {}", e);
             }
         }
         value

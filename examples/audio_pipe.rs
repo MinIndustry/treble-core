@@ -65,9 +65,19 @@ impl AudioGraphElement for Player {
 
 fn main() {
     CombinedLogger::init(vec![
-        TermLogger::new(LevelFilter::Info, Config::default(), TerminalMode::Mixed, ColorChoice::Auto),
-        WriteLogger::new(LevelFilter::Trace, Config::default(), File::create("app.log").unwrap()),
-    ]).unwrap();
+        TermLogger::new(
+            LevelFilter::Info,
+            Config::default(),
+            TerminalMode::Mixed,
+            ColorChoice::Auto,
+        ),
+        WriteLogger::new(
+            LevelFilter::Trace,
+            Config::default(),
+            File::create("app.log").unwrap(),
+        ),
+    ])
+    .unwrap();
 
     let master_volume = 0.2;
     let sample_rate = 44100.0; // 44100 Hz

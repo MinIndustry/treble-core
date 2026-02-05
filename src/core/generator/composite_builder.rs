@@ -1,6 +1,6 @@
 use crate::core::envelope::Envelope;
 
-use crate::core::generator::prelude::{Waveform, MultiToneGenerator, SingleToneGenerator};
+use crate::core::generator::prelude::{MultiToneGenerator, SingleToneGenerator, Waveform};
 
 /// Builder for the `CompositeGenerator`.
 pub struct MultiToneGeneratorBuilder {
@@ -38,27 +38,23 @@ impl MultiToneGeneratorBuilder {
         self
     }
 
-    pub fn pitch_envelope(
-        mut self,
-        envelope: Option<Box<dyn Envelope>>,
-    ) -> Self {
+    pub fn pitch_envelope(mut self, envelope: Option<Box<dyn Envelope>>) -> Self {
         self.pitch = envelope;
         self
     }
 
-    pub fn amplitude_envelope(
-        mut self,
-        envelope: Option<Box<dyn Envelope>>,
-    ) -> Self {
+    pub fn amplitude_envelope(mut self, envelope: Option<Box<dyn Envelope>>) -> Self {
         self.amplitude = envelope;
         self
     }
 
-    pub fn add_generator(
-        mut self,
-        generator: SingleToneGenerator,
-    ) -> Self {
-        if !generator.has_frequency_relation() && !matches!(generator.get_waveform(), Waveform::WhiteNoise | Waveform::PinkNoise) {
+    pub fn add_generator(mut self, generator: SingleToneGenerator) -> Self {
+        if !generator.has_frequency_relation()
+            && !matches!(
+                generator.get_waveform(),
+                Waveform::WhiteNoise | Waveform::PinkNoise
+            )
+        {
             log::warn!("Adding a tone generator without a frequency relation to a composite generator. The generator will not get updated");
         }
 

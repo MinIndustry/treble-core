@@ -38,7 +38,13 @@ pub struct Score {
 }
 
 impl Score {
-    pub fn new<S: AsRef<str>>(name: S, signature: TimeSignature, tempo: usize, instruments: Vec<Box<dyn Instrument>>, staves: Vec<Staff>) -> Self {
+    pub fn new<S: AsRef<str>>(
+        name: S,
+        signature: TimeSignature,
+        tempo: usize,
+        instruments: Vec<Box<dyn Instrument>>,
+        staves: Vec<Staff>,
+    ) -> Self {
         Self {
             name: name.as_ref().to_string(),
             signature,

@@ -222,10 +222,7 @@ impl Commands {
     }
 
     /// Translate a command to an audio message for the audio render thread
-    pub fn translate_to_audio_message(
-        &self,
-        app: &mut App,
-    ) -> Option<crate::audio::AudioMessage> {
+    pub fn translate_to_audio_message(&self, app: &mut App) -> Option<crate::audio::AudioMessage> {
         use crate::audio::AudioMessage;
 
         match self {

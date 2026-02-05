@@ -60,14 +60,8 @@ fn test_app_new_default_rows() {
     assert_eq!(app.rows[1].octave, 4, "Row 1 should have default octave 4");
 
     // Both rows should point to instrument 0
-    assert_eq!(
-        app.rows[0].instrument, 0,
-        "Row 0 should use instrument 0"
-    );
-    assert_eq!(
-        app.rows[1].instrument, 0,
-        "Row 1 should use instrument 0"
-    );
+    assert_eq!(app.rows[0].instrument, 0, "Row 0 should use instrument 0");
+    assert_eq!(app.rows[1].instrument, 0, "Row 1 should use instrument 0");
 }
 
 #[test]
@@ -240,10 +234,7 @@ fn test_app_from_file_nonexistent_file() {
     let nonexistent_path = std::path::Path::new("/tmp/nonexistent_config_12345.toml");
 
     let result = App::from_file(nonexistent_path);
-    assert!(
-        result.is_err(),
-        "Loading from nonexistent file should fail"
-    );
+    assert!(result.is_err(), "Loading from nonexistent file should fail");
 }
 
 // ============================================================================
@@ -344,10 +335,7 @@ fn test_on_event_octaveup_multiple_times() {
     app.on_event(Commands::OctaveUp(0));
     app.on_event(Commands::OctaveUp(0));
 
-    assert_eq!(
-        app.rows[0].octave, 5,
-        "Row 0 octave should increase by 3"
-    );
+    assert_eq!(app.rows[0].octave, 5, "Row 0 octave should increase by 3");
 }
 
 #[test]
@@ -359,10 +347,7 @@ fn test_on_event_octavedown_multiple_times() {
     app.on_event(Commands::OctaveDown(1));
     app.on_event(Commands::OctaveDown(1));
 
-    assert_eq!(
-        app.rows[1].octave, 5,
-        "Row 1 octave should decrease by 2"
-    );
+    assert_eq!(app.rows[1].octave, 5, "Row 1 octave should decrease by 2");
 }
 
 #[test]
@@ -510,10 +495,7 @@ fn test_app_config_can_be_validated() {
     let app = App::new();
 
     let result = app.config.audio.validate();
-    assert!(
-        result.is_ok(),
-        "Default app config should pass validation"
-    );
+    assert!(result.is_ok(), "Default app config should pass validation");
 }
 
 #[test]
@@ -523,10 +505,7 @@ fn test_app_with_invalid_config() {
     app.config.audio.cpal_buffer_size = 0; // Invalid!
 
     let result = app.config.audio.validate();
-    assert!(
-        result.is_err(),
-        "Invalid config should fail validation"
-    );
+    assert!(result.is_err(), "Invalid config should fail validation");
 }
 
 // ============================================================================
@@ -550,10 +529,7 @@ fn test_multiple_commands_sequence() {
     app.on_event(Commands::NoteStop(4, 0)); // Stop E
 
     // Verify final state
-    assert_eq!(
-        app.rows[0].octave, 4,
-        "Should be back at octave 4"
-    );
+    assert_eq!(app.rows[0].octave, 4, "Should be back at octave 4");
 }
 
 #[test]

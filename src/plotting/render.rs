@@ -80,7 +80,11 @@ pub(crate) fn render_plot(config: &PlotBuilder, path: &Path) -> Result<(), PlotE
 
     // Draw data series
     for serie_config in &config.series {
-        let color = RGBColor(serie_config.color.0, serie_config.color.1, serie_config.color.2);
+        let color = RGBColor(
+            serie_config.color.0,
+            serie_config.color.1,
+            serie_config.color.2,
+        );
 
         chart
             .draw_series(LineSeries::new(serie_config.data.iter().copied(), &color))?
@@ -99,7 +103,11 @@ pub(crate) fn render_plot(config: &PlotBuilder, path: &Path) -> Result<(), PlotE
 
     // Draw line annotations
     for line_config in &config.lines {
-        let color = RGBColor(line_config.color.0, line_config.color.1, line_config.color.2);
+        let color = RGBColor(
+            line_config.color.0,
+            line_config.color.1,
+            line_config.color.2,
+        );
         let style = ShapeStyle::from(&color).stroke_width(2);
 
         match line_config.line_type {

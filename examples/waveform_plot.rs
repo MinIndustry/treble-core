@@ -1,8 +1,8 @@
 use log::info;
 use std::time::Instant;
 
-use rustic::core::generator::prelude::*;
 use rustic::core::envelope::prelude::{ADSREnvelopeBuilder, BezierSegment};
+use rustic::core::generator::prelude::*;
 use rustic::core::generator::Generator;
 
 #[cfg(feature = "plotting")]
@@ -10,29 +10,33 @@ use rustic::plotting::plot_data;
 
 fn main() {
     // Tone Generator
-    let mut generator: Box<dyn Generator> = Box::from(builder::ToneGeneratorBuilder::new()
-        .waveform(Waveform::Sine)
-        .amplitude_envelope(Box::new(
-            ADSREnvelopeBuilder::new()
-        .attack(Box::new(BezierSegment::new(0.0, 1.0, 0.2, (0.0, 1.0))))
-        .decay(Box::new(BezierSegment::new(1.0, 0.6, 0.2, (0.0, 0.6))))
-        .release(Box::new(BezierSegment::new(0.6, 0.0, 0.4, (0.4, 0.6))))
-        .build()
-        ))
-        .frequency(440.0)
-        .build());
+    let mut generator: Box<dyn Generator> = Box::from(
+        builder::ToneGeneratorBuilder::new()
+            .waveform(Waveform::Sine)
+            .amplitude_envelope(Box::new(
+                ADSREnvelopeBuilder::new()
+                    .attack(Box::new(BezierSegment::new(0.0, 1.0, 0.2, (0.0, 1.0))))
+                    .decay(Box::new(BezierSegment::new(1.0, 0.6, 0.2, (0.0, 0.6))))
+                    .release(Box::new(BezierSegment::new(0.6, 0.0, 0.4, (0.4, 0.6))))
+                    .build(),
+            ))
+            .frequency(440.0)
+            .build(),
+    );
 
-    let mut generator2: Box<dyn Generator> = Box::from(builder::ToneGeneratorBuilder::new()
-        .waveform(Waveform::Sine)
-        .amplitude_envelope(Box::new(
-            ADSREnvelopeBuilder::new()
-        .attack(Box::new(BezierSegment::new(0.0, 1.0, 0.1, (0.0, 1.0))))
-        .decay(Box::new(BezierSegment::new(1.0, 0.8, 0.3, (0.0, 0.6))))
-        .release(Box::new(BezierSegment::new(0.8, 0.0, 0.4, (0.4, 0.6))))
-        .build()
-        ))
-        .frequency(2.0)
-        .build());
+    let mut generator2: Box<dyn Generator> = Box::from(
+        builder::ToneGeneratorBuilder::new()
+            .waveform(Waveform::Sine)
+            .amplitude_envelope(Box::new(
+                ADSREnvelopeBuilder::new()
+                    .attack(Box::new(BezierSegment::new(0.0, 1.0, 0.1, (0.0, 1.0))))
+                    .decay(Box::new(BezierSegment::new(1.0, 0.8, 0.3, (0.0, 0.6))))
+                    .release(Box::new(BezierSegment::new(0.8, 0.0, 0.4, (0.4, 0.6))))
+                    .build(),
+            ))
+            .frequency(2.0)
+            .build(),
+    );
 
     let mut results: Vec<(f32, f32)> = Vec::new();
     let mut results2: Vec<(f32, f32)> = Vec::new();

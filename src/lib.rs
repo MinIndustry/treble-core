@@ -68,7 +68,10 @@ const APP_ID: (&str, &str, &str) = ("rustic", "minigrim0", "xyz");
 /// Main prelude module that exports the most commonly used types from the crate
 pub mod prelude {
     // App exports
-    pub use super::app::{self, prelude::{App, Commands}};
+    pub use super::app::{
+        self,
+        prelude::{App, Commands},
+    };
 
     // Core exports - only expose the module, details accessed through it
     pub use super::core;
@@ -202,7 +205,7 @@ pub fn start_app(
     app.config
         .audio
         .validate()
-        .map_err(|e| audio::AudioError::ConfigError(e))?;
+        .map_err(audio::AudioError::ConfigError)?;
 
     let config = app.config.audio.clone();
     let shared_state = Arc::new(audio::SharedAudioState::new());

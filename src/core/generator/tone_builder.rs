@@ -1,4 +1,7 @@
-use crate::core::{envelope::{Envelope, prelude::ConstantSegment}, generator::tone::SingleToneGenerator};
+use crate::core::{
+    envelope::{prelude::ConstantSegment, Envelope},
+    generator::tone::SingleToneGenerator,
+};
 
 pub struct ToneGeneratorBuilder {
     waveform: super::prelude::Waveform,
@@ -30,10 +33,7 @@ impl ToneGeneratorBuilder {
         self
     }
 
-    pub fn frequency_relation(
-        mut self,
-        relation: super::prelude::FrequencyRelation,
-    ) -> Self {
+    pub fn frequency_relation(mut self, relation: super::prelude::FrequencyRelation) -> Self {
         self.freq_relation = Some(relation);
         self
     }
@@ -43,18 +43,12 @@ impl ToneGeneratorBuilder {
         self
     }
 
-    pub fn pitch_envelope(
-        mut self,
-        envelope: Option<Box<dyn Envelope>>,
-    ) -> Self {
+    pub fn pitch_envelope(mut self, envelope: Option<Box<dyn Envelope>>) -> Self {
         self.pitch_envelope = envelope;
         self
     }
 
-    pub fn amplitude_envelope(
-        mut self,
-        envelope: Box<dyn Envelope>,
-    ) -> Self {
+    pub fn amplitude_envelope(mut self, envelope: Box<dyn Envelope>) -> Self {
         self.amplitude_envelope = envelope;
         self
     }
@@ -65,7 +59,7 @@ impl ToneGeneratorBuilder {
             self.freq_relation,
             self.pitch_envelope,
             self.amplitude_envelope,
-            self.current_frequency
+            self.current_frequency,
         )
     }
 }

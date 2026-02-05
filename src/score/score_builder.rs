@@ -1,11 +1,17 @@
-use crate::{prelude::Instrument, score::{score::{Score, TimeSignature}, staff::Staff}};
+use crate::{
+    prelude::Instrument,
+    score::{
+        score::{Score, TimeSignature},
+        staff::Staff,
+    },
+};
 
 pub struct ScoreBuilder {
     tempo: usize,
     signature: TimeSignature,
     name: String,
     instruments: Vec<Box<dyn Instrument>>,
-    staves: Vec<Staff>
+    staves: Vec<Staff>,
 }
 
 impl Default for ScoreBuilder {
@@ -15,7 +21,7 @@ impl Default for ScoreBuilder {
             signature: TimeSignature::C,
             name: String::from("New score"),
             instruments: Vec::new(),
-            staves: Vec::new()
+            staves: Vec::new(),
         }
     }
 }
@@ -33,7 +39,7 @@ impl ScoreBuilder {
             self.signature,
             self.tempo,
             self.instruments,
-            self.staves
+            self.staves,
         )
     }
 

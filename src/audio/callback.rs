@@ -28,7 +28,9 @@ pub fn create_cpal_callback(
         } else {
             // Buffer underrun: fill with silence
             data.fill(0.0);
-            shared_state.buffer_underruns.fetch_add(1, Ordering::Relaxed);
+            shared_state
+                .buffer_underruns
+                .fetch_add(1, Ordering::Relaxed);
 
             // Also try to read whatever is available to keep buffer clean
             for sample in data.iter_mut().take(available) {

@@ -67,33 +67,37 @@ impl TestingApp {
     fn process_events(&mut self) {
         loop {
             match self.event_rx.try_recv() {
-                Ok(event) => {
-                    match &event {
-                        BackendEvent::AudioStarted { sample_rate } => {
-                            self.sample_rate = *sample_rate;
-                            self.event_log.push(format!("Audio started: {} Hz", sample_rate));
-                        }
-                        BackendEvent::AudioStopped => {
-                            self.event_log.push("Audio stopped".to_string());
-                        }
-                        BackendEvent::CommandError { command, error } => {
-                            self.event_log.push(format!("Command error: {} - {}", command, error));
-                        }
-                        BackendEvent::BufferUnderrun { count } => {
-                            self.buffer_underruns = *count;
-                            self.event_log.push(format!("Buffer underrun #{}", count));
-                        }
-                        BackendEvent::Metrics { cpu_usage, latency_ms } => {
-                            self.event_log.push(format!(
-                                "Metrics: CPU={:.1}%, Latency={:.1}ms",
-                                cpu_usage, latency_ms
-                            ));
-                        }
+                Ok(event) => match &event {
+                    BackendEvent::AudioStarted { sample_rate } => {
+                        self.sample_rate = *sample_rate;
+                        self.event_log
+                            .push(format!("Audio started: {} Hz", sample_rate));
                     }
-                }
+                    BackendEvent::AudioStopped => {
+                        self.event_log.push("Audio stopped".to_string());
+                    }
+                    BackendEvent::CommandError { command, error } => {
+                        self.event_log
+                            .push(format!("Command error: {} - {}", command, error));
+                    }
+                    BackendEvent::BufferUnderrun { count } => {
+                        self.buffer_underruns = *count;
+                        self.event_log.push(format!("Buffer underrun #{}", count));
+                    }
+                    BackendEvent::Metrics {
+                        cpu_usage,
+                        latency_ms,
+                    } => {
+                        self.event_log.push(format!(
+                            "Metrics: CPU={:.1}%, Latency={:.1}ms",
+                            cpu_usage, latency_ms
+                        ));
+                    }
+                },
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => {
-                    self.event_log.push("Event channel disconnected".to_string());
+                    self.event_log
+                        .push("Event channel disconnected".to_string());
                     break;
                 }
             }
@@ -138,7 +142,11 @@ impl eframe::App for TestingApp {
                         self.note_playing = false;
                     }
 
-                    ui.label(if self.note_playing { "🔊 Playing" } else { "🔇 Silent" });
+                    ui.label(if self.note_playing {
+                        "🔊 Playing"
+                    } else {
+                        "🔇 Silent"
+                    });
                 });
 
                 ui.add_space(5.0);
@@ -247,8 +255,7 @@ pub fn run_testing_gui() -> Result<(), Box<dyn std::error::Error>> {
         "Rustic Audio Testing",
         options,
         Box::new(|_cc| {
-            let app = TestingApp::new()
-                .expect("Failed to initialize audio system");
+            let app = TestingApp::new().expect("Failed to initialize audio system");
             Ok(Box::new(app))
         }),
     )?;

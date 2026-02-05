@@ -127,7 +127,9 @@ fn test_audioconfig_validate_audio_ring_buffer_too_small() {
         result.is_err(),
         "audio_ring_buffer_size too small should fail"
     );
-    assert!(result.unwrap_err().contains("audio_ring_buffer_size too small"));
+    assert!(result
+        .unwrap_err()
+        .contains("audio_ring_buffer_size too small"));
 }
 
 #[test]
@@ -327,8 +329,8 @@ fn test_logconfig_all_log_levels() {
 
     for level in &log_levels {
         let toml_content = format!(r#"level = "{}""#, level);
-        let config: LogConfig = toml::from_str(&toml_content)
-            .expect(&format!("Failed to parse log level: {}", level));
+        let config: LogConfig =
+            toml::from_str(&toml_content).expect(&format!("Failed to parse log level: {}", level));
 
         assert_eq!(config.level, *level);
     }

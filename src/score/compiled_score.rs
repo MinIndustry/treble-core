@@ -98,7 +98,7 @@ impl CompiledScore {
         let mut duration = 0;
 
         // Create staff instances from the score
-        for (_idx, staff) in score.staves.iter_mut().enumerate() {
+        for staff in score.staves.iter_mut() {
             let instrument_idx = staff.get_instrument();
             if instrument_idx >= score.instruments.len() {
                 return Err(format!("Instrument index {} out of bounds", instrument_idx));
@@ -211,7 +211,7 @@ impl CompiledScore {
         let current_tick = self.current_tick;
 
         for (idx, instance) in self.staff_instances.iter_mut().enumerate() {
-            if let Some(_) = instance.peek_next_chord() {
+            if instance.peek_next_chord().is_some() {
                 if instance.current_position() == current_tick {
                     // Time to play this chord
                     if let Some(chord) = instance.next_chord() {

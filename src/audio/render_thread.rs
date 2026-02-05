@@ -75,10 +75,7 @@ pub fn spawn_audio_render_thread(
 }
 
 /// Process a single audio control message
-fn process_audio_message(
-    instruments: &mut [Box<dyn Instrument + Send + Sync>],
-    msg: AudioMessage,
-) {
+fn process_audio_message(instruments: &mut [Box<dyn Instrument + Send + Sync>], msg: AudioMessage) {
     match msg {
         AudioMessage::NoteStart {
             instrument_idx,

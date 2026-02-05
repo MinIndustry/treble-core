@@ -1,6 +1,9 @@
 //! Builder pattern for creating plots with customization options
 
-use crate::plotting::{types::{LineConfig, LineType, SeriesConfig}, PlotError};
+use crate::plotting::{
+    types::{LineConfig, LineType, SeriesConfig},
+    PlotError,
+};
 use std::path::Path;
 
 /// Builder for creating customizable plots
@@ -284,16 +287,16 @@ impl PlotBuilder {
     /// Uses a palette of 10 distinct colors that cycle for additional series.
     fn auto_color(index: usize) -> (u8, u8, u8) {
         const COLORS: [(u8, u8, u8); 10] = [
-            (31, 119, 180),   // Blue
-            (255, 127, 14),   // Orange
-            (44, 160, 44),    // Green
-            (214, 39, 40),    // Red
-            (148, 103, 189),  // Purple
-            (140, 86, 75),    // Brown
-            (227, 119, 194),  // Pink
-            (127, 127, 127),  // Gray
-            (188, 189, 34),   // Yellow-green
-            (23, 190, 207),   // Cyan
+            (31, 119, 180),  // Blue
+            (255, 127, 14),  // Orange
+            (44, 160, 44),   // Green
+            (214, 39, 40),   // Red
+            (148, 103, 189), // Purple
+            (140, 86, 75),   // Brown
+            (227, 119, 194), // Pink
+            (127, 127, 127), // Gray
+            (188, 189, 34),  // Yellow-green
+            (23, 190, 207),  // Cyan
         ];
         COLORS[index % COLORS.len()]
     }
