@@ -51,17 +51,17 @@ fn main() {
     );
 
     let keyboard = Arc::new(Mutex::new(keyboard));
-    let keyboard_2 = keyboard.clone();
+    let _keyboard_2 = keyboard.clone();
 
     thread::spawn(move || {
-        let mut input_device = if let Some(device) = find_keyboard() {
+        let _input_device = if let Some(device) = find_keyboard() {
             device
         } else {
             error!("No keyboard found for playing");
             return;
         };
 
-        let mapping = HashMap::from([
+        let _mapping = HashMap::from([
             (16, Note(NOTES::C, 4)),
             (17, Note(NOTES::CS, 4)),
             (18, Note(NOTES::D, 4)),

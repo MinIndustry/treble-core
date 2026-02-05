@@ -19,9 +19,9 @@ use rustic::core::utils::{Note, NOTES};
 
 #[derive(Debug)]
 struct Player {
-    notes: Vec<Note>,
+    _notes: Vec<Note>,
     i: usize,
-    sample_rate: f32,
+    _sample_rate: f32,
 }
 
 impl Player {
@@ -33,9 +33,9 @@ impl Player {
         let notes = vec![initial_note, second_note, third_note];
 
         Self {
-            notes,
+            _notes: notes,
             i: 0,
-            sample_rate: 44100.0,
+            _sample_rate: 44100.0,
         }
     }
 }

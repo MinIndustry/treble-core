@@ -51,7 +51,7 @@ fn play_chord(instrument: &mut Box<dyn crate::instruments::Instrument>, chord: &
 /// use rustic::instruments::prelude::HiHat;
 /// use rustic::score::compiled_score::CompiledScore;
 ///
-/// let mut score = Score::new("Test Score", TimeSignature(4, 4), 120);
+/// let mut score = Score::new("Test Score", TimeSignature(4, 4), 120, Vec::new(), Vec::new());
 /// score.add_instrument(Box::new(HiHat::new().unwrap()));
 ///
 /// // Compile the score for efficient playback
@@ -88,7 +88,7 @@ impl CompiledScore {
     /// use rustic::instruments::prelude::HiHat;
     /// use rustic::score::compiled_score::CompiledScore;
     ///
-    /// let mut score = Score::new("Test Score", TimeSignature(4, 4), 120);
+    /// let mut score = Score::new("Test Score", TimeSignature(4, 4), 120, Vec::new(), Vec::new());
     /// score.add_instrument(Box::new(HiHat::new().unwrap()));
     ///
     /// let compiled = CompiledScore::new(&mut score).unwrap();
@@ -141,7 +141,7 @@ impl CompiledScore {
     /// # use rustic::instruments::prelude::HiHat;
     /// # use rustic::score::compiled_score::CompiledScore;
     /// #
-    /// # let mut score = Score::new("Test Score", TimeSignature(4, 4), 120);
+    /// # let mut score = Score::new("Test Score", TimeSignature(4, 4), 120, Vec::new(), Vec::new());
     /// # score.add_instrument(Box::new(HiHat::new().unwrap()));
     /// # let mut compiled = CompiledScore::new(&mut score).unwrap();
     ///
@@ -172,7 +172,7 @@ impl CompiledScore {
     /// # use rustic::instruments::prelude::HiHat;
     /// # use rustic::score::compiled_score::CompiledScore;
     /// #
-    /// # let mut score = Score::new("Test Score", TimeSignature(4, 4), 120);
+    /// # let mut score = Score::new("Test Score", TimeSignature(4, 4), 120, Vec::new(), Vec::new());
     /// # score.add_instrument(Box::new(HiHat::new().unwrap()));
     /// # let mut compiled = CompiledScore::new(&mut score).unwrap();
     ///

@@ -4,8 +4,8 @@
 use log::info;
 use rustic::core::envelope::prelude::ConstantSegment;
 use rustic::core::filters::prelude::*;
+use rustic::core::generator::prelude::MultiToneGenerator;
 use rustic::core::generator::prelude::{builder::ToneGeneratorBuilder, Waveform};
-use rustic::core::generator::Generator;
 use rustic::core::graph::{simple_source, SimpleSink, System};
 
 #[test]
@@ -17,10 +17,11 @@ fn test_system() {
     let filt_1 = system.add_filter(Box::from(filter));
     let filt_2 = system.add_filter(Box::from(filter2));
 
-    let mut generator = ToneGeneratorBuilder::new()
+    let mut generator: MultiToneGenerator = ToneGeneratorBuilder::new()
         .waveform(Waveform::Blank)
         .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
-        .build();
+        .build()
+        .into();
     generator.start();
 
     system.set_source(0, Box::from(simple_source(generator)));
@@ -67,7 +68,8 @@ fn stress_test() {
         ToneGeneratorBuilder::new()
             .waveform(Waveform::Blank)
             .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
-            .build(),
+            .build()
+            .into(),
     );
     system.set_source(0, Box::from(source));
 
@@ -128,7 +130,8 @@ fn stress_test_2() {
         ToneGeneratorBuilder::new()
             .waveform(Waveform::Blank)
             .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
-            .build(),
+            .build()
+            .into(),
     );
     system.set_source(0, Box::from(source));
 

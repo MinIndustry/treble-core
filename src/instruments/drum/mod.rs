@@ -7,17 +7,17 @@ pub use kick::Kick;
 pub use snare::Snare;
 
 pub struct DrumKit {
-    hi_hat: HiHat,
-    kick: Kick,
-    snare: Snare,
+    _hi_hat: HiHat,
+    _kick: Kick,
+    _snare: Snare,
 }
 
 impl DrumKit {
     pub fn new() -> Result<Self, String> {
         Ok(DrumKit {
-            hi_hat: HiHat::new()?,
-            kick: Kick::new(),
-            snare: Snare::new(),
+            _hi_hat: HiHat::new()?,
+            _kick: Kick::new(),
+            _snare: Snare::new(),
         })
     }
 }

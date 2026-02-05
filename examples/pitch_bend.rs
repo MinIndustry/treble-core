@@ -1,14 +1,13 @@
 use rustic::core::envelope::prelude::{ADSREnvelopeBuilder, BezierSegment, LinearSegment};
-use rustic::core::utils::Note;
 
 #[cfg(feature = "plotting")]
 use rustic::plotting::plot_data;
 
 fn main() {
     let scale = 0.5; // Master volume
-    let sample_rate = 44100; // Sample rate
+    let _sample_rate = 44100; // Sample rate
 
-    let envelope = ADSREnvelopeBuilder::new()
+    let _envelope = ADSREnvelopeBuilder::new()
         .attack(Box::new(BezierSegment::new(
             0.0,
             scale * 1.0,
@@ -24,7 +23,7 @@ fn main() {
         )))
         .build();
 
-    let pitch_bend = LinearSegment::new(1.0, 0.1, 2.0);
+    let _pitch_bend = LinearSegment::new(1.0, 0.1, 2.0);
 
     // let mut score = Score::new("Pitch bending".to_string(), sample_rate);
     // score.add_note(

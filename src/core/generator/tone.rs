@@ -5,6 +5,8 @@ use std::ops::Rem;
 
 use crate::core::{envelope::Envelope, generator::prelude::*};
 
+use super::composite_builder;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SingleToneGenerator {
     waveform: Waveform,
@@ -122,5 +124,13 @@ impl SingleToneGenerator {
         if let Some(relation) = &self.frequency_relation {
             self.current_frequency = relation.compute(base_frequency);
         }
+    }
+}
+
+impl Into<MultiToneGenerator> for SingleToneGenerator {
+    fn into(self) -> MultiToneGenerator {
+        composite_builder::MultiToneGeneratorBuilder::new()
+            .add_generator(self)
+            .build()
     }
 }

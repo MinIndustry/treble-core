@@ -88,7 +88,7 @@ impl Score {
     /// use rustic::prelude::{Score, TimeSignature};
     /// use rustic::instruments::prelude::{HiHat, Kick, Snare};
     ///
-    /// let mut score = Score::new("Test", TimeSignature(4, 4), 120);
+    /// let mut score = Score::new("Test", TimeSignature(4, 4), 120, Vec::new(), Vec::new());
     /// let kick_index = score.add_instrument(Box::new(Kick::new()));
     /// ```
     pub fn add_instrument(&mut self, instrument: Box<dyn Instrument>) -> usize {
@@ -135,7 +135,7 @@ impl Score {
     /// use rustic::prelude::{Score, TimeSignature};
     /// use rustic::instruments::prelude::HiHat;
     ///
-    /// let mut score = Score::new("Demo", TimeSignature(4, 4), 120);
+    /// let mut score = Score::new("Demo", TimeSignature(4, 4), 120, Vec::new(), Vec::new());
     /// score.add_instrument(Box::new(HiHat::new().unwrap()));
     ///
     /// // Play the score

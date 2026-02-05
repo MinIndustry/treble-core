@@ -7,7 +7,7 @@ fn main() {
     let scale = app.config.system.master_volume;
     let sample_rate = app.config.system.sample_rate;
 
-    let envelope = ADSREnvelopeBuilder::new()
+    let _envelope = ADSREnvelopeBuilder::new()
         .attack(Box::new(BezierSegment::new(
             0.0,
             scale * 1.0,

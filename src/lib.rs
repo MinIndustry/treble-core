@@ -18,8 +18,9 @@
 //! # Quick example
 //! ```rust
 //! use rustic::prelude::*;
+//! use rustic::core::generator::prelude::Waveform;
 //! // Build a simple sine tone generator (see `core::generator` docs for details)
-//! let mut gen = core::generator::ToneGenerator::new(440.0, core::generator::Waveform::Sine);
+//! let mut gen = core::generator::prelude::builder::ToneGeneratorBuilder::new().build();
 //! gen.start();
 //! let sample = gen.tick(1.0 / 44100.0);
 //! ```

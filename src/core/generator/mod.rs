@@ -17,14 +17,10 @@
 //! - Be mindful of Nyquist (sample_rate/2) when composing high-frequency
 //!   content; aliasing can occur without bandlimiting.
 
-use std::fmt;
-
 mod composite;
 mod composite_builder;
 mod tone;
 mod tone_builder;
-
-use crate::core::generator::prelude::Waveform;
 
 pub mod prelude {
     use serde::{Deserialize, Serialize};
