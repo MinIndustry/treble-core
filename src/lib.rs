@@ -17,12 +17,11 @@
 //!
 //! # Quick example
 //! ```rust
-//! use rustic::prelude::*;
-//! use rustic::core::generator::prelude::Waveform;
+//! use rustic::core::generator::prelude::*;
 //! // Build a simple sine tone generator (see `core::generator` docs for details)
-//! let mut gen = core::generator::prelude::builder::ToneGeneratorBuilder::new().build();
-//! gen.start();
-//! let sample = gen.tick(1.0 / 44100.0);
+//! let mut generator = builder::ToneGeneratorBuilder::new().build();
+//! generator.start();
+//! let _sample = generator.tick(1.0 / 44100.0);
 //! ```
 //!
 //! # Features
