@@ -36,6 +36,7 @@ use super::{simple_source, Filter, Sink, Source};
 /// let filter_index = system.add_filter(Box::from(filter));
 /// ```
 #[derive(Debug)]
+#[allow(clippy::type_complexity)]
 pub struct System<const INPUTS: usize, const OUTPUTS: usize> {
     // The actual filter graph, from which the execution order is derived
     // Each weight represents the port into which the filter is connected
@@ -52,8 +53,15 @@ pub struct System<const INPUTS: usize, const OUTPUTS: usize> {
     sinks: [((NodeIndex<u32>, usize), Box<dyn Sink>); OUTPUTS],
 }
 
+impl<const INPUTS: usize, const OUTPUTS: usize> Default for System<INPUTS, OUTPUTS> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
     /// Creates a new system with simple null sources & simple sinks
+    #[allow(clippy::type_complexity)]
     pub fn new() -> Self {
         let sources: [(Box<dyn Source>, (NodeIndex<u32>, usize)); INPUTS] =
             core::array::from_fn(|_| {
@@ -84,6 +92,7 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
     /// Merges the two systems together to create a new one. The graphs are merged following the given mapping from sinks to sources.
     /// Sinks to sources links are replaced with a simple combinator filter. The amount of input in the second system
     /// should match the amount of output in the first system.
+    #[allow(clippy::type_complexity)]
     pub fn merge<const T: usize>(
         mut self,
         other: System<OUTPUTS, T>,
@@ -138,7 +147,7 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
         // Go through all nodes in the other graph and add them to the new graph
         for node_index in other.graph.node_indices() {
             // Skip already added nodes
-            if new_edge_map.get(&node_index).is_some() {
+            if new_edge_map.contains_key(&node_index) {
                 info!("Node {} already pushed to new graph", node_index.index());
                 continue;
             }
@@ -235,6 +244,7 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
     }
 
     // Creates the execution layers by sorting the graph topologically.
+    #[allow(clippy::result_unit_err)]
     pub fn compute(&mut self) -> Result<(), ()> {
         // Makes the graph acyclic to be able to create a topology sort
         let acyclic_graph = self.graph.filter_map(

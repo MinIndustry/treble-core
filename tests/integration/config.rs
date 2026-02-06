@@ -75,8 +75,10 @@ fn test_audioconfig_validate_valid() {
 #[test]
 fn test_audioconfig_validate_zero_cpal_buffer_size() {
     // Buffer size of zero should fail validation
-    let mut config = AudioConfig::default();
-    config.cpal_buffer_size = 0;
+    let config = AudioConfig {
+        cpal_buffer_size: 0,
+        ..Default::default()
+    };
 
     let result = config.validate();
     assert!(result.is_err(), "Zero cpal_buffer_size should fail");
@@ -88,8 +90,10 @@ fn test_audioconfig_validate_zero_cpal_buffer_size() {
 #[test]
 fn test_audioconfig_validate_excessive_cpal_buffer_size() {
     // Buffer size over 2048 should fail validation
-    let mut config = AudioConfig::default();
-    config.cpal_buffer_size = 4096;
+    let config = AudioConfig {
+        cpal_buffer_size: 4096,
+        ..Default::default()
+    };
 
     let result = config.validate();
     assert!(result.is_err(), "Excessive cpal_buffer_size should fail");
@@ -101,9 +105,11 @@ fn test_audioconfig_validate_excessive_cpal_buffer_size() {
 #[test]
 fn test_audioconfig_validate_render_chunk_smaller_than_cpal_buffer() {
     // Render chunk size must be >= cpal buffer size
-    let mut config = AudioConfig::default();
-    config.cpal_buffer_size = 256;
-    config.render_chunk_size = 128;
+    let config = AudioConfig {
+        cpal_buffer_size: 256,
+        render_chunk_size: 128,
+        ..Default::default()
+    };
 
     let result = config.validate();
     assert!(
@@ -118,9 +124,11 @@ fn test_audioconfig_validate_render_chunk_smaller_than_cpal_buffer() {
 #[test]
 fn test_audioconfig_validate_audio_ring_buffer_too_small() {
     // Audio ring buffer must be at least 2x render chunk size
-    let mut config = AudioConfig::default();
-    config.render_chunk_size = 256;
-    config.audio_ring_buffer_size = 256;
+    let config = AudioConfig {
+        render_chunk_size: 256,
+        audio_ring_buffer_size: 256,
+        ..Default::default()
+    };
 
     let result = config.validate();
     assert!(
@@ -231,18 +239,12 @@ fn test_logconfig_default_values() {
     let config = LogConfig::default();
 
     assert_eq!(config.level, "info", "Default log level should be 'info'");
-    assert_eq!(
-        config.log_to_file, false,
-        "Default log_to_file should be false"
-    );
+    assert!(!config.log_to_file, "Default log_to_file should be false");
     assert_eq!(
         config.log_file, "rustic.log",
         "Default log_file should be 'rustic.log'"
     );
-    assert_eq!(
-        config.log_to_stdout, true,
-        "Default log_to_stdout should be true"
-    );
+    assert!(config.log_to_stdout, "Default log_to_stdout should be true");
 }
 
 #[test]
@@ -283,9 +285,9 @@ fn test_logconfig_toml_missing_fields_use_defaults() {
     assert_eq!(config.level, "warn");
 
     // Missing fields should have default values
-    assert_eq!(config.log_to_file, false);
+    assert!(!config.log_to_file);
     assert_eq!(config.log_file, "rustic.log");
-    assert_eq!(config.log_to_stdout, true);
+    assert!(config.log_to_stdout);
 }
 
 #[test]
@@ -314,9 +316,9 @@ fn test_logconfig_load_from_file() {
 
     // Verify values
     assert_eq!(config.level, "trace");
-    assert_eq!(config.log_to_file, true);
+    assert!(config.log_to_file);
     assert_eq!(config.log_file, "custom.log");
-    assert_eq!(config.log_to_stdout, false);
+    assert!(!config.log_to_stdout);
 
     // Clean up
     std::fs::remove_file(&config_file).expect("Failed to remove temp file");
@@ -329,8 +331,8 @@ fn test_logconfig_all_log_levels() {
 
     for level in &log_levels {
         let toml_content = format!(r#"level = "{}""#, level);
-        let config: LogConfig =
-            toml::from_str(&toml_content).expect(&format!("Failed to parse log level: {}", level));
+        let config: LogConfig = toml::from_str(&toml_content)
+            .unwrap_or_else(|_| panic!("Failed to parse log level: {}", level));
 
         assert_eq!(config.level, *level);
     }
@@ -368,5 +370,5 @@ fn test_combined_config_toml() {
 
     // Verify logging config
     assert_eq!(config.logging.level, "debug");
-    assert_eq!(config.logging.log_to_file, true);
+    assert!(config.logging.log_to_file);
 }

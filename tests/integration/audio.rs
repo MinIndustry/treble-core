@@ -24,9 +24,8 @@ fn test_shared_audio_state_initialization() {
     // SharedAudioState should initialize with correct default values
     let state = SharedAudioState::new();
 
-    assert_eq!(
-        state.shutdown.load(Ordering::Relaxed),
-        false,
+    assert!(
+        !state.shutdown.load(Ordering::Relaxed),
         "Initial shutdown flag should be false"
     );
     assert_eq!(
@@ -51,9 +50,8 @@ fn test_shared_audio_state_default() {
     // Default trait should produce same values as new()
     let state = SharedAudioState::default();
 
-    assert_eq!(
-        state.shutdown.load(Ordering::Relaxed),
-        false,
+    assert!(
+        !state.shutdown.load(Ordering::Relaxed),
         "Default shutdown flag should be false"
     );
     assert_eq!(
@@ -79,21 +77,19 @@ fn test_shared_audio_state_shutdown_flag() {
     let state = SharedAudioState::new();
 
     // Initially false
-    assert_eq!(state.shutdown.load(Ordering::Relaxed), false);
+    assert!(!state.shutdown.load(Ordering::Relaxed));
 
     // Set to true
     state.shutdown.store(true, Ordering::Release);
-    assert_eq!(
+    assert!(
         state.shutdown.load(Ordering::Acquire),
-        true,
         "Shutdown flag should be set to true"
     );
 
     // Set back to false
     state.shutdown.store(false, Ordering::Release);
-    assert_eq!(
-        state.shutdown.load(Ordering::Acquire),
-        false,
+    assert!(
+        !state.shutdown.load(Ordering::Acquire),
         "Shutdown flag should be reset to false"
     );
 }
@@ -515,19 +511,18 @@ fn test_shared_state_concurrent_access_pattern() {
 fn test_message_queue_pattern() {
     // Demonstrate the pattern of queuing audio messages
     // (This doesn't test the actual queue, just the message types)
-    let mut messages = Vec::new();
-
-    // Queue several messages
-    messages.push(AudioMessage::NoteStart {
-        instrument_idx: 0,
-        note: Note(NOTES::C, 4),
-        velocity: 0.8,
-    });
-    messages.push(AudioMessage::SetOctave { row: 0, octave: 5 });
-    messages.push(AudioMessage::NoteStop {
-        instrument_idx: 0,
-        note: Note(NOTES::C, 4),
-    });
+    let messages = vec![
+        AudioMessage::NoteStart {
+            instrument_idx: 0,
+            note: Note(NOTES::C, 4),
+            velocity: 0.8,
+        },
+        AudioMessage::SetOctave { row: 0, octave: 5 },
+        AudioMessage::NoteStop {
+            instrument_idx: 0,
+            note: Note(NOTES::C, 4),
+        },
+    ];
 
     // Verify we can process them
     assert_eq!(messages.len(), 3, "Should have 3 messages queued");

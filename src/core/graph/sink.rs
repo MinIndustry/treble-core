@@ -8,6 +8,12 @@ pub struct SimpleSink {
     index: usize,
 }
 
+impl Default for SimpleSink {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SimpleSink {
     pub fn new() -> Self {
         Self {
@@ -34,7 +40,7 @@ impl Sink for SimpleSink {
         self.values.clone()
     }
 
-    fn as_entry(self) -> Box<dyn Entry> {
+    fn into_entry(self) -> Box<dyn Entry> {
         Box::new(self)
     }
 }

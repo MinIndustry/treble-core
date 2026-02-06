@@ -34,7 +34,7 @@ pub trait Sink: Entry + AudioGraphElement {
     /// Gets the values of the sink
     fn consume(&mut self, amount: usize) -> Vec<f32>;
     fn get_values(&self) -> Vec<f32>;
-    fn as_entry(self) -> Box<dyn Entry>;
+    fn into_entry(self) -> Box<dyn Entry>;
 }
 
 /// A filter that can process data. Data should be pushed to the filter's input by either the preceding filter or a source.

@@ -38,12 +38,12 @@ fn test_app_new_default_config() {
         app.config.logging.level, "info",
         "Default log level should be 'info'"
     );
-    assert_eq!(
-        app.config.logging.log_to_file, false,
+    assert!(
+        !app.config.logging.log_to_file,
         "Default log_to_file should be false"
     );
-    assert_eq!(
-        app.config.logging.log_to_stdout, true,
+    assert!(
+        app.config.logging.log_to_stdout,
         "Default log_to_stdout should be true"
     );
 }
@@ -145,8 +145,8 @@ fn test_app_from_file_valid_config() {
         app.config.logging.level, "debug",
         "Should load custom log level"
     );
-    assert_eq!(
-        app.config.logging.log_to_file, true,
+    assert!(
+        app.config.logging.log_to_file,
         "Should load custom log_to_file"
     );
     assert_eq!(
@@ -219,8 +219,8 @@ fn test_app_from_file_missing_fields_use_defaults() {
         app.config.logging.level, "info",
         "Default log level should be 'info'"
     );
-    assert_eq!(
-        app.config.logging.log_to_stdout, true,
+    assert!(
+        app.config.logging.log_to_stdout,
         "Default log_to_stdout should be true"
     );
 

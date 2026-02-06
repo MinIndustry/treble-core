@@ -211,12 +211,10 @@ impl CompiledScore {
         let current_tick = self.current_tick;
 
         for (idx, instance) in self.staff_instances.iter_mut().enumerate() {
-            if instance.peek_next_chord().is_some() {
-                if instance.current_position() == current_tick {
-                    // Time to play this chord
-                    if let Some(chord) = instance.next_chord() {
-                        chords_to_play.push((idx, chord));
-                    }
+            if instance.peek_next_chord().is_some() && instance.current_position() == current_tick {
+                // Time to play this chord
+                if let Some(chord) = instance.next_chord() {
+                    chords_to_play.push((idx, chord));
                 }
             }
         }

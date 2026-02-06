@@ -67,6 +67,7 @@ impl FSConfig {
     /// Builds the required path to save the file from the given module with the given name
     ///
     /// Returns a result containing the built path with the file name.
+    #[allow(clippy::result_unit_err)]
     pub fn debug_dir(module: &str, filename: &str) -> Result<PathBuf, ()> {
         let base_path = Self::debug_dir_check()?;
         let full_path = base_path.join(module);
@@ -78,6 +79,7 @@ impl FSConfig {
     /// Adds a timestamp to allow for time-differentiation of the saved files.
     ///
     /// Returns a result containing the built path with the file name.
+    #[allow(clippy::result_unit_err)]
     pub fn _stamped_debug_dir(module: &str, filename: &str) -> Result<PathBuf, ()> {
         let base_path = Self::debug_dir_check()?;
         let full_path = base_path.join(module);
@@ -92,7 +94,7 @@ impl FSConfig {
     pub fn app_root_dir() -> Result<PathBuf, String> {
         use directories::ProjectDirs;
         let root_path = ProjectDirs::from(crate::APP_ID.2, crate::APP_ID.1, crate::APP_ID.0)
-            .and_then(|d| Some(d.config_dir().to_path_buf()))
+            .map(|d| d.config_dir().to_path_buf())
             .ok_or("Unable to build app's configuration direction".to_string())?;
 
         if !root_path.exists() {

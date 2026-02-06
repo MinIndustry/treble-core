@@ -120,7 +120,7 @@ fn main() {
     system.connect_sink(final_tremolo, 0, 0);
     system.connect_source(0, sum_filter, 0);
 
-    if let Err(_) = system.compute() {
+    if system.compute().is_err() {
         error!("An error occured while computing the filter graph's layers");
         return;
     }
@@ -143,7 +143,7 @@ fn main() {
         };
 
         sink.append(SamplesBuffer::new(
-            1 as u16,
+            1_u16,
             sample_rate as u32,
             values
                 .iter()

@@ -6,6 +6,7 @@ pub mod staff;
 
 // Public modules and re-exports
 pub mod notes;
+#[allow(clippy::module_inception)]
 pub mod score;
 
 pub mod score_builder;

@@ -120,7 +120,7 @@ impl App {
         if args.dump_config {
             match toml::to_string(&app.config) {
                 Ok(s) => println!("{}", s),
-                Err(e) => println!("Unable to dump config: {}", e.to_string()),
+                Err(e) => println!("Unable to dump config: {e}"),
             }
             std::process::exit(0);
         }

@@ -55,9 +55,9 @@ fn main() {
     kick.stop_note(Note(rustic::core::utils::tones::NOTES::A, 0));
 
     sink.append(SamplesBuffer::new(
-        1 as u16,
-        app.config.system.sample_rate as u32,
-        values.iter().map(|n| *n).collect::<Vec<f32>>(),
+        1_u16,
+        app.config.system.sample_rate,
+        values.to_vec(),
     ));
 
     #[cfg(feature = "plotting")]

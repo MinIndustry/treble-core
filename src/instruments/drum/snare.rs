@@ -16,6 +16,12 @@ pub struct Snare {
     output: f32,
 }
 
+impl Default for Snare {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Snare {
     pub fn new() -> Self {
         Self {

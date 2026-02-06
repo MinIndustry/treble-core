@@ -24,16 +24,16 @@ fn test_system() {
         .into();
     generator.start();
 
-    system.set_source(0, Box::from(simple_source(generator)));
+    system.set_source(0, simple_source(generator));
 
     let sink = SimpleSink::new();
-    system.set_sink(0, Box::from(sink));
+    system.set_sink(0, Box::new(sink));
 
     system.connect(filt_1, filt_2, 0, 0);
     system.connect_source(0, filt_1, 0);
     system.connect_sink(filt_2, 0, 0);
 
-    if let Err(_) = system.compute() {
+    if system.compute().is_err() {
         panic!("Error computing system");
     }
 
@@ -71,16 +71,16 @@ fn stress_test() {
             .build()
             .into(),
     );
-    system.set_source(0, Box::from(source));
+    system.set_source(0, source);
 
     let sink = SimpleSink::new();
-    system.set_sink(0, Box::from(sink));
+    system.set_sink(0, Box::new(sink));
 
     system.connect(filt_1, filt_2, 0, 0);
     system.connect_source(0, filt_1, 0);
     system.connect_sink(filt_2, 0, 0);
 
-    if let Err(_) = system.compute() {
+    if system.compute().is_err() {
         panic!("Error computing system");
     }
 
@@ -133,15 +133,15 @@ fn stress_test_2() {
             .build()
             .into(),
     );
-    system.set_source(0, Box::from(source));
+    system.set_source(0, source);
 
     let sink = SimpleSink::new();
-    system.set_sink(0, Box::from(sink));
+    system.set_sink(0, Box::new(sink));
 
     system.connect_source(0, filt_0, 0);
     system.connect_sink(filt_3, 0, 0);
 
-    if let Err(_) = system.compute() {
+    if system.compute().is_err() {
         panic!("Error computing system");
     }
 

@@ -127,10 +127,10 @@ impl SingleToneGenerator {
     }
 }
 
-impl Into<MultiToneGenerator> for SingleToneGenerator {
-    fn into(self) -> MultiToneGenerator {
+impl From<SingleToneGenerator> for MultiToneGenerator {
+    fn from(val: SingleToneGenerator) -> Self {
         composite_builder::MultiToneGeneratorBuilder::new()
-            .add_generator(self)
+            .add_generator(val)
             .build()
     }
 }

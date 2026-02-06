@@ -54,12 +54,10 @@ fn main() {
     let _keyboard_2 = keyboard.clone();
 
     thread::spawn(move || {
-        let _input_device = if let Some(device) = find_keyboard() {
-            device
-        } else {
+        if find_keyboard().is_none() {
             error!("No keyboard found for playing");
             return;
-        };
+        }
 
         let _mapping = HashMap::from([
             (16, Note(NOTES::C, 4)),
@@ -137,7 +135,7 @@ fn main() {
 
         values.iter().for_each(|v| println!("{}", v));
         sink.append(SamplesBuffer::new(
-            1 as u16,
+            1_u16,
             sample_rate as u32,
             values.clone(),
         ));

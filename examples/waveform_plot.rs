@@ -46,8 +46,8 @@ fn main() {
     for sample in 0..(duration * sample_rate) as i32 {
         let current_time = sample as f32 / sample_rate;
 
-        let val = generator.tick(1.0 / sample_rate as f32);
-        let val2 = generator2.tick(1.0 / sample_rate as f32);
+        let val = generator.tick(1.0 / sample_rate);
+        let val2 = generator2.tick(1.0 / sample_rate);
 
         results.push((current_time, val));
         results2.push((current_time, val2));

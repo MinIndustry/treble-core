@@ -46,10 +46,7 @@ impl ConstantSegment {
     }
 
     pub fn new(value: f32, duration: Option<f32>) -> Self {
-        Self {
-            value,
-            duration: duration,
-        }
+        Self { value, duration }
     }
 }
 
