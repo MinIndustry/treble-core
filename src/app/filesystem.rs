@@ -42,11 +42,11 @@ impl FSConfig {
     /// Returns a result with the debug
     fn debug_dir_check() -> Result<PathBuf, ()> {
         let out_dir = Path::new("./.dist/");
-        if !out_dir.exists() {
-            if let Err(e) = fs::create_dir(out_dir) {
-                error!("Failed to create output directory: {}", e);
-                return Err(());
-            }
+        if !out_dir.exists()
+            && let Err(e) = fs::create_dir(out_dir)
+        {
+            error!("Failed to create output directory: {}", e);
+            return Err(());
         }
         Ok(out_dir.to_path_buf())
     }
@@ -55,11 +55,11 @@ impl FSConfig {
     ///
     /// Returns an empty result
     fn debug_dir_build(path: &Path) -> Result<(), ()> {
-        if !path.exists() {
-            if let Err(e) = fs::create_dir(path) {
-                error!("Failed to create output directory: {}", e);
-                return Err(());
-            }
+        if !path.exists()
+            && let Err(e) = fs::create_dir(path)
+        {
+            error!("Failed to create output directory: {}", e);
+            return Err(());
         }
         Ok(())
     }
