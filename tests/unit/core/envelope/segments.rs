@@ -2,7 +2,7 @@
 //! Tests for individual envelope segments (constant, linear, bezier, function)
 
 use rustic::core::envelope::prelude::ConstantSegment;
-use rustic::core::envelope::{prelude::Segment, Envelope};
+use rustic::core::envelope::{Envelope, prelude::Segment};
 use rustic::core::generator::prelude::*;
 
 #[test]
@@ -105,7 +105,11 @@ mod linear_segment_tests {
         );
 
         let mapped_duration = segment.map_time(0.5, 1.0);
-        assert_eq!(mapped_duration, 0.5, "The mapped duration for the linear segment with offset 0.5 should be 0.5 (reality: {})", mapped_duration);
+        assert_eq!(
+            mapped_duration, 0.5,
+            "The mapped duration for the linear segment with offset 0.5 should be 0.5 (reality: {})",
+            mapped_duration
+        );
     }
 
     // - Test boundary conditions (t=0, t=duration)

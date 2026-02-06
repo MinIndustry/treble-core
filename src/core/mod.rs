@@ -44,4 +44,4 @@ pub mod graph;
 pub mod utils;
 
 // Re-export commonly used types from utils
-pub use utils::{Note, NOTES};
+pub use utils::{NOTES, Note};

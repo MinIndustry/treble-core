@@ -94,7 +94,7 @@ pub mod plotting;
 pub mod testing;
 
 // Re-export Note from core utils
-pub use core::{Note, NOTES};
+pub use core::{NOTES, Note};
 
 /// Initialize logging based on configuration
 pub fn init_logging(
@@ -189,8 +189,8 @@ pub fn start_app(
     event_tx: Sender<audio::BackendEvent>,
     command_rx: Receiver<app::prelude::Commands>,
 ) -> Result<AudioHandle, audio::AudioError> {
-    use std::sync::atomic::Ordering;
     use std::sync::Arc;
+    use std::sync::atomic::Ordering;
 
     // Initialize app (loads config from file)
     let mut app = app::prelude::App::new();

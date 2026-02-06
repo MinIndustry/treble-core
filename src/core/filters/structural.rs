@@ -45,9 +45,7 @@ impl Filter for DuplicateFilter {
 
         trace!(
             "Duplicate filter running {} -> {}, {}",
-            source_value,
-            source_value,
-            source_value
+            source_value, source_value, source_value
         );
         vec![source_value, source_value]
     }

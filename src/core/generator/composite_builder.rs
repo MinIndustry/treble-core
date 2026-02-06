@@ -55,7 +55,9 @@ impl MultiToneGeneratorBuilder {
                 Waveform::WhiteNoise | Waveform::PinkNoise
             )
         {
-            log::warn!("Adding a tone generator without a frequency relation to a composite generator. The generator will not get updated");
+            log::warn!(
+                "Adding a tone generator without a frequency relation to a composite generator. The generator will not get updated"
+            );
         }
 
         self.generators.push(generator);

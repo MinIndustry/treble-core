@@ -5,10 +5,10 @@ use log::error;
 use simplelog::*;
 use std::fs::File;
 
-use rustic::instruments::prelude::{HiHat, Kick, Snare};
-use rustic::instruments::Instrument;
-use rustic::prelude::App;
 use rustic::Note;
+use rustic::instruments::Instrument;
+use rustic::instruments::prelude::{HiHat, Kick, Snare};
+use rustic::prelude::App;
 
 fn main() {
     CombinedLogger::init(vec![

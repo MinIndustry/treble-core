@@ -2,9 +2,9 @@
 
 use crate::audio::{AudioError, BackendEvent};
 use crate::prelude::*;
-use crate::{start_app, AudioHandle};
+use crate::{AudioHandle, start_app};
 use eframe::egui;
-use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
+use std::sync::mpsc::{Receiver, Sender, TryRecvError, channel};
 
 /// Main testing GUI application
 pub struct TestingApp {

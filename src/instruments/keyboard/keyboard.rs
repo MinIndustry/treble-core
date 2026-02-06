@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
+use crate::Note;
 use crate::core::envelope::prelude::{ADSREnvelope, ConstantSegment};
 use crate::core::generator::prelude::{
-    builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder},
     FrequencyRelation, MultiToneGenerator, Waveform,
+    builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder},
 };
 use crate::core::utils::tones::TONES_FREQ;
-use crate::instruments::voices::{PolyVoiceAllocator, PolyphonicVoice};
 use crate::instruments::Instrument;
-use crate::Note;
+use crate::instruments::voices::{PolyVoiceAllocator, PolyphonicVoice};
 
 #[derive(Debug)]
 pub struct Keyboard {

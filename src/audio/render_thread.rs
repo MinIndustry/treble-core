@@ -2,8 +2,8 @@
 
 use crate::instruments::Instrument;
 use crossbeam::queue::ArrayQueue;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 

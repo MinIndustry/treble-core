@@ -1,5 +1,5 @@
 use crate::core::{
-    envelope::{prelude::ConstantSegment, Envelope},
+    envelope::{Envelope, prelude::ConstantSegment},
     generator::tone::SingleToneGenerator,
 };
 

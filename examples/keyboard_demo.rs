@@ -14,10 +14,10 @@ use std::time::Instant;
 #[cfg(feature = "linux")]
 use evdev::EventType;
 
+use rustic::Note;
 use rustic::core::utils::tones::NOTES;
 use rustic::inputs::keyboard::*;
-use rustic::instruments::{prelude::Keyboard, Instrument};
-use rustic::Note;
+use rustic::instruments::{Instrument, prelude::Keyboard};
 
 fn main() {
     CombinedLogger::init(vec![

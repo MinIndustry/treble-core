@@ -1,12 +1,12 @@
+use crate::Note;
 use crate::core::envelope::prelude::{
     ADSREnvelopeBuilder, BezierSegment, ConstantSegment, LinearSegment,
 };
 use crate::core::generator::prelude::{
-    builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder},
     FrequencyRelation, MixMode, MultiToneGenerator, Waveform,
+    builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder},
 };
 use crate::instruments::Instrument;
-use crate::Note;
 
 #[derive(Default, Debug)]
 pub struct Kick {

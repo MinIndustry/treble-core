@@ -15,7 +15,7 @@ use rustic::core::filters::prelude::{
 use rustic::core::graph::{
     AudioGraphElement, Filter, SimpleSink, Sink as SystemSink, Source, System,
 };
-use rustic::core::utils::{Note, NOTES};
+use rustic::core::utils::{NOTES, Note};
 
 #[derive(Debug)]
 struct Player {

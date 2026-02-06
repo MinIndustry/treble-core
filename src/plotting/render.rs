@@ -1,6 +1,6 @@
 //! Core rendering logic for plots
 
-use crate::plotting::{types::LineType, PlotBuilder, PlotError};
+use crate::plotting::{PlotBuilder, PlotError, types::LineType};
 use plotters::prelude::*;
 use std::path::Path;
 

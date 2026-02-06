@@ -59,8 +59,7 @@ impl MultiToneGenerator {
     pub fn stop(&mut self) {
         trace!(
             "Composite Generator stopping: {} ({}Hz)",
-            self.time,
-            self.base_frequency
+            self.time, self.base_frequency
         );
         self.note_off = Some(self.time);
         self.tone_generators.iter_mut().for_each(|tg| tg.stop());
@@ -114,9 +113,7 @@ impl MultiToneGenerator {
         } else {
             trace!(
                 "Composite Generator ticking: t:{} a:{} ({}Hz)",
-                self.time,
-                ampl,
-                self.base_frequency
+                self.time, ampl, self.base_frequency
             );
 
             ampl

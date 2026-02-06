@@ -28,7 +28,7 @@
 use serde::{Deserialize, Serialize};
 use std::{default::Default, fmt};
 
-use super::{segment::Segment, Envelope};
+use super::{Envelope, segment::Segment};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ADSREnvelope {

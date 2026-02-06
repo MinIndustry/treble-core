@@ -1,8 +1,8 @@
 //! Builder pattern for creating plots with customization options
 
 use crate::plotting::{
-    types::{LineConfig, LineType, SeriesConfig},
     PlotError,
+    types::{LineConfig, LineType, SeriesConfig},
 };
 use std::path::Path;
 

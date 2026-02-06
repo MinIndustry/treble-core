@@ -4,8 +4,8 @@
 #[cfg(test)]
 mod tests {
     use rustic::core::envelope::{
-        prelude::{ADSREnvelope, ADSREnvelopeBuilder, LinearSegment},
         Envelope,
+        prelude::{ADSREnvelope, ADSREnvelopeBuilder, LinearSegment},
     };
 
     // TODO: Add tests for ADSR envelope functionality

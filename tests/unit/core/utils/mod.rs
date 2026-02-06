@@ -2,7 +2,7 @@
 //! Tests for utility functions including note representation, keys, and tone tables
 
 use pretty_assertions::assert_eq;
-use rustic::core::utils::{Note, NOTES};
+use rustic::core::utils::{NOTES, Note};
 
 #[test]
 fn test_note_creation() {

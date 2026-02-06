@@ -10,9 +10,9 @@
 //! spawning actual audio threads, which is complex for unit testing.
 //! These tests focus on the data structures and their behavior.
 
+use rustic::Note;
 use rustic::audio::{AudioMessage, BackendEvent, SharedAudioState};
 use rustic::core::utils::NOTES;
-use rustic::Note;
 use std::sync::atomic::Ordering;
 
 // ============================================================================

@@ -1,5 +1,5 @@
-use crate::core::utils::tones::NOTES;
 use crate::Note;
+use crate::core::utils::tones::NOTES;
 
 pub struct Row {
     pub instrument: usize, // Index of the instrument in app's array

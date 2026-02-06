@@ -1,9 +1,9 @@
 //! Command processing thread implementation
 
 use crate::app::prelude::*;
+use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::{Receiver, Sender};
-use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 
 use super::events::BackendEvent;

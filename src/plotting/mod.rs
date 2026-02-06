@@ -77,7 +77,7 @@ pub mod prelude {
     //! Convenient imports for plotting
     //!
     //! Use `use rustic::plotting::prelude::*;` to import commonly used types.
-    pub use super::{plot_data, plot_multi, PlotBuilder, PlotError};
+    pub use super::{PlotBuilder, PlotError, plot_data, plot_multi};
 }
 
 // ==================== Convenience Functions ====================

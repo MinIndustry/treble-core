@@ -60,7 +60,7 @@ mod source;
 mod system;
 
 pub use sink::SimpleSink;
-pub use source::{simple_source, SimpleSource};
+pub use source::{SimpleSource, simple_source};
 
 /// The system module contains the implementation of the system element.
 pub use system::System;

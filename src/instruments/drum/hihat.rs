@@ -5,17 +5,17 @@ use std::io::Write;
 
 use petgraph::prelude::NodeIndex;
 
+use crate::Note;
 use crate::core::envelope::prelude::BezierSegment;
 use crate::core::filters::prelude::ResonantBandpassFilter;
 use crate::core::generator::prelude::{
-    builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder},
     MixMode, Waveform,
+    builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder},
 };
-use crate::core::graph::simple_source;
 use crate::core::graph::SimpleSink;
 use crate::core::graph::System;
+use crate::core::graph::simple_source;
 use crate::instruments::Instrument;
-use crate::Note;
 
 /// A HiHat instrument.
 /// It consists of six square wave sources connected to a combinator filter. The result is then passed through a resonant bandpass filter,

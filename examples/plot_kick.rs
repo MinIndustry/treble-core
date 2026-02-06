@@ -4,10 +4,10 @@ use rodio::{OutputStream, Sink};
 use simplelog::*;
 use std::fs::File;
 
-use rustic::instruments::prelude::Kick;
-use rustic::instruments::Instrument;
-use rustic::prelude::App;
 use rustic::Note;
+use rustic::instruments::Instrument;
+use rustic::instruments::prelude::Kick;
+use rustic::prelude::App;
 
 #[cfg(feature = "plotting")]
 use rustic::plotting::plot_data;

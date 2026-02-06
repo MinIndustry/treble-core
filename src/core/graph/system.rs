@@ -4,16 +4,16 @@ use std::io::Write;
 use std::path::Path;
 
 use log::{info, trace};
+use petgraph::Graph;
 use petgraph::dot::Dot;
 use petgraph::prelude::NodeIndex;
-use petgraph::Graph;
-use petgraph::{algo::toposort, Direction};
+use petgraph::{Direction, algo::toposort};
 
-use crate::core::generator::prelude::builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder};
 use crate::core::generator::prelude::Waveform;
+use crate::core::generator::prelude::builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder};
 
 use super::sink::simple_sink;
-use super::{simple_source, Filter, Sink, Source};
+use super::{Filter, Sink, Source, simple_source};
 
 /// A Pipe & Filter system
 /// The system is composed of filters, sources and sinks.
@@ -176,8 +176,8 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
             core::array::from_fn(|index| {
                 (
                     (
-                        new_edge_map[&other.sinks[index].0 .0],
-                        other.sinks[index].0 .1,
+                        new_edge_map[&other.sinks[index].0.0],
+                        other.sinks[index].0.1,
                     ),
                     dyn_clone::clone_box(&*other.sinks[index].1),
                 )

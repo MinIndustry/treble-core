@@ -6,8 +6,8 @@ use log::info;
 use rustic::core::envelope::prelude::ConstantSegment;
 use rustic::core::filters::prelude::*;
 use rustic::core::generator::prelude::MultiToneGenerator;
-use rustic::core::generator::prelude::{builder::ToneGeneratorBuilder, Waveform};
-use rustic::core::graph::{simple_source, SimpleSink, System};
+use rustic::core::generator::prelude::{Waveform, builder::ToneGeneratorBuilder};
+use rustic::core::graph::{SimpleSink, System, simple_source};
 
 #[test]
 fn test_system() {

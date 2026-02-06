@@ -517,8 +517,8 @@ fn test_error_display_invalid_volume() {
 #[test]
 fn test_audiomessage_clone() {
     // Verify that AudioMessage variants can be cloned
-    use rustic::core::utils::NOTES;
     use rustic::Note;
+    use rustic::core::utils::NOTES;
 
     let original = AudioMessage::NoteStart {
         instrument_idx: 0,

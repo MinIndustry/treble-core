@@ -1,8 +1,8 @@
 //! cpal audio callback implementation
 
 use crossbeam::queue::ArrayQueue;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 use super::shared_state::SharedAudioState;
 

@@ -82,9 +82,11 @@ fn test_audioconfig_validate_zero_cpal_buffer_size() {
 
     let result = config.validate();
     assert!(result.is_err(), "Zero cpal_buffer_size should fail");
-    assert!(result
-        .unwrap_err()
-        .contains("cpal_buffer_size must be between 1 and 2048"));
+    assert!(
+        result
+            .unwrap_err()
+            .contains("cpal_buffer_size must be between 1 and 2048")
+    );
 }
 
 #[test]
@@ -97,9 +99,11 @@ fn test_audioconfig_validate_excessive_cpal_buffer_size() {
 
     let result = config.validate();
     assert!(result.is_err(), "Excessive cpal_buffer_size should fail");
-    assert!(result
-        .unwrap_err()
-        .contains("cpal_buffer_size must be between 1 and 2048"));
+    assert!(
+        result
+            .unwrap_err()
+            .contains("cpal_buffer_size must be between 1 and 2048")
+    );
 }
 
 #[test]
@@ -116,9 +120,11 @@ fn test_audioconfig_validate_render_chunk_smaller_than_cpal_buffer() {
         result.is_err(),
         "render_chunk_size < cpal_buffer_size should fail"
     );
-    assert!(result
-        .unwrap_err()
-        .contains("render_chunk_size must be >= cpal_buffer_size"));
+    assert!(
+        result
+            .unwrap_err()
+            .contains("render_chunk_size must be >= cpal_buffer_size")
+    );
 }
 
 #[test]
@@ -135,9 +141,11 @@ fn test_audioconfig_validate_audio_ring_buffer_too_small() {
         result.is_err(),
         "audio_ring_buffer_size too small should fail"
     );
-    assert!(result
-        .unwrap_err()
-        .contains("audio_ring_buffer_size too small"));
+    assert!(
+        result
+            .unwrap_err()
+            .contains("audio_ring_buffer_size too small")
+    );
 }
 
 #[test]
