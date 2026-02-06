@@ -1,6 +1,7 @@
 //! Signal Graph Unit Tests
 //! Tests for the audio signal graph system including sources, sinks, and connections
 
+#[cfg(feature = "slow-test")]
 use log::info;
 use rustic::core::envelope::prelude::ConstantSegment;
 use rustic::core::filters::prelude::*;
@@ -54,6 +55,7 @@ fn test_system() {
 }
 
 #[test]
+#[cfg(feature = "slow-test")]
 /// Stress test of the system,
 /// Testing that the system runs at least as fast as the sample rate for a simple system
 fn stress_test() {
@@ -104,6 +106,7 @@ fn stress_test() {
 }
 
 #[test]
+#[cfg(feature = "slow-test")]
 /// Stress test of the system,
 /// Testing that the system runs at least as fast as the sample rate for a
 /// complex system

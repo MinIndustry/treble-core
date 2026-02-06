@@ -37,6 +37,7 @@ typetag = "0.2.21"
 pretty_assertions = "1.1.0"
 
 [features]
+slow-test = []
 default = []
 plotting = ["plotters", "plotters-backend"]
 meta = ["rustic-derive", "rustic-meta"]
