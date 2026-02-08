@@ -9,8 +9,10 @@ use clap::Parser;
 use log::{error, info, trace};
 use serde::{Deserialize, Serialize};
 
+use super::commands::{Command, LiveCommand};
 use super::prelude::*;
 
+use crate::app::commands::SystemCommand;
 use crate::instruments::prelude::KeyboardBuilder;
 use crate::prelude::Instrument;
 
@@ -161,9 +163,24 @@ impl App {
         self.run_mode = mode;
     }
 
-    pub fn on_event(&mut self, event: Commands) {
+    pub fn handle_system_command(&mut self, event: SystemCommand) {
         match event {
-            Commands::NoteStart(note, row, force) => {
+            SystemCommand::Quit => {
+                self.run_mode = RunMode::Unknown;
+            }
+            SystemCommand::Reset => {
+                log::error!("Not implemented System::Reset");
+            }
+        }
+    }
+
+    pub fn handle_live_command(&mut self, event: LiveCommand) {
+        match event {
+            LiveCommand::NoteStart {
+                note,
+                row,
+                velocity,
+            } => {
                 if row > 2 {
                     panic!("Row out of bounds");
                 }
@@ -172,10 +189,10 @@ impl App {
                 if self.rows[row as usize].instrument >= self.instruments.len() {
                     log::warn!("Instrument out of bounds");
                 } else {
-                    self.instruments[self.rows[row as usize].instrument].start_note(note, force);
+                    self.instruments[self.rows[row as usize].instrument].start_note(note, velocity);
                 }
             }
-            Commands::NoteStop(note, row) => {
+            LiveCommand::NoteStop { note, row } => {
                 if row > 2 {
                     panic!("Row out of bounds");
                 }
@@ -187,20 +204,28 @@ impl App {
                     self.instruments[self.rows[row as usize].instrument].stop_note(note);
                 }
             }
-            Commands::OctaveDown(row) => {
-                if row > 2 {
-                    panic!("Row out of bounds");
-                }
-
-                self.rows[row as usize].octave -= 1;
-            }
-            Commands::OctaveUp(row) => {
+            LiveCommand::OctaveUp(row) => {
                 if row > 2 {
                     panic!("Row out of bounds");
                 }
 
                 self.rows[row as usize].octave += 1;
             }
+            LiveCommand::OctaveDown(row) => {
+                if row > 2 {
+                    panic!("Row out of bounds");
+                }
+
+                self.rows[row as usize].octave -= 1;
+            }
+            _ => {}
+        }
+    }
+
+    pub fn on_event(&mut self, event: Command) {
+        match event {
+            Command::System(system_command) => self.handle_system_command(system_command),
+            Command::Live(live_command) => self.handle_live_command(live_command),
             _ => {}
         }
     }

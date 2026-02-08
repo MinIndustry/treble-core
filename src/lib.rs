@@ -70,7 +70,7 @@ pub mod prelude {
     // App exports
     pub use super::app::{
         self,
-        prelude::{App, Commands},
+        prelude::{App, Command},
     };
 
     // Core exports - only expose the module, details accessed through it
@@ -186,7 +186,7 @@ pub struct AudioMetrics {
 
 pub fn start_app(
     event_tx: Sender<audio::BackendEvent>,
-    command_rx: Receiver<app::prelude::Commands>,
+    command_rx: Receiver<app::prelude::Command>,
 ) -> Result<AudioHandle, audio::AudioError> {
     use std::sync::Arc;
     use std::sync::atomic::Ordering;

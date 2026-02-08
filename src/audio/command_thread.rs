@@ -2,6 +2,7 @@
 
 use crate::app::prelude::*;
 use std::sync::Arc;
+use crate::app::commands::SystemCommand;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread::{self, JoinHandle};
@@ -22,7 +23,7 @@ use super::shared_state::SharedAudioState;
 pub fn spawn_command_thread(
     mut app: App,
     shared_state: Arc<SharedAudioState>,
-    command_rx: Receiver<Commands>,
+    command_rx: Receiver<Command>,
     event_tx: Sender<BackendEvent>,
     message_tx: crossbeam::channel::Sender<AudioMessage>,
 ) -> JoinHandle<()> {
@@ -33,7 +34,7 @@ pub fn spawn_command_thread(
 
             loop {
                 match command_rx.recv() {
-                    Ok(Commands::Quit) => {
+                    Ok(Command::System(SystemCommand::Quit)) => {
                         log::info!("Quit command received");
                         shared_state.shutdown.store(true, Ordering::Release);
                         let _ = message_tx.send(AudioMessage::Shutdown);

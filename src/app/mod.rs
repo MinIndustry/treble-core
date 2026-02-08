@@ -1,7 +1,7 @@
 #[allow(clippy::module_inception)]
 mod app;
 mod cli;
-mod commands;
+pub mod commands;
 mod row;
 
 /// The filesystem module is used to interact with the filesystem.
@@ -16,7 +16,7 @@ mod system;
 pub mod prelude {
     pub use super::app::{App, AppMode, RunMode};
     pub use super::cli::Cli;
-    pub use super::commands::Commands;
+    pub use super::commands::Command;
     pub use super::filesystem::FSConfig;
     pub use super::system::SystemConfig;
 }
