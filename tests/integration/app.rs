@@ -7,7 +7,10 @@
 //! - Row management and state updates
 //! - Configuration loading from files
 
-use rustic::prelude::{App, Commands};
+use rustic::app::commands::{
+    Command, LiveCommand, SettingsCommand, SystemCommand,
+};
+use rustic::prelude::App;
 use std::io::Write;
 
 // ============================================================================
@@ -249,7 +252,7 @@ fn test_on_event_notestart() {
 
     // This test verifies the event is processed without panicking
     // In a real scenario, this would trigger audio on the instrument
-    app.on_event(Commands::NoteStart(0, 0, 0.8));
+    app.on_event(Command::Live(LiveCommand::NoteStart { note: 0, row: 0, velocity: 0.8 }));
 
     // No panic = success for this integration-style test
 }
@@ -261,10 +264,10 @@ fn test_on_event_notestop() {
     app.rows[0].octave = 4;
 
     // Start a note first
-    app.on_event(Commands::NoteStart(0, 0, 0.8));
+    app.on_event(Command::Live(LiveCommand::NoteStart { note: 0, row: 0, velocity: 0.8 }));
 
     // Then stop it
-    app.on_event(Commands::NoteStop(0, 0));
+    app.on_event(Command::Live(LiveCommand::NoteStop { note: 0, row: 0 }));
 
     // No panic = success
 }
@@ -274,7 +277,7 @@ fn test_on_event_notestop() {
 fn test_on_event_notestart_invalid_row_panics() {
     // NoteStart with invalid row should panic
     let mut app = App::new();
-    app.on_event(Commands::NoteStart(0, 2, 0.8));
+    app.on_event(Command::Live(LiveCommand::NoteStart { note: 0, row: 2, velocity: 0.8 }));
 }
 
 #[test]
@@ -282,7 +285,7 @@ fn test_on_event_notestart_invalid_row_panics() {
 fn test_on_event_notestop_invalid_row_panics() {
     // NoteStop with invalid row should panic
     let mut app = App::new();
-    app.on_event(Commands::NoteStop(0, 3));
+    app.on_event(Command::Live(LiveCommand::NoteStop { note: 0, row: 3 }));
 }
 
 // ============================================================================
@@ -297,12 +300,12 @@ fn test_on_event_octaveup() {
     app.rows[1].octave = 3;
 
     // Increase octave for row 0
-    app.on_event(Commands::OctaveUp(0));
+    app.on_event(Command::Live(LiveCommand::OctaveUp(0)));
     assert_eq!(app.rows[0].octave, 5, "Row 0 octave should increase to 5");
     assert_eq!(app.rows[1].octave, 3, "Row 1 octave should remain at 3");
 
     // Increase octave for row 1
-    app.on_event(Commands::OctaveUp(1));
+    app.on_event(Command::Live(LiveCommand::OctaveUp(1)));
     assert_eq!(app.rows[0].octave, 5, "Row 0 octave should remain at 5");
     assert_eq!(app.rows[1].octave, 4, "Row 1 octave should increase to 4");
 }
@@ -315,12 +318,12 @@ fn test_on_event_octavedown() {
     app.rows[1].octave = 6;
 
     // Decrease octave for row 0
-    app.on_event(Commands::OctaveDown(0));
+    app.on_event(Command::Live(LiveCommand::OctaveDown(0)));
     assert_eq!(app.rows[0].octave, 4, "Row 0 octave should decrease to 4");
     assert_eq!(app.rows[1].octave, 6, "Row 1 octave should remain at 6");
 
     // Decrease octave for row 1
-    app.on_event(Commands::OctaveDown(1));
+    app.on_event(Command::Live(LiveCommand::OctaveDown(1)));
     assert_eq!(app.rows[0].octave, 4, "Row 0 octave should remain at 4");
     assert_eq!(app.rows[1].octave, 5, "Row 1 octave should decrease to 5");
 }
@@ -331,9 +334,9 @@ fn test_on_event_octaveup_multiple_times() {
     let mut app = App::new();
     app.rows[0].octave = 2;
 
-    app.on_event(Commands::OctaveUp(0));
-    app.on_event(Commands::OctaveUp(0));
-    app.on_event(Commands::OctaveUp(0));
+    app.on_event(Command::Live(LiveCommand::OctaveUp(0)));
+    app.on_event(Command::Live(LiveCommand::OctaveUp(0)));
+    app.on_event(Command::Live(LiveCommand::OctaveUp(0)));
 
     assert_eq!(app.rows[0].octave, 5, "Row 0 octave should increase by 3");
 }
@@ -344,8 +347,8 @@ fn test_on_event_octavedown_multiple_times() {
     let mut app = App::new();
     app.rows[1].octave = 7;
 
-    app.on_event(Commands::OctaveDown(1));
-    app.on_event(Commands::OctaveDown(1));
+    app.on_event(Command::Live(LiveCommand::OctaveDown(1)));
+    app.on_event(Command::Live(LiveCommand::OctaveDown(1)));
 
     assert_eq!(app.rows[1].octave, 5, "Row 1 octave should decrease by 2");
 }
@@ -356,9 +359,9 @@ fn test_on_event_octaveup_and_down() {
     let mut app = App::new();
     app.rows[0].octave = 4;
 
-    app.on_event(Commands::OctaveUp(0));
-    app.on_event(Commands::OctaveUp(0));
-    app.on_event(Commands::OctaveDown(0));
+    app.on_event(Command::Live(LiveCommand::OctaveUp(0)));
+    app.on_event(Command::Live(LiveCommand::OctaveUp(0)));
+    app.on_event(Command::Live(LiveCommand::OctaveDown(0)));
 
     assert_eq!(
         app.rows[0].octave, 5,
@@ -371,7 +374,7 @@ fn test_on_event_octaveup_and_down() {
 fn test_on_event_octaveup_invalid_row_panics() {
     // OctaveUp with invalid row should panic
     let mut app = App::new();
-    app.on_event(Commands::OctaveUp(2));
+    app.on_event(Command::Live(LiveCommand::OctaveUp(2)));
 }
 
 #[test]
@@ -379,7 +382,7 @@ fn test_on_event_octaveup_invalid_row_panics() {
 fn test_on_event_octavedown_invalid_row_panics() {
     // OctaveDown with invalid row should panic
     let mut app = App::new();
-    app.on_event(Commands::OctaveDown(5));
+    app.on_event(Command::Live(LiveCommand::OctaveDown(5)));
 }
 
 // ============================================================================
@@ -392,11 +395,11 @@ fn test_on_event_unhandled_commands() {
     let mut app = App::new();
 
     // These commands are matched by the wildcard in on_event
-    app.on_event(Commands::Quit);
-    app.on_event(Commands::Reset);
-    app.on_event(Commands::LinkOctaves);
-    app.on_event(Commands::UnlinkOctaves);
-    app.on_event(Commands::ToggleMetronome);
+    app.on_event(Command::System(SystemCommand::Quit));
+    app.on_event(Command::System(SystemCommand::Reset));
+    app.on_event(Command::Live(LiveCommand::LinkOctaves));
+    app.on_event(Command::Live(LiveCommand::UnlinkOctaves));
+    app.on_event(Command::Settings(SettingsCommand::ToggleMetronome));
 
     // No panic = success
 }
@@ -429,12 +432,12 @@ fn test_row_independent_octaves() {
     app.rows[1].octave = 6;
 
     // Modify row 0
-    app.on_event(Commands::OctaveUp(0));
+    app.on_event(Command::Live(LiveCommand::OctaveUp(0)));
     assert_eq!(app.rows[0].octave, 4, "Row 0 should be at octave 4");
     assert_eq!(app.rows[1].octave, 6, "Row 1 should remain at octave 6");
 
     // Modify row 1
-    app.on_event(Commands::OctaveDown(1));
+    app.on_event(Command::Live(LiveCommand::OctaveDown(1)));
     assert_eq!(app.rows[0].octave, 4, "Row 0 should remain at octave 4");
     assert_eq!(app.rows[1].octave, 5, "Row 1 should be at octave 5");
 }
@@ -521,12 +524,12 @@ fn test_multiple_commands_sequence() {
     app.rows[0].octave = 4;
 
     // Sequence of operations
-    app.on_event(Commands::NoteStart(0, 0, 0.8)); // Start C4
-    app.on_event(Commands::OctaveUp(0)); // Change to octave 5
-    app.on_event(Commands::NoteStart(4, 0, 0.7)); // Start E5
-    app.on_event(Commands::NoteStop(0, 0)); // Stop C (at its original octave)
-    app.on_event(Commands::OctaveDown(0)); // Back to octave 4
-    app.on_event(Commands::NoteStop(4, 0)); // Stop E
+    app.on_event(Command::Live(LiveCommand::NoteStart { note: 0, row: 0, velocity: 0.8 })); // Start C4
+    app.on_event(Command::Live(LiveCommand::OctaveUp(0))); // Change to octave 5
+    app.on_event(Command::Live(LiveCommand::NoteStart { note: 4, row: 0, velocity: 0.7 })); // Start E5
+    app.on_event(Command::Live(LiveCommand::NoteStop { note: 0, row: 0 })); // Stop C (at its original octave)
+    app.on_event(Command::Live(LiveCommand::OctaveDown(0))); // Back to octave 4
+    app.on_event(Command::Live(LiveCommand::NoteStop { note: 4, row: 0 })); // Stop E
 
     // Verify final state
     assert_eq!(app.rows[0].octave, 4, "Should be back at octave 4");
@@ -539,13 +542,13 @@ fn test_interleaved_row_commands() {
     app.rows[0].octave = 3;
     app.rows[1].octave = 5;
 
-    app.on_event(Commands::OctaveUp(0));
-    app.on_event(Commands::OctaveUp(1));
-    app.on_event(Commands::NoteStart(0, 0, 0.5));
-    app.on_event(Commands::NoteStart(7, 1, 0.6));
-    app.on_event(Commands::OctaveDown(0));
-    app.on_event(Commands::NoteStop(0, 0));
-    app.on_event(Commands::NoteStop(7, 1));
+    app.on_event(Command::Live(LiveCommand::OctaveUp(0)));
+    app.on_event(Command::Live(LiveCommand::OctaveUp(1)));
+    app.on_event(Command::Live(LiveCommand::NoteStart { note: 0, row: 0, velocity: 0.5 }));
+    app.on_event(Command::Live(LiveCommand::NoteStart { note: 7, row: 1, velocity: 0.6 }));
+    app.on_event(Command::Live(LiveCommand::OctaveDown(0)));
+    app.on_event(Command::Live(LiveCommand::NoteStop { note: 0, row: 0 }));
+    app.on_event(Command::Live(LiveCommand::NoteStop { note: 7, row: 1 }));
 
     // Verify both rows maintained correct state
     assert_eq!(app.rows[0].octave, 3, "Row 0 should be at octave 3");
@@ -564,7 +567,7 @@ fn test_octave_underflow_behavior() {
     app.rows[0].octave = 0;
 
     // This will panic in debug mode due to overflow checks
-    app.on_event(Commands::OctaveDown(0));
+    app.on_event(Command::Live(LiveCommand::OctaveDown(0)));
 }
 
 #[test]
@@ -575,5 +578,5 @@ fn test_octave_overflow_behavior() {
     app.rows[0].octave = 255;
 
     // This will panic in debug mode due to overflow checks
-    app.on_event(Commands::OctaveUp(0));
+    app.on_event(Command::Live(LiveCommand::OctaveUp(0)));
 }
