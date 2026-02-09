@@ -33,8 +33,9 @@ pub struct AppConfig {
 
 #[derive(Default)]
 pub enum RunMode {
-    Live,
-    Score,
+    Live,  // App is ready to play live, has loaded instruments
+    Score, // App is ready to play a score
+    Graph, // App is ready to play a graph or multiple graphs
     #[default]
     Unknown,
 }
@@ -47,7 +48,7 @@ pub enum AppMode {
     Running, // Simply running, use inputs as commands/notes
 }
 
-/// Application meta-object, contains the application's configuration,
+/// Application metaobject, contains the application's configuration,
 /// Available instruments, paths to save/load files to/from, ...
 pub struct App {
     pub config: AppConfig,
@@ -60,24 +61,18 @@ pub struct App {
 
 impl Default for App {
     fn default() -> Self {
-        let root_path = match FSConfig::app_root_dir() {
-            Ok(path) => path,
-            Err(e) => {
-                error!("Unable to build app root dir: {}", e);
-                PathBuf::from("./")
-            }
-        };
+        let root_path = FSConfig::app_root_dir().unwrap_or_else(|e| {
+            error!("Unable to build app root dir: {}", e);
+            PathBuf::from("./")
+        });
 
         let config_file = root_path.join("config.toml");
 
         let config = if config_file.exists() {
-            match toml::from_str(&std::fs::read_to_string(config_file).unwrap()) {
-                Ok(config) => config,
-                Err(e) => {
-                    error!("Unable to parse config file: {}", e);
-                    AppConfig::default()
-                }
-            }
+            toml::from_str(&std::fs::read_to_string(config_file).unwrap()).unwrap_or_else(|e| {
+                error!("Unable to parse config file: {}", e);
+                AppConfig::default()
+            })
         } else {
             AppConfig::default()
         };
@@ -252,6 +247,9 @@ impl App {
             RunMode::Live => {
                 info!("Starting live mode");
             }
+            RunMode::Graph => {
+                info!("Starting graph mode");
+            }
         }
     }
 
@@ -267,6 +265,9 @@ impl App {
             RunMode::Live => {
                 trace!("Live ticking");
                 self.live_tick();
+            }
+            RunMode::Graph => {
+                info!("Running graph mode");
             }
         }
     }

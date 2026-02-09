@@ -7,9 +7,7 @@
 //! - Row management and state updates
 //! - Configuration loading from files
 
-use rustic::app::commands::{
-    Command, LiveCommand, SettingsCommand, SystemCommand,
-};
+use rustic::app::commands::{Command, LiveCommand, SettingsCommand, SystemCommand};
 use rustic::prelude::App;
 use std::io::Write;
 
@@ -252,7 +250,11 @@ fn test_on_event_notestart() {
 
     // This test verifies the event is processed without panicking
     // In a real scenario, this would trigger audio on the instrument
-    app.on_event(Command::Live(LiveCommand::NoteStart { note: 0, row: 0, velocity: 0.8 }));
+    app.on_event(Command::Live(LiveCommand::NoteStart {
+        note: 0,
+        row: 0,
+        velocity: 0.8,
+    }));
 
     // No panic = success for this integration-style test
 }
@@ -264,7 +266,11 @@ fn test_on_event_notestop() {
     app.rows[0].octave = 4;
 
     // Start a note first
-    app.on_event(Command::Live(LiveCommand::NoteStart { note: 0, row: 0, velocity: 0.8 }));
+    app.on_event(Command::Live(LiveCommand::NoteStart {
+        note: 0,
+        row: 0,
+        velocity: 0.8,
+    }));
 
     // Then stop it
     app.on_event(Command::Live(LiveCommand::NoteStop { note: 0, row: 0 }));
@@ -277,7 +283,11 @@ fn test_on_event_notestop() {
 fn test_on_event_notestart_invalid_row_panics() {
     // NoteStart with invalid row should panic
     let mut app = App::new();
-    app.on_event(Command::Live(LiveCommand::NoteStart { note: 0, row: 2, velocity: 0.8 }));
+    app.on_event(Command::Live(LiveCommand::NoteStart {
+        note: 0,
+        row: 2,
+        velocity: 0.8,
+    }));
 }
 
 #[test]
@@ -524,9 +534,17 @@ fn test_multiple_commands_sequence() {
     app.rows[0].octave = 4;
 
     // Sequence of operations
-    app.on_event(Command::Live(LiveCommand::NoteStart { note: 0, row: 0, velocity: 0.8 })); // Start C4
+    app.on_event(Command::Live(LiveCommand::NoteStart {
+        note: 0,
+        row: 0,
+        velocity: 0.8,
+    })); // Start C4
     app.on_event(Command::Live(LiveCommand::OctaveUp(0))); // Change to octave 5
-    app.on_event(Command::Live(LiveCommand::NoteStart { note: 4, row: 0, velocity: 0.7 })); // Start E5
+    app.on_event(Command::Live(LiveCommand::NoteStart {
+        note: 4,
+        row: 0,
+        velocity: 0.7,
+    })); // Start E5
     app.on_event(Command::Live(LiveCommand::NoteStop { note: 0, row: 0 })); // Stop C (at its original octave)
     app.on_event(Command::Live(LiveCommand::OctaveDown(0))); // Back to octave 4
     app.on_event(Command::Live(LiveCommand::NoteStop { note: 4, row: 0 })); // Stop E
@@ -544,8 +562,16 @@ fn test_interleaved_row_commands() {
 
     app.on_event(Command::Live(LiveCommand::OctaveUp(0)));
     app.on_event(Command::Live(LiveCommand::OctaveUp(1)));
-    app.on_event(Command::Live(LiveCommand::NoteStart { note: 0, row: 0, velocity: 0.5 }));
-    app.on_event(Command::Live(LiveCommand::NoteStart { note: 7, row: 1, velocity: 0.6 }));
+    app.on_event(Command::Live(LiveCommand::NoteStart {
+        note: 0,
+        row: 0,
+        velocity: 0.5,
+    }));
+    app.on_event(Command::Live(LiveCommand::NoteStart {
+        note: 7,
+        row: 1,
+        velocity: 0.6,
+    }));
     app.on_event(Command::Live(LiveCommand::OctaveDown(0)));
     app.on_event(Command::Live(LiveCommand::NoteStop { note: 0, row: 0 }));
     app.on_event(Command::Live(LiveCommand::NoteStop { note: 7, row: 1 }));
