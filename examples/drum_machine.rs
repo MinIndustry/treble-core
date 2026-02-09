@@ -10,6 +10,9 @@ use rustic::instruments::Instrument;
 use rustic::instruments::prelude::{HiHat, Kick, Snare};
 use rustic::prelude::App;
 
+#[cfg(feature = "plotting")]
+use rustic::plotting::plot_data;
+
 fn main() {
     CombinedLogger::init(vec![
         TermLogger::new(
@@ -83,42 +86,26 @@ fn main() {
 
     #[cfg(feature = "plotting")]
     {
-        use rustic::plotting::Plot;
-
-        let left_ear = complete_value_list
+        let left_ear: Vec<(f32, f32)> = complete_value_list
             .iter()
             .enumerate()
-            .filter_map(|(position, element)| {
-                if position % 2 == 0 {
-                    Some((
-                        (position as f32 / 2.0) / app.config.system.sample_rate,
-                        *element,
-                    ))
-                } else {
-                    None
-                }
+            .map(|(position, element)| {
+                (
+                    (position as f32 / 2.0) / app.config.system.sample_rate as f32,
+                    *element,
+                )
             })
             .collect();
 
-        let right_ear = complete_value_list
-            .iter()
-            .enumerate()
-            .filter_map(|(position, element)| {
-                if position % 2 == 1 {
-                    Some((
-                        (position as f32 / 2.0) / app.config.system.sample_rate,
-                        *element,
-                    ))
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        let mut plot = Plot::new("Simple Drum", (-0.1, 1.0), (-0.8, 0.8), "drum.png");
-        plot.plot(left_ear, "left ear", (255, 0, 0));
-        plot.plot(right_ear, "right_ear", (0, 255, 0));
-        plot.render();
+        if let Err(e) = plot_data(
+            left_ear,
+            "Drum machine Waveform",
+            (-0.1, 1.1),
+            (-1.1, 1.1),
+            "drum_machine.png",
+        ) {
+            log::error!("Error: {}", e.to_string());
+        }
     }
 
     sink.sleep_until_end();
