@@ -6,7 +6,7 @@ use std::fs::File;
 
 use rustic::Note;
 use rustic::instruments::Instrument;
-use rustic::instruments::prelude::HiHat;
+use rustic::instruments::prelude::{Kick};
 use rustic::prelude::App;
 
 #[cfg(feature = "plotting")]
@@ -15,13 +15,13 @@ use rustic::plotting::plot_data;
 fn main() {
     CombinedLogger::init(vec![
         TermLogger::new(
-            LevelFilter::Info,
+            LevelFilter::Warn,
             Config::default(),
             TerminalMode::Mixed,
             ColorChoice::Auto,
         ),
         WriteLogger::new(
-            LevelFilter::Trace,
+            LevelFilter::Warn,
             Config::default(),
             File::create("app.log").unwrap(),
         ),
@@ -30,35 +30,41 @@ fn main() {
 
     let app = App::init();
 
-    let mut snare = HiHat::new().unwrap();
+    let mut kick = Kick::new();
 
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     let sink = Sink::try_new(&stream_handle).unwrap();
 
     let mut values = vec![];
     let mut complete_value_list = vec![];
+    for i in 0..20 {
+        values.clear();
 
-    values.clear();
+        if i % 4 == 1 {
+            println!("Starting kick at position {}", i);
+            kick.start_note(Note(rustic::core::utils::tones::NOTES::A, 0), 0.0);
+        }
 
-    snare.start_note(Note(rustic::core::utils::tones::NOTES::A, 0), 0.0);
+        for _ in 0..(app.config.system.sample_rate as usize / 4) {
+            kick.tick();
 
-    for _ in 0..(app.config.system.sample_rate as usize) {
-        snare.tick();
+            let full = kick.get_output();
 
-        let full = snare.get_output();
+            values.push(full); // Left
+            values.push(full); // Right
 
-        values.push(full);
+            complete_value_list.push(full);
+            complete_value_list.push(full);
+        }
 
-        complete_value_list.push(full);
+        kick.stop_note(Note(rustic::core::utils::tones::NOTES::A, 0));
+
+        sink.append(SamplesBuffer::new(
+            2_u16,
+            app.config.system.sample_rate,
+            values.to_vec(),
+        ));
     }
-
-    snare.stop_note(Note(rustic::core::utils::tones::NOTES::A, 0));
-
-    sink.append(SamplesBuffer::new(
-        1_u16,
-        app.config.system.sample_rate,
-        values.to_vec(),
-    ));
 
     #[cfg(feature = "plotting")]
     {
@@ -75,10 +81,10 @@ fn main() {
 
         if let Err(e) = plot_data(
             left_ear,
-            "Snare Waveform",
+            "Multi Kick Waveform",
             (-0.1, 1.1),
             (-1.1, 1.1),
-            "hihat.png",
+            "multi_kick.png",
         ) {
             log::error!("Error: {}", e.to_string());
         }

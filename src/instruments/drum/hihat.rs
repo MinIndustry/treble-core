@@ -1,8 +1,3 @@
-#[cfg(debug_assertions)]
-use std::fs::File;
-#[cfg(debug_assertions)]
-use std::io::Write;
-
 use petgraph::prelude::NodeIndex;
 
 use crate::Note;
@@ -25,9 +20,6 @@ pub struct HiHat {
     graph: System<1, 1>,
     bandpass_filter_index: NodeIndex<u32>,
     playing: bool,
-    time: f32,
-    #[cfg(debug_assertions)]
-    output_buffer: File,
 }
 
 impl HiHat {
@@ -99,26 +91,10 @@ impl HiHat {
             .compute()
             .map_err(|_| "Failed to compute".to_string())?;
 
-        match crate::app::prelude::FSConfig::debug_dir("HiHat", "hihat.viz") {
-            Ok(path) => {
-                if let Err(e) = system.save_to_file(&path) {
-                    log::warn!("Failed to save visualization: {}", e);
-                }
-            }
-            Err(_) => log::warn!("Failed to build path to save hihat graph"),
-        }
-
-        #[cfg(debug_assertions)]
-        let output_path =
-            crate::app::prelude::FSConfig::debug_dir("HiHat", "hihat_output.txt").unwrap();
-
         Ok(Self {
             graph: system,
             bandpass_filter_index: bandpass,
             playing: false,
-            time: 0.0,
-            #[cfg(debug_assertions)]
-            output_buffer: File::create(output_path).unwrap(),
         })
     }
 }
@@ -127,7 +103,6 @@ impl Instrument for HiHat {
     fn start_note(&mut self, _note: Note, _velocity: f32) {
         log::trace!("Starting HiHat note");
         self.playing = true;
-        self.time = 0.0;
 
         // Reset the bandpass filter state to ensure clean retriggering.
         // For percussive sounds, residual filter state from previous hits
@@ -151,31 +126,16 @@ impl Instrument for HiHat {
     }
 
     fn get_output(&mut self) -> f32 {
-        let value = *self
+        *self
             .graph
             .get_sink(0)
             .unwrap()
             .consume(1)
             .first()
-            .unwrap_or(&0.0);
-        #[cfg(debug_assertions)]
-        {
-            // Check if the output buffer is empty
-            if self.output_buffer.metadata().unwrap().len() > 0 {
-                if let Err(e) = self.output_buffer.write(format!(" {}", value).as_bytes()) {
-                    log::warn!("Failed to write to output buffer: {}", e);
-                }
-            } else if let Err(e) = self.output_buffer.write(format!("{}", value).as_bytes()) {
-                log::warn!("Failed to write to output buffer: {}", e);
-            }
-        }
-        value
+            .unwrap_or(&0.0)
     }
 
     fn tick(&mut self) {
-        if self.playing {
-            self.graph.run();
-            self.time += 1.0 / 44100.0;
-        }
+        self.graph.run();
     }
 }
