@@ -6,7 +6,7 @@ use std::fs::File;
 
 use rustic::Note;
 use rustic::instruments::Instrument;
-use rustic::instruments::prelude::{Kick};
+use rustic::instruments::prelude::Kick;
 use rustic::prelude::App;
 
 #[cfg(feature = "plotting")]

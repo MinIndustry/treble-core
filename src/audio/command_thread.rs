@@ -1,8 +1,8 @@
 //! Command processing thread implementation
 
+use crate::app::commands::SystemCommand;
 use crate::app::prelude::*;
 use std::sync::Arc;
-use crate::app::commands::SystemCommand;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread::{self, JoinHandle};
