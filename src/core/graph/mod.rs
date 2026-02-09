@@ -53,6 +53,7 @@ pub trait Filter: Entry + AudioGraphElement + fmt::Display + fmt::Debug {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 }
 
+mod error;
 /// The sink module provides implementations for various types of sinks.
 mod sink;
 /// The source module provides implementations for various types of sources.

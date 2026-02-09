@@ -14,7 +14,7 @@ fn test_system() {
     let filter = GainFilter::new(0.5);
     let filter2 = GainFilter::new(0.5);
 
-    let mut system = System::<1, 1>::new();
+    let mut system = System::new();
     let filt_1 = system.add_filter(Box::from(filter));
     let filt_2 = system.add_filter(Box::from(filter2));
 
@@ -25,14 +25,14 @@ fn test_system() {
         .into();
     generator.start();
 
-    system.set_source(0, simple_source(generator));
+    let source_id = system.add_source(simple_source(generator));
 
     let sink = SimpleSink::new();
-    system.set_sink(0, Box::new(sink));
+    let sink_id = system.add_sink(Box::new(sink));
 
     system.connect(filt_1, filt_2, 0, 0);
-    system.connect_source(0, filt_1, 0);
-    system.connect_sink(filt_2, 0, 0);
+    system.connect_source(source_id, filt_1, 0);
+    system.connect_sink(filt_2, sink_id, 0);
 
     if system.compute().is_err() {
         panic!("Error computing system");
@@ -62,25 +62,23 @@ fn stress_test() {
     let filter = GainFilter::new(0.5);
     let filter2 = GainFilter::new(0.5);
 
-    let mut system = System::<1, 1>::new();
+    let mut system = System::new();
     let filt_1 = system.add_filter(Box::from(filter));
     let filt_2 = system.add_filter(Box::from(filter2));
 
-    let source = simple_source(
+    let source_id = system.add_source(simple_source(
         ToneGeneratorBuilder::new()
             .waveform(Waveform::Blank)
             .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
             .build()
             .into(),
-    );
-    system.set_source(0, source);
+    ));
 
-    let sink = SimpleSink::new();
-    system.set_sink(0, Box::new(sink));
+    let sink_id = system.add_sink(Box::new(SimpleSink::new()));
 
     system.connect(filt_1, filt_2, 0, 0);
-    system.connect_source(0, filt_1, 0);
-    system.connect_sink(filt_2, 0, 0);
+    system.connect_source(source_id, filt_1, 0);
+    system.connect_sink(filt_2, sink_id, 0);
 
     if system.compute().is_err() {
         panic!("Error computing system");
@@ -111,7 +109,7 @@ fn stress_test() {
 /// Testing that the system runs at least as fast as the sample rate for a
 /// complex system
 fn stress_test_2() {
-    let mut system = System::<1, 1>::new();
+    let mut system = System::new();
 
     let filter_0 = CombinatorFilter::new(1, 2);
     let filter_1 = GainFilter::new(0.5);
@@ -136,13 +134,11 @@ fn stress_test_2() {
             .build()
             .into(),
     );
-    system.set_source(0, source);
+    let source_id = system.add_source(source);
+    let sink_id = system.add_sink(Box::new(SimpleSink::new()));
 
-    let sink = SimpleSink::new();
-    system.set_sink(0, Box::new(sink));
-
-    system.connect_source(0, filt_0, 0);
-    system.connect_sink(filt_3, 0, 0);
+    system.connect_source(source_id, filt_0, 0);
+    system.connect_sink(filt_3, sink_id, 0);
 
     if system.compute().is_err() {
         panic!("Error computing system");

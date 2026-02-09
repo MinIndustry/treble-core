@@ -17,7 +17,7 @@ use crate::instruments::Instrument;
 /// before being shaped by an envelope generator.
 #[derive(Debug)]
 pub struct HiHat {
-    graph: System<1, 1>,
+    graph: System,
     bandpass_filter_index: NodeIndex<u32>,
     playing: bool,
 }
@@ -72,8 +72,8 @@ impl HiHat {
                 .build(),
         );
 
-        let mut system = System::<1, 1>::new();
-        system.set_source(0, source);
+        let mut system = System::new();
+        let source_id = system.add_source(source);
 
         let bandpass = system.add_filter(Box::from(ResonantBandpassFilter::new(
             (10.0e3 + 400.0) / 2.0,
@@ -81,11 +81,9 @@ impl HiHat {
             44100.0,
         )));
 
-        system.connect_source(0, bandpass, 0);
-
-        let sink: SimpleSink = SimpleSink::new();
-        system.set_sink(0, Box::from(sink));
-        system.connect_sink(bandpass, 0, 0);
+        system.connect_source(source_id, bandpass, 0);
+        let sink_id = system.add_sink(Box::from(SimpleSink::new()));
+        system.connect_sink(bandpass, sink_id, 0);
 
         system
             .compute()

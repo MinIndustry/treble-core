@@ -4,9 +4,10 @@ use std::fs::File;
 use log::error;
 use std::path::PathBuf;
 
+use rustic::core::generator::prelude::builder::MultiToneGeneratorBuilder;
 use rustic::core::{
     filters::prelude::{CombinatorFilter, GainFilter},
-    graph::System,
+    graph::{Source, System, simple_source},
 };
 
 pub fn main() {
@@ -26,7 +27,10 @@ pub fn main() {
     .unwrap();
 
     let system_1 = {
-        let mut system = System::<2, 5>::new();
+        let mut system = System::new();
+        for _ in 0..2 {
+            system.add_source(simple_source(MultiToneGeneratorBuilder::new().build()));
+        }
 
         let combinator = system.add_filter(Box::new(CombinatorFilter::new(2, 5)));
 
@@ -70,7 +74,11 @@ pub fn main() {
     };
 
     let system_2 = {
-        let mut system = System::<5, 1>::new();
+        let mut system = System::new();
+
+        for _ in 0..5 {
+            system.add_source(simple_source(MultiToneGeneratorBuilder::new().build()));
+        }
 
         let combinator = system.add_filter(Box::new(CombinatorFilter::new(5, 1)));
 
@@ -86,15 +94,19 @@ pub fn main() {
     };
 
     if let Err(e) = system_1.save_to_file(&PathBuf::from("system1.viz")) {
-        error!("{}", e);
+        log::error!("{}", e);
     }
 
     if let Err(e) = system_2.save_to_file(&PathBuf::from("system2.viz")) {
-        error!("{}", e);
+        log::error!("{}", e);
     }
 
-    let merged_system = system_1.merge(system_2, vec![(0, 0), (1, 1), (2, 2), (3, 3), (4, 4)]);
-    if let Err(e) = merged_system.save_to_file(&PathBuf::from("merged_system.viz")) {
-        error!("{}", e);
+    match system_1.merge(system_2, vec![(0, 0), (1, 1), (2, 2), (3, 3), (4, 4)]) {
+        Ok(merged_system) => {
+            if let Err(e) = merged_system.save_to_file(&PathBuf::from("merged_system.viz")) {
+                log::error!("{}", e);
+            }
+        }
+        Err(e) => error!("Unable to merge systems: {}", e),
     }
 }

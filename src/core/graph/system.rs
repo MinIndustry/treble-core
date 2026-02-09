@@ -9,17 +9,17 @@ use petgraph::dot::Dot;
 use petgraph::prelude::NodeIndex;
 use petgraph::{Direction, algo::toposort};
 
-use crate::core::generator::prelude::Waveform;
-use crate::core::generator::prelude::builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder};
-
 use super::sink::simple_sink;
 use super::{Filter, Sink, Source, simple_source};
+use crate::core::generator::prelude::Waveform;
+use crate::core::generator::prelude::builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder};
+use crate::core::graph::error::AudioGraphError;
 
-/// A Pipe & Filter system
+/// ## A Pipe & Filter system
 /// The system is composed of filters, sources and sinks.
-/// It is represented as a directed graph where the filters are the nodes
-/// The Sources & Sinks are special nodes that have respectively only outgoing (source) or incoming (sink) edges
-/// The edges represent the pipes between the filters
+/// It is represented as a directed graph where the filters are the nodes.
+/// The Sources & Sinks are special nodes that have respectively only outgoing (source) or incoming (sink) edges.
+/// The edges represent the pipes between the filters.
 /// Some filters have special output properties. E.g. the delay filter's input pipe is ignored (postponed) when
 /// the topology sorting is done, in order to avoid cycles. A system with cycles must include a delay or similar filter
 /// to break the cycle.
@@ -29,15 +29,15 @@ use super::{Filter, Sink, Source, simple_source};
 /// use rustic::core::filters::prelude::Tremolo;
 ///
 /// // A simple system with one input and one output
-/// let mut system = System::<1, 1>::new();
+/// let mut system = System::new();
 ///
 /// // Adding a filter to the system
 /// let filter = Tremolo::new(20.0, 0.5, 1.5);
 /// let filter_index = system.add_filter(Box::from(filter));
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Default)]
 #[allow(clippy::type_complexity)]
-pub struct System<const INPUTS: usize, const OUTPUTS: usize> {
+pub struct System {
     // The actual filter graph, from which the execution order is derived
     // Each weight represents the port into which the filter is connected
     graph: Graph<Box<dyn Filter>, (usize, usize)>,
@@ -46,46 +46,22 @@ pub struct System<const INPUTS: usize, const OUTPUTS: usize> {
     // The sources of the system and the filters they are connected to
     // The node index is the index of the filter that the source is connected to
     // The second usize is the port of the filter that the source is connected to
-    sources: [(Box<dyn Source>, (NodeIndex<u32>, usize)); INPUTS],
+    sources: Vec<(Box<dyn Source>, (NodeIndex<u32>, usize))>,
     // The sinks of the system.
     // The node index is the index of the filter that the sink is connected to
     // The second usize is the port of the filter that the sink is connected to
-    sinks: [((NodeIndex<u32>, usize), Box<dyn Sink>); OUTPUTS],
+    sinks: Vec<((NodeIndex<u32>, usize), Box<dyn Sink>)>,
 }
 
-impl<const INPUTS: usize, const OUTPUTS: usize> Default for System<INPUTS, OUTPUTS> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
+impl System {
     /// Creates a new system with simple null sources & simple sinks
     #[allow(clippy::type_complexity)]
     pub fn new() -> Self {
-        let sources: [(Box<dyn Source>, (NodeIndex<u32>, usize)); INPUTS] =
-            core::array::from_fn(|_| {
-                (
-                    simple_source(
-                        MultiToneGeneratorBuilder::new()
-                            .add_generator(
-                                ToneGeneratorBuilder::new()
-                                    .waveform(Waveform::Blank)
-                                    .build(),
-                            )
-                            .build(),
-                    ),
-                    (NodeIndex::new(0), 0),
-                )
-            });
-        let sinks: [((NodeIndex<u32>, usize), Box<dyn Sink>); OUTPUTS] =
-            core::array::from_fn(|_| ((NodeIndex::new(0), 0), simple_sink()));
-
         System {
             graph: Graph::new(),
             layers: Vec::new(),
-            sources,
-            sinks,
+            sources: Vec::new(),
+            sinks: Vec::new(),
         }
     }
 
@@ -93,14 +69,20 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
     /// Sinks to sources links are replaced with a simple combinator filter. The amount of input in the second system
     /// should match the amount of output in the first system.
     #[allow(clippy::type_complexity)]
-    pub fn merge<const T: usize>(
+    pub fn merge(
         mut self,
-        other: System<OUTPUTS, T>,
+        other: System,
         mapping: Vec<(usize, usize)>,
-    ) -> System<INPUTS, T> {
+    ) -> Result<System, AudioGraphError> {
+        if self.sinks.len() != other.sinks.len() {
+            log::error!("Trying to merge graphs with incompatible shapes");
+            return Err(AudioGraphError::InvalidMerging);
+        }
+
         // Contains the mapping other graph -> new graph
         let mut new_edge_map: HashMap<NodeIndex, NodeIndex> = HashMap::new();
 
+        log::trace!("Merging two graphs together");
         for (from, to) in mapping.iter() {
             let (graph_b_source_descendant_index, graph_b_node_port) = other.sources[*to].1;
             let source_descendant =
@@ -128,8 +110,8 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
 
             // Connect the sink's predecessors to the source's successors
             let (sink_predecessor_id, sink_predecessor_port) = self.sinks[*from].0;
-            info!(
-                "Node {} -> Sink {} & Source {} -> Node {} => Node {} -> Node {}",
+            log::trace!(
+                "\tNode {} -> Sink {} & Source {} -> Node {} => Node {} -> Node {}",
                 sink_predecessor_id.index(),
                 from,
                 to,
@@ -148,7 +130,6 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
         for node_index in other.graph.node_indices() {
             // Skip already added nodes
             if new_edge_map.contains_key(&node_index) {
-                info!("Node {} already pushed to new graph", node_index.index());
                 continue;
             }
 
@@ -162,7 +143,7 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
             let (other_from, other_to) = other.graph.edge_endpoints(edge).unwrap();
             let (from, to) = (new_edge_map[&other_from], new_edge_map[&other_to]);
             info!(
-                "Edge ({}, {}) -> ({}, {})",
+                "\tEdge ({}, {}) -> ({}, {})",
                 other_from.index(),
                 other_to.index(),
                 from.index(),
@@ -172,25 +153,26 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
             self.graph.add_edge(from, to, weight);
         }
 
-        let new_sinks: [((NodeIndex<u32>, usize), Box<dyn Sink>); T] =
-            core::array::from_fn(|index| {
+        let new_sinks: Vec<_> = other
+            .sinks
+            .iter()
+            .enumerate()
+            .map(|(index, sink)| {
                 (
-                    (
-                        new_edge_map[&other.sinks[index].0.0],
-                        other.sinks[index].0.1,
-                    ),
-                    dyn_clone::clone_box(&*other.sinks[index].1),
+                    (new_edge_map[&sink.0.0], sink.0.1),
+                    dyn_clone::clone_box(&*sink.1),
                 )
-            });
+            })
+            .collect();
 
-        let new_system: System<INPUTS, T> = System {
+        let new_system: System = System {
             graph: self.graph,
             layers: self.layers,
             sources: self.sources,
             sinks: new_sinks,
         };
 
-        new_system
+        Ok(new_system)
     }
 
     // Adds a filter to the system. Further references to this filter should be done using the returned uuid
@@ -202,7 +184,7 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
     }
 
     // Connects two filters together. This method connects the filter in the topologyu graph as well.
-    // Do no use this function to close a feedback loop. Use the connect_feedback method instead.
+    // Do not use this function to close a feedback loop. Use the connect_feedback method instead.
     pub fn connect(
         &mut self,
         from: NodeIndex<u32>,
@@ -232,20 +214,85 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
     }
 
     /// Sets the sink at index `index` to be the given sink object
-    pub fn set_sink(&mut self, index: usize, sink: Box<dyn Sink>) {
-        trace!("[Graph] Setting Node {} as sink {}", sink.get_name(), index);
-        self.sinks[index] = ((NodeIndex::new(0), 0), sink);
+    pub fn set_sink(&mut self, index: usize, sink: Box<dyn Sink>) -> Result<(), AudioGraphError> {
+        if index < self.sinks.len() {
+            trace!("[Graph] Setting Node {} as sink {}", sink.get_name(), index);
+            self.sinks[index] = ((NodeIndex::new(0), 0), sink);
+            Ok(())
+        } else {
+            Err(AudioGraphError::InvalidNode)
+        }
     }
 
     /// Sets source at index `index` to be the given source object
-    pub fn set_source(&mut self, index: usize, source: Box<dyn Source>) {
-        trace!("[Graph] Setting Node {} as source", source.get_name());
-        self.sources[index] = (source, (NodeIndex::new(0), 0));
+    pub fn set_source(
+        &mut self,
+        index: usize,
+        source: Box<dyn Source>,
+    ) -> Result<(), AudioGraphError> {
+        if index < self.sources.len() {
+            trace!("[Graph] Setting Node {} as source", source.get_name());
+            self.sources[index] = (source, (NodeIndex::new(0), 0));
+            Ok(())
+        } else {
+            Err(AudioGraphError::InvalidNode)
+        }
+    }
+
+    /// Adds a source and returns its index
+    pub fn add_source(&mut self, source: Box<dyn Source>) -> usize {
+        let idx = self.sources.len();
+        self.sources.push((source, (NodeIndex::new(0), 0)));
+        idx
+    }
+
+    /// Removes a source by index
+    pub fn remove_source(&mut self, index: usize) -> Option<Box<dyn Source>> {
+        if index < self.sources.len() {
+            Some(self.sources.remove(index).0)
+        } else {
+            None
+        }
+    }
+
+    /// Adds a sink and returns its index
+    pub fn add_sink(&mut self, sink: Box<dyn Sink>) -> usize {
+        let idx = self.sinks.len();
+        self.sinks.push(((NodeIndex::new(0), 0), sink));
+        idx
+    }
+
+    /// Removes a sink by index
+    pub fn remove_sink(&mut self, index: usize) -> Option<Box<dyn Sink>> {
+        if index < self.sinks.len() {
+            Some(self.sinks.remove(index).1)
+        } else {
+            None
+        }
+    }
+
+    /// Removes a filter from the graph
+    pub fn remove_filter(&mut self, index: NodeIndex<u32>) -> Option<Box<dyn Filter>> {
+        self.graph.remove_node(index)
+    }
+
+    /// Disconnects two filters
+    pub fn disconnect(
+        &mut self,
+        from: NodeIndex<u32>,
+        to: NodeIndex<u32>,
+    ) -> Result<(), AudioGraphError> {
+        if let Some(edge) = self.graph.find_edge(from, to) {
+            self.graph.remove_edge(edge);
+            Ok(())
+        } else {
+            Err(AudioGraphError::ConnectionNotAllowed)
+        }
     }
 
     // Creates the execution layers by sorting the graph topologically.
     #[allow(clippy::result_unit_err)]
-    pub fn compute(&mut self) -> Result<(), ()> {
+    pub fn compute(&mut self) -> Result<(), AudioGraphError> {
         // Makes the graph acyclic to be able to create a topology sort
         let acyclic_graph = self.graph.filter_map(
             |_index, node| Some(node),
@@ -274,7 +321,7 @@ impl<const INPUTS: usize, const OUTPUTS: usize> System<INPUTS, OUTPUTS> {
 
             Ok(())
         } else {
-            Err(())
+            Err(AudioGraphError::CycleDetected)
         }
     }
 
