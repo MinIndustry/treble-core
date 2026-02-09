@@ -11,8 +11,9 @@ use rustic_derive::FilterMetaData;
 pub struct CombinatorFilter {
     #[cfg_attr(feature = "meta", filter_source)]
     inputs: usize,
-    outputs: usize,
+    output: usize,
     sources: Vec<f32>,
+    #[cfg_attr(feature = "meta", filter_parameter(list, inputs, float))]
     weights: Vec<f32>,
     index: usize,
 }
@@ -27,7 +28,7 @@ impl CombinatorFilter {
     pub fn new(inputs: usize, outputs: usize) -> Self {
         Self {
             inputs,
-            outputs,
+            output: outputs,
             sources: vec![0.0; inputs],
             weights: vec![1.0; inputs],
             index: 0,
@@ -59,7 +60,7 @@ impl Filter for CombinatorFilter {
             .map(|(source, weight)| source * weight)
             .sum();
 
-        vec![output; self.outputs]
+        vec![output; self.output]
     }
 
     fn postponable(&self) -> bool {

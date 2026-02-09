@@ -11,6 +11,7 @@ use crate::core::graph::{AudioGraphElement, Entry, Filter};
 #[cfg_attr(feature = "meta", derive(FilterMetaData))]
 pub struct MovingAverage {
     index: usize,
+    #[cfg_attr(feature = "meta", filter_parameter(int, 3, 0))]
     size: usize,
     buffer: Vec<f32>,
     #[cfg_attr(feature = "meta", filter_source)]
