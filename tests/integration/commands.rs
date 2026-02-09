@@ -6,10 +6,10 @@
 //! - Translation from Commands to AudioMessage
 //! - Error types and messages
 
-use rustic::audio::{AudioMessage, CommandError};
 use rustic::app::commands::{
     Command, LiveCommand, LoopCommand, MixCommand, SettingsCommand, SystemCommand,
 };
+use rustic::audio::{AudioMessage, CommandError};
 use rustic::prelude::App;
 
 // ============================================================================
@@ -22,21 +22,33 @@ fn test_notestart_valid_parameters() {
     let app = App::new();
 
     // Valid: row 0, note 0 (C), velocity 0.5
-    let cmd = Command::Live(LiveCommand::NoteStart { note: 0, row: 0, velocity: 0.5 });
+    let cmd = Command::Live(LiveCommand::NoteStart {
+        note: 0,
+        row: 0,
+        velocity: 0.5,
+    });
     assert!(
         cmd.validate(&app).is_ok(),
         "NoteStart with valid parameters should pass"
     );
 
     // Valid: row 1, note 11 (B), velocity 1.0
-    let cmd = Command::Live(LiveCommand::NoteStart { note: 11, row: 1, velocity: 1.0 });
+    let cmd = Command::Live(LiveCommand::NoteStart {
+        note: 11,
+        row: 1,
+        velocity: 1.0,
+    });
     assert!(
         cmd.validate(&app).is_ok(),
         "NoteStart with max velocity should pass"
     );
 
     // Valid: row 0, note 5 (F), velocity 0.0
-    let cmd = Command::Live(LiveCommand::NoteStart { note: 5, row: 0, velocity: 0.0 });
+    let cmd = Command::Live(LiveCommand::NoteStart {
+        note: 5,
+        row: 0,
+        velocity: 0.0,
+    });
     assert!(
         cmd.validate(&app).is_ok(),
         "NoteStart with zero velocity should pass"
@@ -139,7 +151,11 @@ fn test_notestart_invalid_row() {
     // NoteStart with row >= 2 should fail with RowOutOfBounds error
     let app = App::new();
 
-    let cmd = Command::Live(LiveCommand::NoteStart { note: 0, row: 2, velocity: 0.5 });
+    let cmd = Command::Live(LiveCommand::NoteStart {
+        note: 0,
+        row: 2,
+        velocity: 0.5,
+    });
     let result = cmd.validate(&app);
 
     assert!(result.is_err(), "NoteStart with row=2 should fail");
@@ -151,7 +167,11 @@ fn test_notestart_invalid_row() {
     }
 
     // Test with row = 255
-    let cmd = Command::Live(LiveCommand::NoteStart { note: 0, row: 255, velocity: 0.5 });
+    let cmd = Command::Live(LiveCommand::NoteStart {
+        note: 0,
+        row: 255,
+        velocity: 0.5,
+    });
     let result = cmd.validate(&app);
     assert!(result.is_err(), "NoteStart with row=255 should fail");
 }
@@ -161,7 +181,11 @@ fn test_notestart_invalid_velocity_negative() {
     // NoteStart with velocity < 0.0 should fail with InvalidVolume error
     let app = App::new();
 
-    let cmd = Command::Live(LiveCommand::NoteStart { note: 0, row: 0, velocity: -0.1 });
+    let cmd = Command::Live(LiveCommand::NoteStart {
+        note: 0,
+        row: 0,
+        velocity: -0.1,
+    });
     let result = cmd.validate(&app);
 
     assert!(
@@ -181,7 +205,11 @@ fn test_notestart_invalid_velocity_excessive() {
     // NoteStart with velocity > 1.0 should fail with InvalidVolume error
     let app = App::new();
 
-    let cmd = Command::Live(LiveCommand::NoteStart { note: 0, row: 0, velocity: 1.5 });
+    let cmd = Command::Live(LiveCommand::NoteStart {
+        note: 0,
+        row: 0,
+        velocity: 1.5,
+    });
     let result = cmd.validate(&app);
 
     assert!(result.is_err(), "NoteStart with velocity > 1.0 should fail");
@@ -227,7 +255,10 @@ fn test_setoctave_invalid_octave() {
     }
 
     // Test with octave = 255
-    let cmd = Command::Live(LiveCommand::SetOctave { octave: 255, row: 0 });
+    let cmd = Command::Live(LiveCommand::SetOctave {
+        octave: 255,
+        row: 0,
+    });
     let result = cmd.validate(&app);
     assert!(result.is_err(), "SetOctave with octave=255 should fail");
 }
@@ -289,7 +320,6 @@ fn test_octavedown_invalid_row() {
 // ============================================================================
 // Command to AudioMessage Translation Tests
 // ============================================================================
-
 #[test]
 fn test_translate_notestart() {
     // NoteStart should translate to AudioMessage::NoteStart
@@ -297,7 +327,11 @@ fn test_translate_notestart() {
     app.rows[0].octave = 4;
     app.rows[0].instrument = 0;
 
-    let cmd = Command::Live(LiveCommand::NoteStart { note: 0, row: 0, velocity: 0.7 });
+    let cmd = Command::Live(LiveCommand::NoteStart {
+        note: 0,
+        row: 0,
+        velocity: 0.7,
+    });
     let audio_msg = cmd.translate_to_audio_message(&mut app);
 
     assert!(audio_msg.is_some(), "NoteStart should produce AudioMessage");
