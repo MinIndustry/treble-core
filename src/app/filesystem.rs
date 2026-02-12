@@ -2,6 +2,7 @@
 //! Its purpose is to help organize the filesystem and provide a way to interact with it.
 use serde::{Deserialize, Serialize};
 
+use crate::app::error::AppError;
 use log::error;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -17,13 +18,10 @@ pub struct FSConfig {
 
 impl Default for FSConfig {
     fn default() -> FSConfig {
-        let root_path = match Self::app_root_dir() {
-            Ok(path) => path,
-            Err(e) => {
-                error!("Unable to build app root dir: {}", e);
-                PathBuf::from("./")
-            }
-        };
+        let root_path = Self::app_root_dir().unwrap_or_else(|e| {
+            error!("Unable to build app root dir: {}", e);
+            PathBuf::from("./")
+        });
 
         // TODO: Implement actual path building
         FSConfig {
@@ -40,13 +38,10 @@ impl FSConfig {
     /// and builds it if not existing.
     ///
     /// Returns a result with the debug
-    fn debug_dir_check() -> Result<PathBuf, ()> {
+    fn debug_dir_check() -> Result<PathBuf, AppError> {
         let out_dir = Path::new("./.dist/");
-        if !out_dir.exists()
-            && let Err(e) = fs::create_dir(out_dir)
-        {
-            error!("Failed to create output directory: {}", e);
-            return Err(());
+        if !out_dir.exists() {
+            fs::create_dir(out_dir)?;
         }
         Ok(out_dir.to_path_buf())
     }
@@ -54,12 +49,9 @@ impl FSConfig {
     /// Builds the debug direction as given
     ///
     /// Returns an empty result
-    fn debug_dir_build(path: &Path) -> Result<(), ()> {
-        if !path.exists()
-            && let Err(e) = fs::create_dir(path)
-        {
-            error!("Failed to create output directory: {}", e);
-            return Err(());
+    fn debug_dir_build(path: &Path) -> Result<(), AppError> {
+        if !path.exists() {
+            fs::create_dir(path)?;
         }
         Ok(())
     }
@@ -68,7 +60,7 @@ impl FSConfig {
     ///
     /// Returns a result containing the built path with the file name.
     #[allow(clippy::result_unit_err)]
-    pub fn debug_dir(module: &str, filename: &str) -> Result<PathBuf, ()> {
+    pub fn debug_dir(module: &str, filename: &str) -> Result<PathBuf, AppError> {
         let base_path = Self::debug_dir_check()?;
         let full_path = base_path.join(module);
         Self::debug_dir_build(&full_path)?;
@@ -79,8 +71,7 @@ impl FSConfig {
     /// Adds a timestamp to allow for time-differentiation of the saved files.
     ///
     /// Returns a result containing the built path with the file name.
-    #[allow(clippy::result_unit_err)]
-    pub fn _stamped_debug_dir(module: &str, filename: &str) -> Result<PathBuf, ()> {
+    pub fn _stamped_debug_dir(module: &str, filename: &str) -> Result<PathBuf, AppError> {
         let base_path = Self::debug_dir_check()?;
         let full_path = base_path.join(module);
         let timestamp = chrono::Utc::now().format("%Y-%m-%d_%H-%M-%S").to_string();
@@ -91,14 +82,14 @@ impl FSConfig {
     /// Returns the app's default root path for saving configuration files & other.
     /// This is supposed to be used if the application's settings structure contains
     /// no information about the path.
-    pub fn app_root_dir() -> Result<PathBuf, String> {
+    pub fn app_root_dir() -> Result<PathBuf, AppError> {
         use directories::ProjectDirs;
         let root_path = ProjectDirs::from(crate::APP_ID.2, crate::APP_ID.1, crate::APP_ID.0)
             .map(|d| d.config_dir().to_path_buf())
-            .ok_or("Unable to build app's configuration direction".to_string())?;
+            .ok_or(AppError::ConfigDirError)?;
 
         if !root_path.exists() {
-            fs::create_dir(&root_path).map_err(|e| e.to_string())?
+            fs::create_dir(&root_path)?
         }
 
         Ok(root_path)

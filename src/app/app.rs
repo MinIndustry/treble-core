@@ -3,50 +3,20 @@
 //! utilities for managing files and directories.
 
 use std::default::Default;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use clap::Parser;
-use log::{error, info, trace};
-use serde::{Deserialize, Serialize};
+use log::{info, trace};
 
 use super::commands::{Command, LiveCommand};
 use super::prelude::*;
 
 use crate::app::commands::SystemCommand;
+use crate::app::error::AppError;
 use crate::instruments::prelude::KeyboardBuilder;
 use crate::prelude::Instrument;
 
-use super::row::Row;
-
-#[derive(Debug, Default, Deserialize, Serialize)]
-/// The application configuration
-pub struct AppConfig {
-    pub fs: FSConfig,
-    pub system: SystemConfig,
-
-    #[serde(default)]
-    pub audio: crate::audio::AudioConfig,
-
-    #[serde(default)]
-    pub logging: crate::audio::LogConfig,
-}
-
-#[derive(Default)]
-pub enum RunMode {
-    Live,  // App is ready to play live, has loaded instruments
-    Score, // App is ready to play a score
-    Graph, // App is ready to play a graph or multiple graphs
-    #[default]
-    Unknown,
-}
-
-#[derive(Default)]
-pub enum AppMode {
-    #[default]
-    Setup, // Setup mode, the app has not started yet
-    Input,   // Waiting for user input
-    Running, // Simply running, use inputs as commands/notes
-}
+use super::{AppMode, RunMode, config::AppConfig, row::Row};
 
 /// Application metaobject, contains the application's configuration,
 /// Available instruments, paths to save/load files to/from, ...
@@ -61,24 +31,8 @@ pub struct App {
 
 impl Default for App {
     fn default() -> Self {
-        let root_path = FSConfig::app_root_dir().unwrap_or_else(|e| {
-            error!("Unable to build app root dir: {}", e);
-            PathBuf::from("./")
-        });
-
-        let config_file = root_path.join("config.toml");
-
-        let config = if config_file.exists() {
-            toml::from_str(&std::fs::read_to_string(config_file).unwrap()).unwrap_or_else(|e| {
-                error!("Unable to parse config file: {}", e);
-                AppConfig::default()
-            })
-        } else {
-            AppConfig::default()
-        };
-
         Self {
-            config,
+            config: AppConfig::default(),
             run_mode: RunMode::Unknown,
             mode: AppMode::Input,
             instruments: vec![Box::new(KeyboardBuilder::new().build())],
@@ -134,17 +88,9 @@ impl App {
     }
 
     /// Tries to load the application configuration from a file.
-    pub fn from_file(path: &Path) -> Result<App, String> {
-        info!(
-            "Loading configuration from file: {}",
-            path.to_str().unwrap_or("unknown")
-        );
-        let config: AppConfig =
-            toml::from_str(&std::fs::read_to_string(path).map_err(|e| e.to_string())?)
-                .map_err(|e| format!("Unable to load config: {}", e))?;
-
+    pub fn from_file(path: &Path) -> Result<App, AppError> {
         Ok(App {
-            config,
+            config: AppConfig::from_file(path)?,
             run_mode: RunMode::Unknown,
             mode: AppMode::Setup,
             rows: [Row::default(), Row::default()],
