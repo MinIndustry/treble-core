@@ -1,4 +1,4 @@
-use crate::core::graph::{AudioGraphElement, Entry, Filter};
+use crate::core::graph::{Entry, Filter};
 #[cfg(feature = "meta")]
 use rustic_derive::FilterMetaData;
 use std::fmt;
@@ -10,7 +10,6 @@ use std::fmt;
 pub struct Compressor {
     #[cfg_attr(feature = "meta", filter_source)]
     source: f32,
-    index: usize,
     /// Threshold in linear amplitude (0.0-1.0)
     #[cfg_attr(feature = "meta", filter_parameter(range, 0.0, 1.0, 0.5))]
     threshold: f32,
@@ -33,7 +32,6 @@ impl Default for Compressor {
     fn default() -> Self {
         Self {
             source: 0.0,
-            index: 0,
             threshold: 0.5,
             ratio: 4.0,
             attack: 0.01,
@@ -47,20 +45,6 @@ impl Default for Compressor {
 impl Entry for Compressor {
     fn push(&mut self, value: f32, _: usize) {
         self.source = value;
-    }
-}
-
-impl AudioGraphElement for Compressor {
-    fn get_name(&self) -> &str {
-        "Compressor"
-    }
-
-    fn get_index(&self) -> usize {
-        self.index
-    }
-
-    fn set_index(&mut self, index: usize) {
-        self.index = index;
     }
 }
 
@@ -97,10 +81,6 @@ impl Filter for Compressor {
 
         // One output port
         vec![output]
-    }
-
-    fn postponable(&self) -> bool {
-        false
     }
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {

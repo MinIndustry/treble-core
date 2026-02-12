@@ -3,7 +3,7 @@ use std::{f64::consts::PI, fmt};
 #[cfg(feature = "meta")]
 use rustic_derive::FilterMetaData;
 
-use crate::core::graph::{AudioGraphElement, Entry, Filter};
+use crate::core::graph::{Entry, Filter};
 
 /// Applies a bandpass filter to the input signal
 /// source: <https://en.wikipedia.org/wiki/Digital_biquad_filter>
@@ -13,9 +13,11 @@ use crate::core::graph::{AudioGraphElement, Entry, Filter};
 pub struct ResonantBandpassFilter {
     #[cfg_attr(feature = "meta", filter_source)]
     source: f32,
-    index: usize,
-    b: [f64; 3],  // b0, b1, b2
-    a: [f64; 3],  // a0, a1, a2
+    #[cfg_attr(feature = "meta", filter_parameter(vec, 3, float))]
+    b: [f64; 3], // b0, b1, b2
+    #[cfg_attr(feature = "meta", filter_parameter(vec, 3, float))]
+    a: [f64; 3], // a0, a1, a2
+    #[cfg_attr(feature = "meta", filter_parameter(vec, 2, float))]
     zs: [f64; 2], // Delay elements z1, z2 for the filter
 }
 
@@ -43,7 +45,6 @@ impl ResonantBandpassFilter {
 
         Self {
             source: 0.0,
-            index: 0,
             b,
             a,
             zs: [0.0; 2],
@@ -75,25 +76,7 @@ impl Filter for ResonantBandpassFilter {
         vec![output as f32]
     }
 
-    fn postponable(&self) -> bool {
-        false
-    }
-
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
-    }
-}
-
-impl AudioGraphElement for ResonantBandpassFilter {
-    fn get_name(&self) -> &str {
-        "Resonant Bandpass Filter"
-    }
-
-    fn get_index(&self) -> usize {
-        self.index
-    }
-
-    fn set_index(&mut self, index: usize) {
-        self.index = index;
     }
 }

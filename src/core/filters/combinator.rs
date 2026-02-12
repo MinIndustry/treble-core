@@ -1,4 +1,4 @@
-use crate::core::graph::{AudioGraphElement, Entry, Filter};
+use crate::core::graph::{Entry, Filter};
 use std::fmt;
 
 #[cfg(feature = "meta")]
@@ -15,7 +15,6 @@ pub struct CombinatorFilter {
     sources: Vec<f32>,
     #[cfg_attr(feature = "meta", filter_parameter(list, inputs, float))]
     weights: Vec<f32>,
-    index: usize,
 }
 
 impl Default for CombinatorFilter {
@@ -31,7 +30,6 @@ impl CombinatorFilter {
             output: outputs,
             sources: vec![0.0; inputs],
             weights: vec![1.0; inputs],
-            index: 0,
         }
     }
 }
@@ -63,25 +61,7 @@ impl Filter for CombinatorFilter {
         vec![output; self.output]
     }
 
-    fn postponable(&self) -> bool {
-        false
-    }
-
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
-    }
-}
-
-impl AudioGraphElement for CombinatorFilter {
-    fn get_name(&self) -> &str {
-        "Combinator"
-    }
-
-    fn get_index(&self) -> usize {
-        self.index
-    }
-
-    fn set_index(&mut self, index: usize) {
-        self.index = index;
     }
 }

@@ -3,7 +3,7 @@ use std::fmt;
 #[cfg(feature = "meta")]
 use rustic_derive::FilterMetaData;
 
-use crate::core::graph::{AudioGraphElement, Entry, Filter};
+use crate::core::graph::{Entry, Filter};
 
 /// High-pass filter using a first-order IIR filter
 #[derive(Clone, Debug, Default)]
@@ -14,7 +14,6 @@ pub struct HighPassFilter {
     #[cfg_attr(feature = "meta", filter_parameter(range, 0.0, 20000.0, 1000.0))]
     cutoff_frequency: f32,
     previous_output: f32,
-    index: usize,
 }
 
 impl HighPassFilter {
@@ -23,7 +22,6 @@ impl HighPassFilter {
             sources: [0.0],
             cutoff_frequency,
             previous_output: 0.0,
-            index: 0,
         }
     }
 }
@@ -55,19 +53,5 @@ impl Filter for HighPassFilter {
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
-    }
-}
-
-impl AudioGraphElement for HighPassFilter {
-    fn get_name(&self) -> &str {
-        "High Pass Filter"
-    }
-
-    fn get_index(&self) -> usize {
-        self.index
-    }
-
-    fn set_index(&mut self, index: usize) {
-        self.index = index;
     }
 }

@@ -1,4 +1,4 @@
-use crate::core::graph::{AudioGraphElement, Entry, Filter};
+use crate::core::graph::{Entry, Filter};
 use std::fmt;
 
 #[cfg(feature = "meta")]
@@ -14,7 +14,6 @@ pub struct GainFilter {
     sources: [f32; 1],
     #[cfg_attr(feature = "meta", filter_parameter(float, 1.0))]
     factor: f32,
-    index: usize,
 }
 
 impl GainFilter {
@@ -22,7 +21,6 @@ impl GainFilter {
         Self {
             sources: [0.0],
             factor,
-            index: 0,
         }
     }
 }
@@ -48,25 +46,7 @@ impl Filter for GainFilter {
         vec![output]
     }
 
-    fn postponable(&self) -> bool {
-        false
-    }
-
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
-    }
-}
-
-impl AudioGraphElement for GainFilter {
-    fn get_name(&self) -> &str {
-        "Gain Filter"
-    }
-
-    fn get_index(&self) -> usize {
-        self.index
-    }
-
-    fn set_index(&mut self, index: usize) {
-        self.index = index;
     }
 }

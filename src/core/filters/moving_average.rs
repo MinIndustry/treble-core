@@ -3,15 +3,14 @@ use std::fmt;
 #[cfg(feature = "meta")]
 use rustic_derive::FilterMetaData;
 
-use crate::core::graph::{AudioGraphElement, Entry, Filter};
+use crate::core::graph::{Entry, Filter};
 
 /// A moving average filter implementation.
 /// Based only on the previous samples
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "meta", derive(FilterMetaData))]
 pub struct MovingAverage {
-    index: usize,
-    #[cfg_attr(feature = "meta", filter_parameter(int, 3, 0))]
+    #[cfg_attr(feature = "meta", filter_parameter(val, 3, 0))]
     size: usize,
     buffer: Vec<f32>,
     #[cfg_attr(feature = "meta", filter_source)]
@@ -27,25 +26,10 @@ impl fmt::Display for MovingAverage {
 impl MovingAverage {
     pub fn new(size: usize) -> Self {
         Self {
-            index: 0,
             size,
             buffer: vec![0.0; size],
             source: 0.0,
         }
-    }
-}
-
-impl AudioGraphElement for MovingAverage {
-    fn get_name(&self) -> &str {
-        "Moving Average Filter"
-    }
-
-    fn get_index(&self) -> usize {
-        self.index
-    }
-
-    fn set_index(&mut self, index: usize) {
-        self.index = index;
     }
 }
 
@@ -65,10 +49,6 @@ impl Filter for MovingAverage {
         self.buffer[0] = self.source;
 
         vec![output]
-    }
-
-    fn postponable(&self) -> bool {
-        false
     }
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {

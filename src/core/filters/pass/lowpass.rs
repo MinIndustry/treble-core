@@ -3,7 +3,7 @@ use std::fmt;
 #[cfg(feature = "meta")]
 use rustic_derive::FilterMetaData;
 
-use crate::core::graph::{AudioGraphElement, Entry, Filter};
+use crate::core::graph::{Entry, Filter};
 
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "meta", derive(FilterMetaData))]
@@ -15,7 +15,6 @@ pub struct LowPassFilter {
     #[cfg_attr(feature = "meta", filter_parameter(range, 0.0, 20000.0, 1000.0))]
     cutoff_frequency: f32,
     previous_output: f32,
-    index: usize,
 }
 
 impl LowPassFilter {
@@ -24,7 +23,6 @@ impl LowPassFilter {
             sources: [0.0],
             cutoff_frequency,
             previous_output: 0.0,
-            index: 0,
         }
     }
 }
@@ -50,25 +48,7 @@ impl Filter for LowPassFilter {
         vec![output]
     }
 
-    fn postponable(&self) -> bool {
-        false
-    }
-
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
-    }
-}
-
-impl AudioGraphElement for LowPassFilter {
-    fn get_name(&self) -> &str {
-        "Low Pass Filter"
-    }
-
-    fn get_index(&self) -> usize {
-        self.index
-    }
-
-    fn set_index(&mut self, index: usize) {
-        self.index = index;
     }
 }

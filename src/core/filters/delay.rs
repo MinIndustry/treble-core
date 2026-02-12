@@ -4,7 +4,7 @@ use std::fmt;
 #[cfg(feature = "meta")]
 use rustic_derive::FilterMetaData;
 
-use crate::core::graph::{AudioGraphElement, Entry, Filter};
+use crate::core::graph::{Entry, Filter};
 
 /// Delays its input by a fixed amount of seconds.
 #[derive(Clone, Default)]
@@ -15,7 +15,6 @@ pub struct DelayFilter {
     #[cfg_attr(feature = "meta", filter_parameter(range, 0, 20.0, 0.5))]
     delay_for: f32,
     buffer: VecDeque<f32>,
-    index: usize,
 }
 
 impl DelayFilter {
@@ -24,7 +23,6 @@ impl DelayFilter {
             sources: [0.0],
             delay_for: delay,
             buffer: VecDeque::from(vec![0.0; (delay * sample_rate) as usize]),
-            index: 0,
         }
     }
 }
@@ -43,11 +41,7 @@ impl fmt::Display for DelayFilter {
 
 impl fmt::Debug for DelayFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "DelayFilter {{ delay_for: {}, index: {} }}",
-            self.delay_for, self.index
-        )
+        write!(f, "DelayFilter {{ delay_for: {} }}", self.delay_for)
     }
 }
 
@@ -66,19 +60,5 @@ impl Filter for DelayFilter {
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
-    }
-}
-
-impl AudioGraphElement for DelayFilter {
-    fn get_name(&self) -> &str {
-        "Delay Filter"
-    }
-
-    fn get_index(&self) -> usize {
-        self.index
-    }
-
-    fn set_index(&mut self, index: usize) {
-        self.index = index;
     }
 }
