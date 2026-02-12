@@ -13,4 +13,7 @@ pub enum BackendEvent {
 
     // Diagnostics
     Metrics { cpu_usage: f32, latency_ms: f32 },
+    OutputDeviceList { devices: Vec<String> },
+    OutputDeviceChanged { device: String },
+    GraphError { description: String },
 }

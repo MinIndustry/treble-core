@@ -23,6 +23,13 @@ pub use command_thread::spawn_command_thread;
 pub use config::{AudioConfig, LogConfig};
 pub use error::{AudioError, CommandError};
 pub use events::BackendEvent;
-pub use messages::AudioMessage;
+pub use messages::{AudioMessage, GraphAudioMessage, InstrumentAudioMessage};
 pub use render_thread::spawn_audio_render_thread;
 pub use shared_state::SharedAudioState;
+
+#[derive(Default, Debug, Clone)]
+pub enum RenderMode {
+    #[default]
+    Instruments,
+    Graph,
+}
