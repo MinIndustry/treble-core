@@ -39,7 +39,7 @@ pub mod prelude {
     /// - Multiply: Multiplies the outputs of all tone generators together.
     /// - Max: Takes the maximum output value from all tone generators.
     /// - Average: Averages the outputs of all tone generators.
-    #[derive(Default, Debug, Serialize, Deserialize)]
+    #[derive(Default, Debug, Clone, Serialize, Deserialize)]
     pub enum MixMode {
         #[default]
         Sum,
@@ -56,8 +56,9 @@ pub mod prelude {
     /// - WhiteNoise: A random signal with equal intensity at different frequencies.
     /// - PinkNoise: A random signal with equal energy per octave.
     /// - Blank: A constant output defined by amplitude.
-    #[derive(Debug, Serialize, Deserialize)]
+    #[derive(Default, Debug, Clone, Serialize, Deserialize)]
     pub enum Waveform {
+        #[default]
         Sine,
         Square,
         Sawtooth,
@@ -74,8 +75,9 @@ pub mod prelude {
     /// - Ratio(f32): A frequency that is a ratio of a base frequency.
     /// - Offset(f32): A frequency that is an offset from a base frequency.
     /// - Semitones(i32): A frequency that is a number of semitones
-    #[derive(Debug, Serialize, Deserialize)]
+    #[derive(Default, Debug, Clone, Serialize, Deserialize)]
     pub enum FrequencyRelation {
+        #[default]
         Identity,
         Constant(f32),
         Harmonic(u8),

@@ -6,7 +6,7 @@ use crate::core::{
     generator::{prelude::MixMode, tone::SingleToneGenerator},
 };
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 /// A generator that produces multiple tones. Each
 /// tone can have its own frequency relation, waveform,
 /// and envelopes.

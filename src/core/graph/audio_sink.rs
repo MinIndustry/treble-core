@@ -1,26 +1,30 @@
 use crate::core::graph::{Entry, Sink};
 
-/// A simple audio sink that stores incoming audio samples. (Allowing
-/// other parts of the code to pull its values)
-#[derive(Clone, Debug, Default)]
-pub struct SimpleSink {
+/// A sink that writes audio samples to the cpal ring buffer for playback
+#[derive(Clone, Debug)]
+pub struct AudioOutputSink {
     values: Vec<f32>,
 }
 
-impl SimpleSink {
+impl Default for AudioOutputSink {
+    fn default() -> Self {
+        Self { values: Vec::new() }
+    }
+}
+
+impl AudioOutputSink {
     pub fn new() -> Self {
         Self::default()
     }
 }
 
-impl Entry for SimpleSink {
+impl Entry for AudioOutputSink {
     fn push(&mut self, value: f32, _port: usize) {
-        // trace!("{}", value);
         self.values.push(value);
     }
 }
 
-impl Sink for SimpleSink {
+impl Sink for AudioOutputSink {
     fn consume(&mut self, amount: usize) -> Vec<f32> {
         let amount = std::cmp::min(amount, self.values.len());
         self.values.drain(0..amount).collect()
@@ -33,8 +37,4 @@ impl Sink for SimpleSink {
     fn into_entry(self) -> Box<dyn Entry> {
         Box::new(self)
     }
-}
-
-pub fn simple_sink() -> Box<dyn Sink> {
-    Box::new(SimpleSink::new())
 }

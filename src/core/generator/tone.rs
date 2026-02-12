@@ -7,7 +7,7 @@ use crate::core::{envelope::Envelope, generator::prelude::*};
 
 use super::composite_builder;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SingleToneGenerator {
     waveform: Waveform,
     frequency_relation: Option<FrequencyRelation>,

@@ -1,11 +1,10 @@
-use super::{AudioGraphElement, Source};
+use super::Source;
 use crate::core::generator::prelude::MultiToneGenerator;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SimpleSource {
     generator: MultiToneGenerator,
     sample_rate: f32,
-    index: usize,
 }
 
 impl SimpleSource {
@@ -13,22 +12,17 @@ impl SimpleSource {
         Self {
             generator,
             sample_rate,
-            index: 0,
         }
+    }
+
+    pub fn boxed(self) -> Box<dyn Source> {
+        Box::new(self)
     }
 }
 
-impl AudioGraphElement for SimpleSource {
-    fn get_name(&self) -> &str {
-        "Simple Sine Source"
-    }
-
-    fn get_index(&self) -> usize {
-        self.index
-    }
-
-    fn set_index(&mut self, index: usize) {
-        self.index = index;
+impl From<MultiToneGenerator> for SimpleSource {
+    fn from(generator: MultiToneGenerator) -> Self {
+        Self::new(generator, 10.0)
     }
 }
 
@@ -40,11 +34,5 @@ impl Source for SimpleSource {
 
 /// Creates a simple source with a given generator and frequency
 pub fn simple_source(generator: MultiToneGenerator) -> Box<dyn Source> {
-    let source = SimpleSource {
-        generator,
-        sample_rate: 44100.0,
-        index: 0,
-    };
-
-    Box::new(source)
+    SimpleSource::from(generator).boxed()
 }

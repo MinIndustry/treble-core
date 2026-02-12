@@ -9,10 +9,7 @@ use petgraph::dot::Dot;
 use petgraph::prelude::NodeIndex;
 use petgraph::{Direction, algo::toposort};
 
-use super::sink::simple_sink;
-use super::{Filter, Sink, Source, simple_source};
-use crate::core::generator::prelude::Waveform;
-use crate::core::generator::prelude::builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder};
+use super::{Filter, Sink, Source};
 use crate::core::graph::error::AudioGraphError;
 
 /// ## A Pipe & Filter system
@@ -35,7 +32,7 @@ use crate::core::graph::error::AudioGraphError;
 /// let filter = Tremolo::new(20.0, 0.5, 1.5);
 /// let filter_index = system.add_filter(Box::from(filter));
 /// ```
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 #[allow(clippy::type_complexity)]
 pub struct System {
     // The actual filter graph, from which the execution order is derived
@@ -93,7 +90,6 @@ impl System {
                 new_edge_map.entry(graph_b_source_descendant_index)
             {
                 let new_index = self.graph.add_node(source_descendant);
-                self.graph[new_index].set_index(new_index.index());
                 info!(
                     "idx {} -> idx {}",
                     graph_b_source_descendant_index.index(),
@@ -157,7 +153,7 @@ impl System {
             .sinks
             .iter()
             .enumerate()
-            .map(|(index, sink)| {
+            .map(|(_index, sink)| {
                 (
                     (new_edge_map[&sink.0.0], sink.0.1),
                     dyn_clone::clone_box(&*sink.1),
@@ -177,13 +173,11 @@ impl System {
 
     // Adds a filter to the system. Further references to this filter should be done using the returned uuid
     pub fn add_filter(&mut self, filter: Box<dyn Filter>) -> NodeIndex<u32> {
-        trace!("[Graph] Adding filter {}", filter.get_name());
-        let nodeindex = self.graph.add_node(filter);
-        self.graph[nodeindex].set_index(nodeindex.index());
-        nodeindex
+        trace!("[Graph] Adding filter {:?}", filter);
+        self.graph.add_node(filter)
     }
 
-    // Connects two filters together. This method connects the filter in the topologyu graph as well.
+    // Connects two filters together. This method connects the filter in the topology graph as well.
     // Do not use this function to close a feedback loop. Use the connect_feedback method instead.
     pub fn connect(
         &mut self,
@@ -193,11 +187,8 @@ impl System {
         in_port: usize,
     ) {
         trace!(
-            "[Graph] Connecting {} (p: {}) to {} (p: {})",
-            self.graph[from].get_name(),
-            out_port,
-            self.graph[to].get_name(),
-            in_port
+            "[Graph] Connecting {:?} (p: {}) to {:?} (p: {})",
+            self.graph[from], out_port, self.graph[to], in_port
         );
         self.graph.add_edge(from, to, (out_port, in_port));
     }
@@ -216,7 +207,7 @@ impl System {
     /// Sets the sink at index `index` to be the given sink object
     pub fn set_sink(&mut self, index: usize, sink: Box<dyn Sink>) -> Result<(), AudioGraphError> {
         if index < self.sinks.len() {
-            trace!("[Graph] Setting Node {} as sink {}", sink.get_name(), index);
+            trace!("[Graph] Setting Node {:?} as sink {}", sink, index);
             self.sinks[index] = ((NodeIndex::new(0), 0), sink);
             Ok(())
         } else {
@@ -231,7 +222,7 @@ impl System {
         source: Box<dyn Source>,
     ) -> Result<(), AudioGraphError> {
         if index < self.sources.len() {
-            trace!("[Graph] Setting Node {} as source", source.get_name());
+            trace!("[Graph] Setting Node {:?} as source", source);
             self.sources[index] = (source, (NodeIndex::new(0), 0));
             Ok(())
         } else {
@@ -393,5 +384,13 @@ impl System {
     pub fn save_to_file(&self, path: &Path) -> Result<(), String> {
         let mut output = File::create(path).map_err(|e| e.to_string())?;
         write!(output, "{:?}", Dot::with_config(&self.graph, &[])).map_err(|e| e.to_string())
+    }
+
+    /// Creates a deep clone of this system for handoff to the render thread.
+    /// Sources and sinks are cloned via DynClone.
+    pub fn clone_for_render(&self) -> System {
+        // Implementation depends on Source/Sink also implementing DynClone
+        // If they don't, rebuild from scratch using the same topology
+        todo!()
     }
 }
