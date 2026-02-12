@@ -9,6 +9,7 @@
 use rustic::app::commands::{
     Command, LiveCommand, LoopCommand, MixCommand, SettingsCommand, SystemCommand,
 };
+use rustic::audio::messages::InstrumentAudioMessage;
 use rustic::audio::{AudioMessage, CommandError};
 use rustic::prelude::App;
 
@@ -337,16 +338,16 @@ fn test_translate_notestart() {
     assert!(audio_msg.is_some(), "NoteStart should produce AudioMessage");
 
     match audio_msg.unwrap() {
-        AudioMessage::NoteStart {
+        AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
             instrument_idx,
             note,
             velocity,
-        } => {
+        }) => {
             assert_eq!(instrument_idx, 0, "Instrument index should be 0");
             assert_eq!(note.octave(), 4, "Note octave should be 4");
             assert_eq!(velocity, 0.7, "Velocity should be 0.7");
         }
-        _ => panic!("Expected AudioMessage::NoteStart"),
+        _ => panic!("Expected AudioMessage::Instrument(NoteStart)"),
     }
 }
 
@@ -363,14 +364,14 @@ fn test_translate_notestop() {
     assert!(audio_msg.is_some(), "NoteStop should produce AudioMessage");
 
     match audio_msg.unwrap() {
-        AudioMessage::NoteStop {
+        AudioMessage::Instrument(InstrumentAudioMessage::NoteStop {
             instrument_idx,
             note,
-        } => {
+        }) => {
             assert_eq!(instrument_idx, 0, "Instrument index should be 0");
             assert_eq!(note.octave(), 5, "Note octave should be 5");
         }
-        _ => panic!("Expected AudioMessage::NoteStop"),
+        _ => panic!("Expected AudioMessage::Instrument(NoteStop)"),
     }
 }
 
@@ -389,13 +390,13 @@ fn test_translate_setoctave() {
     assert!(audio_msg.is_some(), "SetOctave should produce AudioMessage");
 
     match audio_msg.unwrap() {
-        AudioMessage::SetOctave { row, octave } => {
+        AudioMessage::Instrument(InstrumentAudioMessage::SetOctave { row, octave }) => {
             assert_eq!(row, 0, "Row should be 0");
             // The octave in the message reflects the current app state
             // which is 6 since we haven't actually updated it yet
             assert_eq!(octave, 6, "Octave should match app state");
         }
-        _ => panic!("Expected AudioMessage::SetOctave"),
+        _ => panic!("Expected AudioMessage::Instrument(SetOctave)"),
     }
 }
 
@@ -411,11 +412,11 @@ fn test_translate_octaveup() {
     assert!(audio_msg.is_some(), "OctaveUp should produce AudioMessage");
 
     match audio_msg.unwrap() {
-        AudioMessage::SetOctave { row, octave } => {
+        AudioMessage::Instrument(InstrumentAudioMessage::SetOctave { row, octave }) => {
             assert_eq!(row, 1, "Row should be 1");
             assert_eq!(octave, 4, "Octave should match current app state");
         }
-        _ => panic!("Expected AudioMessage::SetOctave"),
+        _ => panic!("Expected AudioMessage::Instrument(SetOctave)"),
     }
 }
 
@@ -434,11 +435,11 @@ fn test_translate_octavedown() {
     );
 
     match audio_msg.unwrap() {
-        AudioMessage::SetOctave { row, octave } => {
+        AudioMessage::Instrument(InstrumentAudioMessage::SetOctave { row, octave }) => {
             assert_eq!(row, 0, "Row should be 0");
             assert_eq!(octave, 5, "Octave should match current app state");
         }
-        _ => panic!("Expected AudioMessage::SetOctave"),
+        _ => panic!("Expected AudioMessage::Instrument(SetOctave)"),
     }
 }
 
@@ -555,13 +556,14 @@ fn test_error_display_invalid_volume() {
 fn test_audiomessage_clone() {
     // Verify that AudioMessage variants can be cloned
     use rustic::Note;
+    use rustic::audio::messages::InstrumentAudioMessage;
     use rustic::core::utils::NOTES;
 
-    let original = AudioMessage::NoteStart {
+    let original = AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
         instrument_idx: 0,
         note: Note(NOTES::A, 4),
         velocity: 0.8,
-    };
+    });
 
     let cloned = original.clone();
 

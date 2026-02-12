@@ -11,6 +11,7 @@
 //! These tests focus on the data structures and their behavior.
 
 use rustic::Note;
+use rustic::audio::messages::InstrumentAudioMessage;
 use rustic::audio::{AudioMessage, BackendEvent, SharedAudioState};
 use rustic::core::utils::NOTES;
 use std::sync::atomic::Ordering;
@@ -279,18 +280,18 @@ fn test_backend_event_debug() {
 #[test]
 fn test_audiomessage_notestart() {
     // Test creating NoteStart message
-    let msg = AudioMessage::NoteStart {
+    let msg = AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
         instrument_idx: 0,
         note: Note(NOTES::A, 4),
         velocity: 0.8,
-    };
+    });
 
     match msg {
-        AudioMessage::NoteStart {
+        AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
             instrument_idx,
             note,
             velocity,
-        } => {
+        }) => {
             assert_eq!(instrument_idx, 0, "Instrument index should be 0");
             assert_eq!(note, Note(NOTES::A, 4), "Note should be A4");
             assert_eq!(velocity, 0.8, "Velocity should be 0.8");
@@ -302,16 +303,16 @@ fn test_audiomessage_notestart() {
 #[test]
 fn test_audiomessage_notestop() {
     // Test creating NoteStop message
-    let msg = AudioMessage::NoteStop {
+    let msg = AudioMessage::Instrument(InstrumentAudioMessage::NoteStop {
         instrument_idx: 1,
         note: Note(NOTES::C, 5),
-    };
+    });
 
     match msg {
-        AudioMessage::NoteStop {
+        AudioMessage::Instrument(InstrumentAudioMessage::NoteStop {
             instrument_idx,
             note,
-        } => {
+        }) => {
             assert_eq!(instrument_idx, 1, "Instrument index should be 1");
             assert_eq!(note, Note(NOTES::C, 5), "Note should be C5");
         }
@@ -322,10 +323,10 @@ fn test_audiomessage_notestop() {
 #[test]
 fn test_audiomessage_setoctave() {
     // Test creating SetOctave message
-    let msg = AudioMessage::SetOctave { row: 0, octave: 6 };
+    let msg = AudioMessage::Instrument(InstrumentAudioMessage::SetOctave { row: 0, octave: 6 });
 
     match msg {
-        AudioMessage::SetOctave { row, octave } => {
+        AudioMessage::Instrument(InstrumentAudioMessage::SetOctave { row, octave }) => {
             assert_eq!(row, 0, "Row should be 0");
             assert_eq!(octave, 6, "Octave should be 6");
         }
@@ -375,25 +376,25 @@ fn test_audiomessage_shutdown() {
 #[test]
 fn test_audiomessage_clone() {
     // Test that AudioMessage can be cloned
-    let original = AudioMessage::NoteStart {
+    let original = AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
         instrument_idx: 0,
         note: Note(NOTES::D, 3),
         velocity: 0.5,
-    };
+    });
     let cloned = original.clone();
 
     match (original, cloned) {
         (
-            AudioMessage::NoteStart {
+            AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
                 instrument_idx: idx1,
                 note: note1,
                 velocity: vel1,
-            },
-            AudioMessage::NoteStart {
+            }),
+            AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
                 instrument_idx: idx2,
                 note: note2,
                 velocity: vel2,
-            },
+            }),
         ) => {
             assert_eq!(idx1, idx2, "Cloned instrument index should match");
             assert_eq!(note1, note2, "Cloned note should match");
@@ -406,11 +407,11 @@ fn test_audiomessage_clone() {
 #[test]
 fn test_audiomessage_debug() {
     // Test that AudioMessage can be formatted with Debug
-    let msg = AudioMessage::NoteStart {
+    let msg = AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
         instrument_idx: 0,
         note: Note(NOTES::E, 4),
         velocity: 0.9,
-    };
+    });
     let debug_str = format!("{:?}", msg);
 
     assert!(
@@ -422,17 +423,17 @@ fn test_audiomessage_debug() {
 #[test]
 fn test_audiomessage_all_variants() {
     // Test that all AudioMessage variants can be created
-    let messages = vec![
-        AudioMessage::NoteStart {
+    let messages: Vec<AudioMessage> = vec![
+        AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
             instrument_idx: 0,
             note: Note(NOTES::C, 4),
             velocity: 0.8,
-        },
-        AudioMessage::NoteStop {
+        }),
+        AudioMessage::Instrument(InstrumentAudioMessage::NoteStop {
             instrument_idx: 0,
             note: Note(NOTES::C, 4),
-        },
-        AudioMessage::SetOctave { row: 0, octave: 5 },
+        }),
+        AudioMessage::Instrument(InstrumentAudioMessage::SetOctave { row: 0, octave: 5 }),
         AudioMessage::SetMasterVolume { volume: 0.75 },
         AudioMessage::SetSampleRate { rate: 44100 },
         AudioMessage::Shutdown,
@@ -511,17 +512,17 @@ fn test_shared_state_concurrent_access_pattern() {
 fn test_message_queue_pattern() {
     // Demonstrate the pattern of queuing audio messages
     // (This doesn't test the actual queue, just the message types)
-    let messages = vec![
-        AudioMessage::NoteStart {
+    let messages: Vec<AudioMessage> = vec![
+        AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
             instrument_idx: 0,
             note: Note(NOTES::C, 4),
             velocity: 0.8,
-        },
-        AudioMessage::SetOctave { row: 0, octave: 5 },
-        AudioMessage::NoteStop {
+        }),
+        AudioMessage::Instrument(InstrumentAudioMessage::SetOctave { row: 0, octave: 5 }),
+        AudioMessage::Instrument(InstrumentAudioMessage::NoteStop {
             instrument_idx: 0,
             note: Note(NOTES::C, 4),
-        },
+        }),
     ];
 
     // Verify we can process them
@@ -529,13 +530,13 @@ fn test_message_queue_pattern() {
 
     for msg in messages {
         match msg {
-            AudioMessage::NoteStart { .. } => {
+            AudioMessage::Instrument(InstrumentAudioMessage::NoteStart { .. }) => {
                 // Would trigger note start in real system
             }
-            AudioMessage::SetOctave { .. } => {
+            AudioMessage::Instrument(InstrumentAudioMessage::SetOctave { .. }) => {
                 // Would update octave in real system
             }
-            AudioMessage::NoteStop { .. } => {
+            AudioMessage::Instrument(InstrumentAudioMessage::NoteStop { .. }) => {
                 // Would trigger note stop in real system
             }
             _ => {}

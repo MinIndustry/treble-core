@@ -12,12 +12,10 @@ use rodio::{OutputStream, Sink};
 use rustic::core::filters::prelude::{
     CombinatorFilter, DelayFilter, DuplicateFilter, GainFilter, Tremolo,
 };
-use rustic::core::graph::{
-    AudioGraphElement, Filter, SimpleSink, Sink as SystemSink, Source, System,
-};
+use rustic::core::graph::{Filter, SimpleSink, Sink as SystemSink, Source, System};
 use rustic::core::utils::{NOTES, Note};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Player {
     _notes: Vec<Note>,
     i: usize,
@@ -48,18 +46,6 @@ impl Source for Player {
         //     + self.notes[1].tick(self.sample_rate as i32)
         //     + self.notes[2].tick(self.sample_rate as i32)
         0.0
-    }
-}
-
-impl AudioGraphElement for Player {
-    fn get_name(&self) -> &str {
-        "Player"
-    }
-
-    fn set_index(&mut self, _index: usize) {}
-
-    fn get_index(&self) -> usize {
-        0
     }
 }
 
@@ -121,7 +107,7 @@ fn main() {
     system.connect_source(source_id, sum_filter, 0);
 
     if system.compute().is_err() {
-        error!("An error occured while computing the filter graph's layers");
+        error!("An error occurred while computing the filter graph's layers");
         return;
     }
 

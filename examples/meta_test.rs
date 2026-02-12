@@ -5,10 +5,14 @@ fn main() {
 
 #[cfg(feature = "meta")]
 fn main() {
-    use rustic::core::filters::prelude::{HighPassFilter_META, LowPassFilter_META};
+    use rustic::core::filters::prelude::{HighPassFilter, LowPassFilter};
+    use rustic::meta::structs::FilterInfo; // Re-exported from rustic_meta
 
-    let filter = LowPassFilter_META().clone();
-    let filter2 = HighPassFilter_META().clone();
+    // MetaFilter trait must be in scope for ::metadata() calls
+    use rustic_meta::MetaFilter;
+
+    let filter = LowPassFilter::metadata();
+    let filter2 = HighPassFilter::metadata();
 
     println!("Metadata:");
     println!("\tName: {}", filter.name);
