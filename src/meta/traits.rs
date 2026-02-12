@@ -1,13 +1,5 @@
 use crate::core::graph::Filter;
 use rustic_meta::Parameter;
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum NodeKind {
-    Generator,
-    Filter,
-    Sink,
-}
 
 pub trait FilterFactory: Send + Sync {
     fn create_instance(&self) -> Box<dyn Filter>;

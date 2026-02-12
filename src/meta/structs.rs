@@ -16,10 +16,5 @@ pub struct MetaSink {
     pub input_count: usize,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct MetaFilter {
-    pub name: &'static str,
-    pub description: &'static str,
-    pub source_amount: usize,
-    pub parameters: Vec<Parameter<&'static str>>,
-}
+/// Re-export FilterInfo from rustic-meta for convenience.
+pub use rustic_meta::FilterInfo;
