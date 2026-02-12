@@ -1,15 +1,9 @@
 use crate::core::graph::{Entry, Sink};
 
 /// A sink that writes audio samples to the cpal ring buffer for playback
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct AudioOutputSink {
     values: Vec<f32>,
-}
-
-impl Default for AudioOutputSink {
-    fn default() -> Self {
-        Self { values: Vec::new() }
-    }
 }
 
 impl AudioOutputSink {

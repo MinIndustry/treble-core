@@ -34,7 +34,3 @@ impl Sink for SimpleSink {
         Box::new(self)
     }
 }
-
-pub fn simple_sink() -> Box<dyn Sink> {
-    Box::new(SimpleSink::new())
-}

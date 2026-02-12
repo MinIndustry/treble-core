@@ -143,17 +143,17 @@ fn process_graph_message(command: GraphAudioMessage, system: &mut Option<System>
             param_name,
             value,
         } => {
-            if let Some(system) = system {
-                if let Some(f) = system.get_filter_mut(NodeIndex::new(node_index)) {
-                    #[cfg(feature = "meta")]
-                    f.set_parameter(param_name.as_str(), value);
-                    #[cfg(not(feature = "meta"))]
-                    log::warn!(
-                        "SetParameter requires the 'meta' feature (node={}, param={})",
-                        node_index,
-                        param_name
-                    );
-                }
+            if let Some(system) = system
+                && let Some(f) = system.get_filter_mut(NodeIndex::new(node_index))
+            {
+                #[cfg(feature = "meta")]
+                f.set_parameter(param_name.as_str(), value);
+                #[cfg(not(feature = "meta"))]
+                log::warn!(
+                    "SetParameter requires the 'meta' feature (node={}, param={})",
+                    node_index,
+                    param_name
+                );
             }
         }
     }
@@ -180,9 +180,6 @@ fn process_audio_message(
         }
         AudioMessage::Shutdown => {
             // Will be handled by the shutdown flag
-        }
-        _ => {
-            // TODO
         }
     }
 }

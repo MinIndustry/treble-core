@@ -152,8 +152,7 @@ impl System {
         let new_sinks: Vec<_> = other
             .sinks
             .iter()
-            .enumerate()
-            .map(|(_index, sink)| {
+            .map(|sink| {
                 (
                     (new_edge_map[&sink.0.0], sink.0.1),
                     dyn_clone::clone_box(&*sink.1),
