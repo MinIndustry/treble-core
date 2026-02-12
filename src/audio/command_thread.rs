@@ -74,7 +74,7 @@ fn create_filter(node_type: &str, params: &[(String, f32)]) -> Result<Box<dyn Fi
             "cutoff_frequency",
             1000.0,
         )))),
-        "Gain" => Ok(Box::new(GainFilter::new(get_param("factor", 1.0)))),
+        "GainFilter" => Ok(Box::new(GainFilter::new(get_param("factor", 1.0)))),
         // TODO: all other filter types
         other => Err(format!("Unknown filter type: {}", other)),
     }

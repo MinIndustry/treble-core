@@ -6,7 +6,6 @@ fn main() {
 #[cfg(feature = "meta")]
 fn main() {
     use rustic::core::filters::prelude::{HighPassFilter, LowPassFilter};
-    use rustic::meta::structs::FilterInfo; // Re-exported from rustic_meta
 
     // MetaFilter trait must be in scope for ::metadata() calls
     use rustic_meta::MetaFilter;

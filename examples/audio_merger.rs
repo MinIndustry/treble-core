@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use rustic::core::generator::prelude::builder::MultiToneGeneratorBuilder;
 use rustic::core::{
     filters::prelude::{CombinatorFilter, GainFilter},
-    graph::{Source, System, simple_source},
+    graph::{System, simple_source},
 };
 
 pub fn main() {
