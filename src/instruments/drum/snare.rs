@@ -71,7 +71,7 @@ impl Instrument for Snare {
         self.generator.start();
     }
 
-    fn stop_note(&mut self, _note: crate::Note) {
+    fn stop_note(&mut self, _note: Note) {
         log::trace!("Stopping snare");
         // The note will continue playing until completed
         self.generator.stop();

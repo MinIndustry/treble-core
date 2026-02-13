@@ -273,8 +273,8 @@ impl CompiledScore {
 struct DummyInstrument {}
 
 impl crate::instruments::Instrument for DummyInstrument {
-    fn start_note(&mut self, _note: crate::Note, _velocity: f32) {}
-    fn stop_note(&mut self, _note: crate::Note) {}
+    fn start_note(&mut self, _note: Note, _velocity: f32) {}
+    fn stop_note(&mut self, _note: Note) {}
     fn get_output(&mut self) -> f32 {
         0.0
     }

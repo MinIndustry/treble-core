@@ -13,7 +13,7 @@ use crate::core::{
 pub struct MultiToneGenerator {
     base_frequency: f32,
     tone_generators: Vec<SingleToneGenerator>,
-    mix_mode: super::prelude::MixMode,
+    mix_mode: MixMode,
     global_pitch_envelope: Option<Box<dyn Envelope>>,
     global_amplitude_envelope: Option<Box<dyn Envelope>>,
     time: f32,
@@ -23,8 +23,8 @@ pub struct MultiToneGenerator {
 impl MultiToneGenerator {
     pub fn new(
         base_frequency: f32,
-        mut tone_generators: Vec<super::tone::SingleToneGenerator>,
-        mix_mode: super::prelude::MixMode,
+        mut tone_generators: Vec<SingleToneGenerator>,
+        mix_mode: MixMode,
         global_pitch_envelope: Option<Box<dyn Envelope>>,
         global_amplitude_envelope: Option<Box<dyn Envelope>>,
     ) -> Self {
@@ -120,7 +120,7 @@ impl MultiToneGenerator {
         }
     }
 
-    pub fn add_tone(&mut self, tone: super::tone::SingleToneGenerator) {
+    pub fn add_tone(&mut self, tone: SingleToneGenerator) {
         self.tone_generators.push(tone);
     }
 

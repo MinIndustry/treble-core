@@ -138,13 +138,13 @@ pub fn init_logging(
 
 pub fn start_app(
     event_tx: Sender<audio::BackendEvent>,
-    command_rx: Receiver<app::prelude::Command>,
+    command_rx: Receiver<prelude::Command>,
 ) -> Result<audio::AudioHandle, audio::AudioError> {
     use std::sync::Arc;
     use std::sync::atomic::Ordering;
 
     // Initialize app (loads config from file)
-    let mut app = app::prelude::App::new();
+    let mut app = prelude::App::new();
 
     // Initialize logging from config
     if let Ok(config_dir) = app::prelude::FSConfig::app_root_dir() {

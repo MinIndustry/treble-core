@@ -21,8 +21,8 @@ pub struct SingleToneGenerator {
 
 impl SingleToneGenerator {
     pub fn new(
-        waveform: super::prelude::Waveform,
-        frequency_relation: Option<super::prelude::FrequencyRelation>,
+        waveform: Waveform,
+        frequency_relation: Option<FrequencyRelation>,
         pitch_envelope: Option<Box<dyn Envelope>>,
         amplitude_envelope: Box<dyn Envelope>,
         frequency: f32,
@@ -75,7 +75,7 @@ impl SingleToneGenerator {
         let tone_value = match self.waveform {
             Waveform::Blank => 1.0, // Returns 1.0 that will be mapped to the amplitude envelope
             Waveform::PinkNoise => 1.0, // TODO impl pink noise
-            Waveform::Sawtooth => (self.phase * std::f32::consts::FRAC_1_PI) - 1.0,
+            Waveform::Sawtooth => (self.phase * f32::consts::FRAC_1_PI) - 1.0,
             Waveform::Sine => f32::sin(self.phase),
             Waveform::Square => {
                 if self.phase > f32::consts::PI {
@@ -84,9 +84,7 @@ impl SingleToneGenerator {
                     -1.0
                 }
             }
-            Waveform::Triangle => {
-                1.0 - 2.0 * ((self.phase * std::f32::consts::FRAC_1_PI) - 1.0).abs()
-            }
+            Waveform::Triangle => 1.0 - 2.0 * ((self.phase * f32::consts::FRAC_1_PI) - 1.0).abs(),
             Waveform::WhiteNoise => rand::thread_rng().gen_range(-1.0..1.0),
         };
         log::trace!(

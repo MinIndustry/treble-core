@@ -3,7 +3,6 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-use log::{info, trace};
 use petgraph::Graph;
 use petgraph::dot::Dot;
 use petgraph::prelude::NodeIndex;
@@ -90,7 +89,7 @@ impl System {
                 new_edge_map.entry(graph_b_source_descendant_index)
             {
                 let new_index = self.graph.add_node(source_descendant);
-                info!(
+                log::info!(
                     "idx {} -> idx {}",
                     graph_b_source_descendant_index.index(),
                     new_index.index()
@@ -138,7 +137,7 @@ impl System {
         for edge in other.graph.edge_indices() {
             let (other_from, other_to) = other.graph.edge_endpoints(edge).unwrap();
             let (from, to) = (new_edge_map[&other_from], new_edge_map[&other_to]);
-            info!(
+            log::info!(
                 "\tEdge ({}, {}) -> ({}, {})",
                 other_from.index(),
                 other_to.index(),
@@ -172,7 +171,7 @@ impl System {
 
     // Adds a filter to the system. Further references to this filter should be done using the returned uuid
     pub fn add_filter(&mut self, filter: Box<dyn Filter>) -> NodeIndex<u32> {
-        trace!("[Graph] Adding filter {:?}", filter);
+        log::trace!("[Graph] Adding filter {:?}", filter);
         self.graph.add_node(filter)
     }
 
@@ -185,9 +184,12 @@ impl System {
         out_port: usize,
         in_port: usize,
     ) {
-        trace!(
+        log::trace!(
             "[Graph] Connecting {:?} (p: {}) to {:?} (p: {})",
-            self.graph[from], out_port, self.graph[to], in_port
+            self.graph[from],
+            out_port,
+            self.graph[to],
+            in_port
         );
         self.graph.add_edge(from, to, (out_port, in_port));
     }
@@ -199,14 +201,14 @@ impl System {
 
     /// Connects a filter from the graph to a sink
     pub fn connect_sink(&mut self, from: NodeIndex<u32>, sink: usize, out_port: usize) {
-        info!("Node {} (p: {}) -> Sink {}", from.index(), out_port, sink);
+        log::info!("Node {} (p: {}) -> Sink {}", from.index(), out_port, sink);
         self.sinks[sink].0 = (from, out_port);
     }
 
     /// Sets the sink at index `index` to be the given sink object
     pub fn set_sink(&mut self, index: usize, sink: Box<dyn Sink>) -> Result<(), AudioGraphError> {
         if index < self.sinks.len() {
-            trace!("[Graph] Setting Node {:?} as sink {}", sink, index);
+            log::trace!("[Graph] Setting Node {:?} as sink {}", sink, index);
             self.sinks[index] = ((NodeIndex::new(0), 0), sink);
             Ok(())
         } else {
@@ -221,7 +223,7 @@ impl System {
         source: Box<dyn Source>,
     ) -> Result<(), AudioGraphError> {
         if index < self.sources.len() {
-            trace!("[Graph] Setting Node {:?} as source", source);
+            log::trace!("[Graph] Setting Node {:?} as source", source);
             self.sources[index] = (source, (NodeIndex::new(0), 0));
             Ok(())
         } else {
