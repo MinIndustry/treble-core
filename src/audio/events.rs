@@ -1,7 +1,9 @@
 //! Backend events sent from audio system to frontend
 
+use serde::{Deserialize, Serialize};
+
 /// Events sent from backend to frontend for status updates and error reporting
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum BackendEvent {
     // Status updates
     AudioStarted { sample_rate: u32 },

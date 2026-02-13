@@ -35,7 +35,6 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use log::error;
 use std::sync::mpsc::{Receiver, Sender};
-use std::thread::JoinHandle;
 
 pub mod app;
 
@@ -54,11 +53,11 @@ pub mod instruments;
 
 #[cfg(feature = "meta")]
 /// This module defines the metadata structures for the application.
-/// It allows to store and retreive metadata about filters
+/// It allows to store and retrieve metadata about filters
 pub mod meta;
 
 /// The mod score contains all the building block for creating music
-/// Sheets contain instruments layed out on a staff, divided into measures
+/// Sheets contain instruments laid out on a staff, divided into measures
 /// Notes in the measures are structures that implement the `MeasureNote` trait.
 /// This allows to build complex notes, chords, ...
 pub mod score;
@@ -137,57 +136,10 @@ pub fn init_logging(
     Ok(())
 }
 
-/// Handle to the audio system threads
-pub struct AudioHandle {
-    command_thread: JoinHandle<()>,
-    render_thread: JoinHandle<()>,
-    stream: cpal::Stream,
-    shared_state: std::sync::Arc<audio::SharedAudioState>,
-}
-
-impl AudioHandle {
-    /// Gracefully shutdown the audio system
-    pub fn shutdown(self) -> Result<(), audio::AudioError> {
-        use std::sync::atomic::Ordering;
-
-        // Signal shutdown
-        self.shared_state.shutdown.store(true, Ordering::Release);
-
-        // Wait for threads to finish
-        self.command_thread
-            .join()
-            .map_err(|_| audio::AudioError::ThreadPanic)?;
-        self.render_thread
-            .join()
-            .map_err(|_| audio::AudioError::ThreadPanic)?;
-
-        // Drop stream (stops playback)
-        drop(self.stream);
-
-        Ok(())
-    }
-
-    /// Get audio metrics
-    pub fn get_metrics(&self) -> AudioMetrics {
-        use std::sync::atomic::Ordering;
-
-        AudioMetrics {
-            buffer_underruns: self.shared_state.buffer_underruns.load(Ordering::Relaxed),
-            sample_rate: self.shared_state.sample_rate.load(Ordering::Relaxed),
-        }
-    }
-}
-
-/// Audio system metrics
-pub struct AudioMetrics {
-    pub buffer_underruns: u64,
-    pub sample_rate: u32,
-}
-
 pub fn start_app(
     event_tx: Sender<audio::BackendEvent>,
     command_rx: Receiver<app::prelude::Command>,
-) -> Result<AudioHandle, audio::AudioError> {
+) -> Result<audio::AudioHandle, audio::AudioError> {
     use std::sync::Arc;
     use std::sync::atomic::Ordering;
 
@@ -294,10 +246,10 @@ pub fn start_app(
 
     log::info!("Audio system started successfully");
 
-    Ok(AudioHandle {
+    Ok(audio::AudioHandle::new(
         command_thread,
         render_thread,
         stream,
         shared_state,
-    })
+    ))
 }

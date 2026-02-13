@@ -150,9 +150,11 @@ fn process_graph_message(command: GraphAudioMessage, system: &mut Option<System>
                 f.set_parameter(param_name.as_str(), value);
                 #[cfg(not(feature = "meta"))]
                 log::warn!(
-                    "SetParameter requires the 'meta' feature (node={}, param={})",
+                    "SetParameter requires the 'meta' feature (node={}, filter={}, param={}, value={})",
                     node_index,
-                    param_name
+                    f,
+                    param_name,
+                    value
                 );
             }
         }

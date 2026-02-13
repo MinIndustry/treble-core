@@ -15,6 +15,3 @@ pub struct MetaSink {
     pub description: &'static str,
     pub input_count: usize,
 }
-
-/// Re-export FilterInfo from rustic-meta for convenience.
-pub use rustic_meta::FilterInfo;
