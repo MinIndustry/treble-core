@@ -1,9 +1,6 @@
-use rustic_meta::{FilterInfo, MetaFilter, Parameter};
+use rustic_meta::{FilterInfo, MetaFilter, MetaGenerator, MetaSink, Parameter};
 
-pub mod structs;
 pub mod traits;
-
-use structs::{MetaGenerator, MetaSink};
 
 use crate::core::filters::prelude::*;
 

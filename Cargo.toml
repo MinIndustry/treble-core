@@ -36,12 +36,19 @@ rustic-meta = { path = "../rustic-meta", optional = true }
 pretty_assertions = "1.1.0"
 
 [features]
-slow-test = []
-default = []
 plotting = ["plotters", "plotters-backend"]
 meta = ["rustic-derive", "rustic-meta"]
-testing = ["eframe"]
+ts = ["rustic-meta/ts"]
 input = ["evdev"]
+
+# Testing
+testing = ["eframe"]
+slow-test = []
+
+# Platforms
 linux = ["input"]
 macos = []
 windows = []
+
+# Default features
+default = []
