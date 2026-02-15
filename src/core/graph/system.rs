@@ -28,7 +28,7 @@ use crate::core::graph::error::AudioGraphError;
 /// let mut system = System::new();
 ///
 /// // Adding a filter to the system
-/// let filter = Tremolo::new(20.0, 0.5, 1.5);
+/// let filter = Tremolo::new(20.0, 0.5, 44100.0);
 /// let filter_index = system.add_filter(Box::from(filter));
 /// ```
 #[derive(Debug, Default, Clone)]
@@ -37,7 +37,7 @@ pub struct System {
     // The actual filter graph, from which the execution order is derived
     // Each weight represents the port into which the filter is connected
     graph: Graph<Box<dyn Filter>, (usize, usize)>,
-    // Each layer represent filters that can be run concurrently.
+    // Each layer represents filters that can be run concurrently.
     layers: Vec<Vec<usize>>,
     // The sources of the system and the filters they are connected to
     // The node index is the index of the filter that the source is connected to
@@ -61,7 +61,7 @@ impl System {
         }
     }
 
-    /// Merges the two systems together to create a new one. The graphs are merged following the given mapping from sinks to sources.
+    /// Merges the two systems to create a new one. The graphs are merged following the given mapping from sinks to sources.
     /// Sinks to sources links are replaced with a simple combinator filter. The amount of input in the second system
     /// should match the amount of output in the first system.
     #[allow(clippy::type_complexity)]

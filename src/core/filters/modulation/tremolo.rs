@@ -12,34 +12,30 @@ use crate::core::graph::{Entry, Filter};
 pub struct Tremolo {
     #[cfg_attr(feature = "meta", filter_source)]
     pub source: f32,
-    pub time: f32,
+    pub phase: f32,
     #[cfg_attr(feature = "meta", filter_parameter(range, 0.0, 20.0, 1.0))]
     pub frequency: f32,
     #[cfg_attr(feature = "meta", filter_parameter(range, 0.0, 1.0, 0.5))]
-    pub upper_range: f32,
-    #[cfg_attr(feature = "meta", filter_parameter(range, 0.0, 1.0, 0.5))]
-    pub lower_range: f32,
+    pub depth: f32,
+    #[cfg_attr(feature = "meta", filter_parameter(range, 0.0, 192000.0, 44100.0))]
+    pub sample_rate: f32,
 }
 
 impl Tremolo {
-    pub fn new(frequency: f32, min: f32, max: f32) -> Self {
+    pub fn new(frequency: f32, depth: f32, sample_rate: f32) -> Self {
         Self {
             source: 0.0,
-            time: 0.0,
+            phase: 0.0,
             frequency,
-            upper_range: max,
-            lower_range: min,
+            depth,
+            sample_rate,
         }
     }
 }
 
 impl fmt::Display for Tremolo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Tremolo: {}Hz ({}, {})",
-            self.frequency, self.lower_range, self.upper_range
-        )
+        write!(f, "Tremolo: {}Hz, depth: {}", self.frequency, self.depth)
     }
 }
 
@@ -51,12 +47,12 @@ impl Entry for Tremolo {
 
 impl Filter for Tremolo {
     fn transform(&mut self) -> Vec<f32> {
-        self.time += 1.0 / 44100.0;
-        vec![
-            self.source
-                * ((self.frequency * self.time).sin() * (self.upper_range - self.lower_range)
-                    + (self.lower_range + self.upper_range) / 2.0),
-        ]
+        self.phase += (2.0 * std::f32::consts::PI * self.frequency) / self.sample_rate;
+        if self.phase > 2.0 * std::f32::consts::PI {
+            self.phase -= 2.0 * std::f32::consts::PI;
+        }
+        let modulation = 1.0 - self.depth * (0.5 * (1.0 + self.phase.sin()));
+        vec![self.source * modulation]
     }
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {

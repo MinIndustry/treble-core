@@ -37,11 +37,7 @@ impl Entry for Clipper {
 
 impl Filter for Clipper {
     fn transform(&mut self) -> Vec<f32> {
-        vec![if self.source > self.max_ampl {
-            self.max_ampl
-        } else {
-            self.source
-        }]
+        vec![self.source.clamp(-self.max_ampl, self.max_ampl)]
     }
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {

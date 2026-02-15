@@ -15,17 +15,23 @@ pub struct BandPass {
     pub low: f32,
     #[cfg_attr(feature = "meta", filter_parameter(range, 0.0, 20000.0, 1000.0))]
     pub high: f32,
+    #[cfg_attr(feature = "meta", filter_parameter(range, 0.0, 192000.0, 44100.0))]
+    pub sample_rate: f32,
     pub filters: (HighPassFilter, LowPassFilter),
     #[cfg_attr(feature = "meta", filter_source)]
     pub source: f32,
 }
 
 impl BandPass {
-    pub fn new(low: f32, high: f32) -> Self {
+    pub fn new(low: f32, high: f32, sample_rate: f32) -> Self {
         Self {
             low,
             high,
-            filters: (HighPassFilter::new(low), LowPassFilter::new(high)),
+            sample_rate,
+            filters: (
+                HighPassFilter::new(low, sample_rate),
+                LowPassFilter::new(high, sample_rate),
+            ),
             source: 0.0,
         }
     }

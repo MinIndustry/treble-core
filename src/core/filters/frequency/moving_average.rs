@@ -13,13 +13,14 @@ pub struct MovingAverage {
     #[cfg_attr(feature = "meta", filter_parameter(val, 3, 0))]
     size: usize,
     buffer: Vec<f32>,
+    write_pos: usize,
     #[cfg_attr(feature = "meta", filter_source)]
     source: f32,
 }
 
 impl fmt::Display for MovingAverage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Moving average filter 4 samples")
+        write!(f, "Moving average filter {} samples", self.size)
     }
 }
 
@@ -28,6 +29,7 @@ impl MovingAverage {
         Self {
             size,
             buffer: vec![0.0; size],
+            write_pos: 0,
             source: 0.0,
         }
     }
@@ -41,12 +43,11 @@ impl Entry for MovingAverage {
 
 impl Filter for MovingAverage {
     fn transform(&mut self) -> Vec<f32> {
-        let output =
-            (self.buffer.iter().fold(0.0, |p, e| p + e) + self.source) / (self.size + 1) as f32;
-        for i in (self.size - 1)..0 {
-            self.buffer[i] = self.buffer[i - 1];
-        }
-        self.buffer[0] = self.source;
+        self.buffer[self.write_pos] = self.source;
+        self.write_pos = (self.write_pos + 1) % self.size;
+
+        let sum: f32 = self.buffer.iter().sum();
+        let output = sum / self.size as f32;
 
         vec![output]
     }

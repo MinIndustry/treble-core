@@ -56,7 +56,11 @@ fn create_source(node_type: &str, params: &[(String, f32)]) -> Result<Box<dyn So
     Ok(simple_source(generator))
 }
 
-fn create_filter(node_type: &str, params: &[(String, f32)]) -> Result<Box<dyn Filter>, String> {
+fn create_filter(
+    node_type: &str,
+    params: &[(String, f32)],
+    sample_rate: f32,
+) -> Result<Box<dyn Filter>, String> {
     let get_param = |name: &str, default: f32| -> f32 {
         params
             .iter()
@@ -66,15 +70,33 @@ fn create_filter(node_type: &str, params: &[(String, f32)]) -> Result<Box<dyn Fi
     };
 
     match node_type {
-        "Low Pass Filter" => Ok(Box::new(LowPassFilter::new(get_param(
-            "cutoff_frequency",
-            1000.0,
-        )))),
-        "High Pass Filter" => Ok(Box::new(HighPassFilter::new(get_param(
-            "cutoff_frequency",
-            1000.0,
-        )))),
+        "Low Pass Filter" => Ok(Box::new(LowPassFilter::new(
+            get_param("cutoff_frequency", 1000.0),
+            sample_rate,
+        ))),
+        "High Pass Filter" => Ok(Box::new(HighPassFilter::new(
+            get_param("cutoff_frequency", 1000.0),
+            sample_rate,
+        ))),
         "GainFilter" => Ok(Box::new(GainFilter::new(get_param("factor", 1.0)))),
+        "Tremolo" => Ok(Box::new(Tremolo::new(
+            get_param("frequency", 5.0),
+            get_param("depth", 0.5),
+            sample_rate,
+        ))),
+        "Bandpass Filter" => Ok(Box::new(BandPass::new(
+            get_param("low", 500.0),
+            get_param("high", 1500.0),
+            sample_rate,
+        ))),
+        "Clipper" => Ok(Box::new(Clipper::new(get_param("max_ampl", 1.0)))),
+        "Moving Average" => Ok(Box::new(MovingAverage::new(
+            get_param("size", 10.0) as usize
+        ))),
+        "Delay" => Ok(Box::new(DelayFilter::new(
+            sample_rate,
+            get_param("delay_for", 0.5),
+        ))),
         // TODO: all other filter types
         other => Err(format!("Unknown filter type: {}", other)),
     }
@@ -85,6 +107,7 @@ fn handle_graph_command(
     graph_system: &mut GraphData,
     message_tx: &crossbeam::channel::Sender<AudioMessage>,
     event_tx: &Sender<BackendEvent>,
+    shared_state: &Arc<SharedAudioState>,
 ) {
     match graph_cmd {
         GraphCommand::AddNode {
@@ -99,7 +122,8 @@ fn handle_graph_command(
                         .insert(graph_system.next_graph_id, idx);
                 }
                 NodeKind::Filter => {
-                    let filter = create_filter(&node_type, &[]).unwrap();
+                    let sample_rate = shared_state.sample_rate.load(Ordering::Relaxed) as f32;
+                    let filter = create_filter(&node_type, &[], sample_rate).unwrap();
                     let idx = graph_system.system.add_filter(filter);
                     graph_system
                         .filter_map
@@ -239,7 +263,13 @@ pub fn spawn_command_thread(
                     }
                     Ok(Command::Graph(cmd)) => {
                         // Manage graph commands
-                        handle_graph_command(cmd, &mut graph_system, &message_tx, &event_tx);
+                        handle_graph_command(
+                            cmd,
+                            &mut graph_system,
+                            &message_tx,
+                            &event_tx,
+                            &shared_state,
+                        );
                     }
                     Ok(cmd) => {
                         // Validate command

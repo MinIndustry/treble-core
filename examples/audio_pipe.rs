@@ -80,7 +80,7 @@ fn main() {
     let gain_filter: Box<dyn Filter> = Box::from(GainFilter::new(0.4));
 
     // Add a tremolo
-    let final_tremolo: Box<dyn Filter> = Box::from(Tremolo::new(20.0, 0.4, 0.6));
+    let final_tremolo: Box<dyn Filter> = Box::from(Tremolo::new(20.0, 0.5, sample_rate));
     // let clipper: Box<dyn Filter> = Box::from(Clipper::new(0.75));
 
     let system_sink: Box<dyn SystemSink> = Box::from(SimpleSink::new());

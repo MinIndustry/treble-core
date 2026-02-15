@@ -6,7 +6,7 @@ use rustic_derive::FilterMetaData;
 
 use crate::core::graph::{Entry, Filter};
 
-/// Delays its input by a fixed amount of seconds.
+/// Delays its input by a fixed number of seconds.
 #[derive(Clone, Default)]
 #[cfg_attr(feature = "meta", derive(FilterMetaData))]
 pub struct DelayFilter {
@@ -35,7 +35,7 @@ impl Entry for DelayFilter {
 
 impl fmt::Display for DelayFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Delay Filter - {} samples", self.delay_for)
+        write!(f, "Delay Filter - {}s", self.delay_for)
     }
 }
 

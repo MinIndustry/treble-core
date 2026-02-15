@@ -36,7 +36,8 @@ impl ResonantBandpassFilter {
 
         let r: f64 = (-PI * bandwidth as f64 * period as f64).exp();
 
-        let b: [f64; 3] = [1.0, 0.0, -r];
+        let gain = 1.0 - r;
+        let b: [f64; 3] = [gain, 0.0, -gain * r];
         let a: [f64; 3] = [
             1.0,
             -2.0 * r * (2.0 * PI * center_frequency as f64 * period as f64).cos(),
@@ -49,6 +50,21 @@ impl ResonantBandpassFilter {
             a,
             zs: [0.0; 2],
         }
+    }
+
+    pub fn set_parameters(&mut self, center_frequency: f32, quality: f32, sample_frequency: f32) {
+        let period = 1.0 / sample_frequency;
+        let bandwidth = center_frequency / quality;
+
+        let r: f64 = (-PI * bandwidth as f64 * period as f64).exp();
+
+        let gain = 1.0 - r;
+        self.b = [gain, 0.0, -gain * r];
+        self.a = [
+            1.0,
+            -2.0 * r * (2.0 * PI * center_frequency as f64 * period as f64).cos(),
+            r * r,
+        ];
     }
 
     /// Resets the filter's internal state (delay elements).
