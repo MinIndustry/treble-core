@@ -11,6 +11,7 @@ mod performance;
 mod settings;
 mod system;
 
+use crate::audio::RenderMode;
 pub use effect::*;
 pub use graph::*;
 pub use live::*;
@@ -41,6 +42,7 @@ pub enum AudioCommand {
     GraphPause,
     GraphStop,
     Shutdown,
+    SetRenderMode(RenderMode),
 }
 
 /// Commands that only mutate App/UI state (no audio thread interaction)
@@ -124,6 +126,7 @@ impl AudioCommand {
                 unreachable!("Graph audio commands are handled in the command thread dispatch")
             }
             AudioCommand::Shutdown => AudioMessage::Shutdown,
+            AudioCommand::SetRenderMode(mode) => AudioMessage::SetRenderMode(mode),
         }
     }
 }

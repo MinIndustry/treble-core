@@ -18,6 +18,8 @@ pub mod messages;
 pub mod render_thread;
 pub mod shared_state;
 
+use serde::{Deserialize, Serialize};
+
 // Re-export commonly used types
 pub use callback::create_cpal_callback;
 pub use command_thread::spawn_command_thread;
@@ -29,7 +31,7 @@ pub use messages::{AudioMessage, GraphAudioMessage, InstrumentAudioMessage};
 pub use render_thread::spawn_audio_render_thread;
 pub use shared_state::SharedAudioState;
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub enum RenderMode {
     #[default]
     Instruments,
