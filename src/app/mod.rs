@@ -35,7 +35,7 @@ pub enum AppMode {
 pub mod prelude {
     pub use super::app::App;
     pub use super::cli::Cli;
-    pub use super::commands::Command;
+    pub use super::commands::{AppCommand, AudioCommand, Command};
     pub use super::filesystem::FSConfig;
     pub use super::system::SystemConfig;
     pub use super::{AppMode, RunMode};

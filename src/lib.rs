@@ -69,7 +69,7 @@ pub mod prelude {
     // App exports
     pub use super::app::{
         self,
-        prelude::{App, Command},
+        prelude::{App, AppCommand, AudioCommand, Command},
     };
 
     // Core exports - only expose the module, details accessed through it

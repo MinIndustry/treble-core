@@ -8,10 +8,8 @@ use std::path::Path;
 use clap::Parser;
 use log::{info, trace};
 
-use super::commands::{Command, LiveCommand};
+use super::commands::{LiveCommand, SystemCommand};
 use super::prelude::*;
-
-use crate::app::commands::SystemCommand;
 use crate::app::error::AppError;
 use crate::instruments::prelude::KeyboardBuilder;
 use crate::prelude::Instrument;
@@ -106,9 +104,6 @@ impl App {
 
     pub fn handle_system_command(&mut self, event: SystemCommand) {
         match event {
-            SystemCommand::Quit => {
-                self.run_mode = RunMode::Unknown;
-            }
             SystemCommand::Reset => {
                 log::error!("Not implemented System::Reset");
             }
@@ -117,56 +112,20 @@ impl App {
 
     pub fn handle_live_command(&mut self, event: LiveCommand) {
         match event {
-            LiveCommand::NoteStart {
-                note,
-                row,
-                velocity,
-            } => {
-                if row > 2 {
-                    panic!("Row out of bounds");
-                }
-
-                let note = self.rows[row as usize].get_note(note);
-                if self.rows[row as usize].instrument >= self.instruments.len() {
-                    log::warn!("Instrument out of bounds");
-                } else {
-                    self.instruments[self.rows[row as usize].instrument].start_note(note, velocity);
-                }
-            }
-            LiveCommand::NoteStop { note, row } => {
-                if row > 2 {
-                    panic!("Row out of bounds");
-                }
-
-                let note = self.rows[row as usize].get_note(note);
-                if self.rows[row as usize].instrument >= self.instruments.len() {
-                    log::warn!("Instrument out of bounds");
-                } else {
-                    self.instruments[self.rows[row as usize].instrument].stop_note(note);
-                }
-            }
             LiveCommand::OctaveUp(row) => {
-                if row > 2 {
-                    panic!("Row out of bounds");
-                }
-
                 self.rows[row as usize].octave += 1;
             }
             LiveCommand::OctaveDown(row) => {
-                if row > 2 {
-                    panic!("Row out of bounds");
-                }
-
                 self.rows[row as usize].octave -= 1;
             }
             _ => {}
         }
     }
 
-    pub fn on_event(&mut self, event: Command) {
+    pub fn on_event(&mut self, event: AppCommand) {
         match event {
-            Command::System(system_command) => self.handle_system_command(system_command),
-            Command::Live(live_command) => self.handle_live_command(live_command),
+            AppCommand::System(system_command) => self.handle_system_command(system_command),
+            AppCommand::Live(live_command) => self.handle_live_command(live_command),
             _ => {}
         }
     }

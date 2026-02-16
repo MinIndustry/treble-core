@@ -13,10 +13,6 @@ pub enum AudioMessage {
 
     SetRenderMode(RenderMode),
 
-    // System control
-    SetMasterVolume { volume: f32 },
-    SetSampleRate { rate: u32 },
-
     // Lifecycle
     Shutdown,
 }
@@ -32,12 +28,6 @@ pub enum InstrumentAudioMessage {
     NoteStop {
         instrument_idx: usize,
         note: Note,
-    },
-
-    // Instrument control
-    SetOctave {
-        row: usize,
-        octave: u8,
     },
 }
 

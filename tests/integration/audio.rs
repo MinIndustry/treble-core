@@ -321,46 +321,6 @@ fn test_audiomessage_notestop() {
 }
 
 #[test]
-fn test_audiomessage_setoctave() {
-    // Test creating SetOctave message
-    let msg = AudioMessage::Instrument(InstrumentAudioMessage::SetOctave { row: 0, octave: 6 });
-
-    match msg {
-        AudioMessage::Instrument(InstrumentAudioMessage::SetOctave { row, octave }) => {
-            assert_eq!(row, 0, "Row should be 0");
-            assert_eq!(octave, 6, "Octave should be 6");
-        }
-        _ => panic!("Expected SetOctave message"),
-    }
-}
-
-#[test]
-fn test_audiomessage_setmastervolume() {
-    // Test creating SetMasterVolume message
-    let msg = AudioMessage::SetMasterVolume { volume: 0.7 };
-
-    match msg {
-        AudioMessage::SetMasterVolume { volume } => {
-            assert_eq!(volume, 0.7, "Volume should be 0.7");
-        }
-        _ => panic!("Expected SetMasterVolume message"),
-    }
-}
-
-#[test]
-fn test_audiomessage_setsamplerate() {
-    // Test creating SetSampleRate message
-    let msg = AudioMessage::SetSampleRate { rate: 48000 };
-
-    match msg {
-        AudioMessage::SetSampleRate { rate } => {
-            assert_eq!(rate, 48000, "Rate should be 48000");
-        }
-        _ => panic!("Expected SetSampleRate message"),
-    }
-}
-
-#[test]
 fn test_audiomessage_shutdown() {
     // Test creating Shutdown message
     let msg = AudioMessage::Shutdown;
@@ -433,9 +393,6 @@ fn test_audiomessage_all_variants() {
             instrument_idx: 0,
             note: Note(NOTES::C, 4),
         }),
-        AudioMessage::Instrument(InstrumentAudioMessage::SetOctave { row: 0, octave: 5 }),
-        AudioMessage::SetMasterVolume { volume: 0.75 },
-        AudioMessage::SetSampleRate { rate: 44100 },
         AudioMessage::Shutdown,
     ];
 
@@ -518,7 +475,6 @@ fn test_message_queue_pattern() {
             note: Note(NOTES::C, 4),
             velocity: 0.8,
         }),
-        AudioMessage::Instrument(InstrumentAudioMessage::SetOctave { row: 0, octave: 5 }),
         AudioMessage::Instrument(InstrumentAudioMessage::NoteStop {
             instrument_idx: 0,
             note: Note(NOTES::C, 4),
@@ -526,15 +482,12 @@ fn test_message_queue_pattern() {
     ];
 
     // Verify we can process them
-    assert_eq!(messages.len(), 3, "Should have 3 messages queued");
+    assert_eq!(messages.len(), 2, "Should have 2 messages queued");
 
     for msg in messages {
         match msg {
             AudioMessage::Instrument(InstrumentAudioMessage::NoteStart { .. }) => {
                 // Would trigger note start in real system
-            }
-            AudioMessage::Instrument(InstrumentAudioMessage::SetOctave { .. }) => {
-                // Would update octave in real system
             }
             AudioMessage::Instrument(InstrumentAudioMessage::NoteStop { .. }) => {
                 // Would trigger note stop in real system

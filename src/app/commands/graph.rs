@@ -20,18 +20,10 @@ pub enum GraphCommand {
         from: u64,
         to: u64,
     },
-    SetParameter {
-        node_id: u64,
-        param_name: String,
-        value: f32,
-    },
     SetNodePosition {
         id: u64,
         position: (f32, f32),
     },
-    Play,
-    Pause,
-    Stop,
     SaveGraph(String),
     LoadGraph(String),
 }

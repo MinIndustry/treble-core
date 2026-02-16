@@ -124,9 +124,6 @@ fn process_instrument_message(
                 log::warn!("Invalid instrument index: {}", instrument_idx);
             }
         }
-        InstrumentAudioMessage::SetOctave { .. } => {
-            // Octave is managed by the command thread, not needed here
-        }
     }
 }
 
@@ -173,12 +170,6 @@ fn process_audio_message(
         AudioMessage::Graph(cmd) => process_graph_message(cmd, system),
         AudioMessage::SetRenderMode(mode) => {
             *render_mode = mode;
-        }
-        AudioMessage::SetMasterVolume { .. } => {
-            // Volume is applied in the command thread
-        }
-        AudioMessage::SetSampleRate { .. } => {
-            // Sample rate changes require restarting the audio system
         }
         AudioMessage::Shutdown => {
             // Will be handled by the shutdown flag
