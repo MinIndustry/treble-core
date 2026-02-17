@@ -20,10 +20,6 @@ pub enum GraphCommand {
         from: u64,
         to: u64,
     },
-    SetNodePosition {
-        id: u64,
-        position: (f32, f32),
-    },
     SaveGraph(String),
     LoadGraph(String),
 }

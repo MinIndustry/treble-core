@@ -224,9 +224,6 @@ fn handle_graph_app_command(
                 let _ = graph_system.system.disconnect(from_idx, to_idx);
             }
         }
-        GraphCommand::SetNodePosition { .. } => {
-            // Position is frontend-only state, nothing to do here
-        }
         GraphCommand::SaveGraph(_) | GraphCommand::LoadGraph(_) => {
             // Save/load is handled by the frontend graph library serializing its own state.
             // The command thread rebuilds the System from the sequence of AddNode/Connect

@@ -25,7 +25,6 @@ simplelog = "0.12.2"
 thiserror = "2.0.12"
 toml = "0.8.22"
 typetag = "0.2.21"
-eframe = { version = "0.29", optional = true }
 evdev = { version = "0.12.2", optional = true }
 plotters = { version = "0.3.7", optional = true }
 plotters-backend = { version = "0.3.7", optional = true }
@@ -42,7 +41,6 @@ ts = ["rustic-meta/ts"]
 input = ["evdev"]
 
 # Testing
-testing = ["eframe"]
 slow-test = []
 
 # Platforms

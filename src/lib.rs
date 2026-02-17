@@ -88,9 +88,6 @@ pub mod prelude {
 #[cfg(feature = "plotting")]
 pub mod plotting;
 
-#[cfg(feature = "testing")]
-pub mod testing;
-
 // Re-export Note from core utils
 pub use core::{NOTES, Note};
 
@@ -110,26 +107,36 @@ pub fn init_logging(
         _ => LevelFilter::Info,
     };
 
-    let log_config = ConfigBuilder::new().set_time_format_rfc3339().build();
-
     let mut loggers: Vec<Box<dyn SharedLogger>> = vec![];
 
     if config.log_to_stdout {
+        let term_config = ConfigBuilder::new()
+            .set_time_format_rfc3339()
+            .set_target_level(LevelFilter::Info)
+            .set_location_level(LevelFilter::Debug)
+            .build();
+
         loggers.push(TermLogger::new(
             log_level,
-            log_config.clone(),
+            term_config,
             TerminalMode::Mixed,
             ColorChoice::Auto,
         ));
     }
 
     if config.log_to_file {
+        let file_config = ConfigBuilder::new()
+            .set_time_format_rfc3339()
+            .set_target_level(LevelFilter::Trace)
+            .set_location_level(LevelFilter::Trace)
+            .build();
+
         let log_path = config_dir.join(&config.log_file);
         let log_file = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
             .open(log_path)?;
-        loggers.push(WriteLogger::new(log_level, log_config, log_file));
+        loggers.push(WriteLogger::new(log_level, file_config, log_file));
     }
 
     CombinedLogger::init(loggers)?;
@@ -139,16 +146,25 @@ pub fn init_logging(
 pub fn start_app(
     event_tx: Sender<audio::BackendEvent>,
     command_rx: Receiver<prelude::Command>,
+    skip_logging: bool,
 ) -> Result<audio::AudioHandle, audio::AudioError> {
     use std::sync::Arc;
     use std::sync::atomic::Ordering;
 
-    // Initialize app (loads config from file)
-    let mut app = prelude::App::new();
+    // Initialize app (loads config from file or defaults)
+    let mut app = match app::prelude::FSConfig::app_root_dir() {
+        Ok(root) => {
+            let config_path = root.join("config.toml");
+            prelude::App::from_file(&config_path).unwrap_or_else(|_| prelude::App::new())
+        }
+        Err(_) => prelude::App::new(),
+    };
 
-    // Initialize logging from config
-    if let Ok(config_dir) = app::prelude::FSConfig::app_root_dir() {
-        let _ = init_logging(&app.config.logging, &config_dir);
+    // Initialize logging from config (skip if caller owns logging)
+    if !skip_logging {
+        if let Ok(config_dir) = app::prelude::FSConfig::app_root_dir() {
+            let _ = init_logging(&app.config.logging, &config_dir);
+        }
     }
 
     log::info!("Starting Rustic audio system");
