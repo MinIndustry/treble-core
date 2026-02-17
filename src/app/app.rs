@@ -126,7 +126,6 @@ impl App {
         match event {
             AppCommand::System(system_command) => self.handle_system_command(system_command),
             AppCommand::Live(live_command) => self.handle_live_command(live_command),
-            _ => {}
         }
     }
 

@@ -1,6 +1,6 @@
 //! Command processing thread implementation
 
-use crate::app::commands::{AppCommand, AudioCommand};
+use crate::app::commands::AudioCommand;
 use crate::app::prelude::*;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -97,58 +97,24 @@ fn create_filter(
             sample_rate,
             get_param("delay_for", 0.5),
         ))),
-        // TODO: all other filter types
         other => Err(format!("Unknown filter type: {}", other)),
     }
 }
 
-/// Handle audio commands that interact with the graph system
-/// (SetParameter, Play, Pause, Stop). These send messages to the render thread.
-fn handle_audio_graph_command(
-    cmd: AudioCommand,
+/// Handle all graph commands.
+///
+/// Structural variants (AddNode, RemoveNode, Connect, Disconnect) mutate
+/// `GraphData` only. Playback variants (Play, Pause, Stop, SetParameter)
+/// also send `AudioMessage`s to the render thread.
+fn handle_graph_command(
+    cmd: GraphCommand,
     graph_system: &mut GraphData,
+    shared_state: &Arc<SharedAudioState>,
     message_tx: &crossbeam::channel::Sender<AudioMessage>,
     event_tx: &Sender<BackendEvent>,
 ) {
     match cmd {
-        AudioCommand::GraphSetParameter {
-            node_id,
-            param_name,
-            value,
-        } => {
-            if let Some(&idx) = graph_system.filter_map.get(&node_id) {
-                let _ = message_tx.send(AudioMessage::Graph(GraphAudioMessage::SetParameter {
-                    node_index: idx.index(),
-                    param_name,
-                    value,
-                }));
-            }
-        }
-        AudioCommand::GraphPlay => match graph_system.system.compute() {
-            Ok(()) => {
-                let _ = message_tx.send(AudioMessage::SetRenderMode(RenderMode::Graph));
-            }
-            Err(e) => {
-                let _ = event_tx.send(BackendEvent::GraphError {
-                    description: format!("{:?}", e),
-                });
-            }
-        },
-        AudioCommand::GraphPause | AudioCommand::GraphStop => {
-            let _ = message_tx.send(AudioMessage::SetRenderMode(RenderMode::Instruments));
-            let _ = message_tx.send(AudioMessage::Graph(GraphAudioMessage::Clear));
-        }
-        _ => unreachable!("Non-graph audio commands should not reach handle_audio_graph_command"),
-    }
-}
-
-/// Handle app commands that mutate the graph data structure
-fn handle_graph_app_command(
-    graph_cmd: GraphCommand,
-    graph_system: &mut GraphData,
-    shared_state: &Arc<SharedAudioState>,
-) {
-    match graph_cmd {
+        // -- Structural --
         GraphCommand::AddNode {
             node_type, kind, ..
         } => {
@@ -224,27 +190,34 @@ fn handle_graph_app_command(
                 let _ = graph_system.system.disconnect(from_idx, to_idx);
             }
         }
-        GraphCommand::SaveGraph(_) | GraphCommand::LoadGraph(_) => {
-            // Save/load is handled by the frontend graph library serializing its own state.
-            // The command thread rebuilds the System from the sequence of AddNode/Connect
-            // commands that the frontend replays on load.
-        }
-    }
-}
 
-/// Handle an app command: update app state and graph data as needed
-fn handle_app_command(
-    cmd: AppCommand,
-    app: &mut App,
-    graph_system: &mut GraphData,
-    shared_state: &Arc<SharedAudioState>,
-) {
-    match cmd {
-        AppCommand::Graph(graph_cmd) => {
-            handle_graph_app_command(graph_cmd, graph_system, shared_state);
+        // -- Playback control --
+        GraphCommand::SetParameter {
+            node_id,
+            param_name,
+            value,
+        } => {
+            if let Some(&idx) = graph_system.filter_map.get(&node_id) {
+                let _ = message_tx.send(AudioMessage::Graph(GraphAudioMessage::SetParameter {
+                    node_index: idx.index(),
+                    param_name,
+                    value,
+                }));
+            }
         }
-        _ => {
-            app.on_event(cmd);
+        GraphCommand::Play => match graph_system.system.compute() {
+            Ok(()) => {
+                let _ = message_tx.send(AudioMessage::SetRenderMode(RenderMode::Graph));
+            }
+            Err(e) => {
+                let _ = event_tx.send(BackendEvent::GraphError {
+                    description: format!("{:?}", e),
+                });
+            }
+        },
+        GraphCommand::Pause | GraphCommand::Stop => {
+            let _ = message_tx.send(AudioMessage::SetRenderMode(RenderMode::Instruments));
+            let _ = message_tx.send(AudioMessage::Graph(GraphAudioMessage::Clear));
         }
     }
 }
@@ -274,6 +247,7 @@ pub fn spawn_command_thread(
 
             loop {
                 match command_rx.recv() {
+                    // Shutdown has highest priority — exit the loop immediately
                     Ok(Command::Audio(AudioCommand::Shutdown)) => {
                         log::info!("Shutdown command received");
                         shared_state.shutdown.store(true, Ordering::Release);
@@ -281,28 +255,35 @@ pub fn spawn_command_thread(
                         let _ = event_tx.send(BackendEvent::AudioStopped);
                         break;
                     }
-                    Ok(Command::Audio(
-                        cmd @ (AudioCommand::GraphSetParameter { .. }
-                        | AudioCommand::GraphPlay
-                        | AudioCommand::GraphPause
-                        | AudioCommand::GraphStop),
-                    )) => {
-                        handle_audio_graph_command(cmd, &mut graph_system, &message_tx, &event_tx);
-                    }
-                    Ok(Command::Audio(cmd)) => {
-                        if let Err(e) = cmd.validate(&app) {
+
+                    // Audio commands: validate + translate in one step
+                    Ok(Command::Audio(cmd)) => match cmd.into_audio_message(&app) {
+                        Ok(msg) => {
+                            if message_tx.send(msg).is_err() {
+                                log::warn!("Audio message channel closed");
+                            }
+                        }
+                        Err(e) => {
                             let _ = event_tx.send(BackendEvent::CommandError {
-                                command: format!("{:?}", cmd),
+                                command: "AudioCommand".to_string(),
                                 error: e.to_string(),
                             });
-                            log::warn!("Audio command validation failed: {:?} - {}", cmd, e);
-                            continue;
+                            log::warn!("Audio command failed: {}", e);
                         }
-                        let msg = cmd.into_audio_message(&app);
-                        if message_tx.send(msg).is_err() {
-                            log::warn!("Audio message channel closed");
-                        }
+                    },
+
+                    // Graph commands: unified handler for structural + playback
+                    Ok(Command::Graph(cmd)) => {
+                        handle_graph_command(
+                            cmd,
+                            &mut graph_system,
+                            &shared_state,
+                            &message_tx,
+                            &event_tx,
+                        );
                     }
+
+                    // App commands: validate then apply to app state
                     Ok(Command::App(cmd)) => {
                         if let Err(e) = cmd.validate(&app) {
                             let _ = event_tx.send(BackendEvent::CommandError {
@@ -312,8 +293,9 @@ pub fn spawn_command_thread(
                             log::warn!("App command validation failed: {:?} - {}", cmd, e);
                             continue;
                         }
-                        handle_app_command(cmd, &mut app, &mut graph_system, &shared_state);
+                        app.on_event(cmd);
                     }
+
                     Err(_) => {
                         log::info!("Command channel closed");
                         break;
