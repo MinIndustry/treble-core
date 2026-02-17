@@ -19,6 +19,7 @@ pub mod render_thread;
 pub mod shared_state;
 
 use serde::{Deserialize, Serialize};
+use std::fmt::Formatter;
 
 // Re-export commonly used types
 pub use callback::create_cpal_callback;
@@ -36,4 +37,13 @@ pub enum RenderMode {
     #[default]
     Instruments,
     Graph,
+}
+
+impl std::fmt::Display for RenderMode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RenderMode::Instruments => write!(f, "RenderMode(Instruments)"),
+            RenderMode::Graph => write!(f, "RenderMode(Graph)"),
+        }
+    }
 }
