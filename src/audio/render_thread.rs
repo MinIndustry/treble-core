@@ -169,6 +169,7 @@ fn process_audio_message(
         AudioMessage::Instrument(cmd) => process_instrument_message(cmd, instruments),
         AudioMessage::Graph(cmd) => process_graph_message(cmd, system),
         AudioMessage::SetRenderMode(mode) => {
+            log::info!("Render mode changed to: {}", render_mode);
             *render_mode = mode;
         }
         AudioMessage::Shutdown => {
