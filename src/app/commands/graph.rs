@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 pub enum GraphCommand {
     // -- Structural (command-thread only) --
     AddNode {
+        id: u64,
         node_type: String,
         kind: NodeKind,
         position: (f32, f32),
@@ -30,9 +31,8 @@ pub enum GraphCommand {
     },
 
     // -- Playback control (command-thread → render-thread) --
-    Play,
-    Pause,
-    Stop,
+    StartNode { id: u64 },
+    StopNode { id: u64 },
     SetParameter {
         node_id: u64,
         param_name: String,

@@ -135,6 +135,16 @@ fn process_graph_message(command: GraphAudioMessage, system: &mut Option<System>
         GraphAudioMessage::Clear => {
             *system = None;
         }
+        GraphAudioMessage::StartSource { source_index } => {
+            if let Some(system) = system {
+                system.start_source(source_index);
+            }
+        }
+        GraphAudioMessage::StopSource { source_index } => {
+            if let Some(system) = system {
+                system.stop_source(source_index);
+            }
+        }
         GraphAudioMessage::SetParameter {
             node_index,
             param_name,

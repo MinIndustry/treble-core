@@ -16,6 +16,14 @@ pub trait Entry: fmt::Debug + DynClone + Send {
 pub trait Source: fmt::Debug + DynClone + Send {
     /// Pull the next input from the source
     fn pull(&mut self) -> f32;
+    /// Start the source (e.g. note-on)
+    fn start(&mut self) {}
+    /// Stop the source (e.g. note-off)
+    fn stop(&mut self) {}
+    /// Whether this source is currently producing signal
+    fn is_active(&self) -> bool {
+        true
+    }
 }
 dyn_clone::clone_trait_object!(Source);
 

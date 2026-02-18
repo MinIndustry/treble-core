@@ -27,7 +27,6 @@ struct GraphData {
     filter_map: HashMap<u64, NodeIndex<u32>>,
     source_map: HashMap<u64, usize>,
     sink_map: HashMap<u64, usize>,
-    next_graph_id: u64,
 }
 
 fn create_source(node_type: &str, params: &[(String, f32)]) -> Result<Box<dyn Source>, String> {
@@ -46,12 +45,11 @@ fn create_source(node_type: &str, params: &[(String, f32)]) -> Result<Box<dyn So
         other => return Err(format!("Unknown generator type: {}", other)),
     };
 
-    let mut generator: MultiToneGenerator = ToneGeneratorBuilder::new()
+    let generator: MultiToneGenerator = ToneGeneratorBuilder::new()
         .waveform(waveform)
         .frequency(freq)
         .build()
         .into();
-    generator.start();
 
     Ok(simple_source(generator))
 }
@@ -97,6 +95,7 @@ fn create_filter(
             sample_rate,
             get_param("delay_for", 0.5),
         ))),
+        "Compressor" => Ok(Box::new(Compressor::default())),
         other => Err(format!("Unknown filter type: {}", other)),
     }
 }
@@ -116,33 +115,30 @@ fn handle_graph_command(
     match cmd {
         // -- Structural --
         GraphCommand::AddNode {
-            node_type, kind, ..
+            id, node_type, kind, ..
         } => {
             match kind {
                 NodeKind::Generator => {
+                    log::info!("Adding generator ({node_type}) to graph system");
                     let source = create_source(&node_type, &[]).unwrap();
                     let idx = graph_system.system.add_source(source);
-                    graph_system
-                        .source_map
-                        .insert(graph_system.next_graph_id, idx);
+                    graph_system.source_map.insert(id, idx);
                 }
                 NodeKind::Filter => {
+                    log::info!("Adding filter ({node_type}) to graph system");
                     let sample_rate = shared_state.sample_rate.load(Ordering::Relaxed) as f32;
                     let filter = create_filter(&node_type, &[], sample_rate).unwrap();
                     let idx = graph_system.system.add_filter(filter);
-                    graph_system
-                        .filter_map
-                        .insert(graph_system.next_graph_id, idx);
+                    graph_system.filter_map.insert(id, idx);
                 }
                 NodeKind::Sink => {
+                    log::info!("Adding sink ({node_type}) to graph system");
                     let sink = Box::new(AudioOutputSink::new());
                     let idx = graph_system.system.add_sink(sink);
-                    graph_system
-                        .sink_map
-                        .insert(graph_system.next_graph_id, idx);
+                    graph_system.sink_map.insert(id, idx);
                 }
             }
-            graph_system.next_graph_id += 1;
+            rebuild_and_swap(graph_system, message_tx, event_tx);
         }
         GraphCommand::RemoveNode { id } => {
             if let Some(idx) = graph_system.filter_map.remove(&id) {
@@ -152,6 +148,7 @@ fn handle_graph_command(
             } else if let Some(idx) = graph_system.sink_map.remove(&id) {
                 graph_system.system.remove_sink(idx);
             }
+            rebuild_and_swap(graph_system, message_tx, event_tx);
         }
         GraphCommand::Connect {
             from,
@@ -163,24 +160,30 @@ fn handle_graph_command(
             let to_is_sink = graph_system.sink_map.contains_key(&to);
 
             if from_is_source && !to_is_sink {
+                log::info!("Connecting source element {from} to graph element {to}");
                 let src_idx = graph_system.source_map[&from];
                 let filter_idx = graph_system.filter_map[&to];
                 graph_system
                     .system
                     .connect_source(src_idx, filter_idx, to_port);
             } else if !from_is_source && to_is_sink {
+                log::info!("Connecting graph element {from} to sink {to}");
                 let filter_idx = graph_system.filter_map[&from];
                 let sink_idx = graph_system.sink_map[&to];
                 graph_system
                     .system
                     .connect_sink(filter_idx, sink_idx, from_port);
             } else if !from_is_source && !to_is_sink {
+                log::info!("Connecting graph element {from} to graph element {to}");
                 let from_idx = graph_system.filter_map[&from];
                 let to_idx = graph_system.filter_map[&to];
                 graph_system
                     .system
                     .connect(from_idx, to_idx, from_port, to_port);
+            } else {
+                log::warn!("Unhandled connection source?: {from_is_source} to sink? {to_is_sink}");
             }
+            rebuild_and_swap(graph_system, message_tx, event_tx);
         }
         GraphCommand::Disconnect { from, to } => {
             if let (Some(&from_idx), Some(&to_idx)) = (
@@ -189,6 +192,7 @@ fn handle_graph_command(
             ) {
                 let _ = graph_system.system.disconnect(from_idx, to_idx);
             }
+            rebuild_and_swap(graph_system, message_tx, event_tx);
         }
 
         // -- Playback control --
@@ -205,19 +209,39 @@ fn handle_graph_command(
                 }));
             }
         }
-        GraphCommand::Play => match graph_system.system.compute() {
-            Ok(()) => {
-                let _ = message_tx.send(AudioMessage::SetRenderMode(RenderMode::Graph));
+        GraphCommand::StartNode { id } => {
+            if let Some(&idx) = graph_system.source_map.get(&id) {
+                let _ = message_tx.send(AudioMessage::Graph(GraphAudioMessage::StartSource {
+                    source_index: idx,
+                }));
             }
-            Err(e) => {
-                let _ = event_tx.send(BackendEvent::GraphError {
-                    description: format!("{:?}", e),
-                });
+        }
+        GraphCommand::StopNode { id } => {
+            if let Some(&idx) = graph_system.source_map.get(&id) {
+                let _ = message_tx.send(AudioMessage::Graph(GraphAudioMessage::StopSource {
+                    source_index: idx,
+                }));
             }
-        },
-        GraphCommand::Pause | GraphCommand::Stop => {
-            let _ = message_tx.send(AudioMessage::SetRenderMode(RenderMode::Instruments));
-            let _ = message_tx.send(AudioMessage::Graph(GraphAudioMessage::Clear));
+        }
+    }
+}
+
+/// Rebuild the system after structural changes: compute topology, swap to render thread, set graph mode.
+fn rebuild_and_swap(
+    graph_system: &mut GraphData,
+    message_tx: &crossbeam::channel::Sender<AudioMessage>,
+    event_tx: &Sender<BackendEvent>,
+) {
+    match graph_system.system.compute() {
+        Ok(()) => {
+            let cloned = graph_system.system.clone();
+            let _ = message_tx.send(AudioMessage::Graph(GraphAudioMessage::Swap(cloned)));
+            let _ = message_tx.send(AudioMessage::SetRenderMode(RenderMode::Graph));
+        }
+        Err(e) => {
+            let _ = event_tx.send(BackendEvent::GraphError {
+                description: format!("{:?}", e),
+            });
         }
     }
 }

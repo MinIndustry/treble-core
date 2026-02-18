@@ -26,6 +26,7 @@ fn test_system() {
     generator.start();
 
     let source_id = system.add_source(simple_source(generator));
+    system.start_source(source_id);
 
     let sink = SimpleSink::new();
     let sink_id = system.add_sink(Box::new(sink));

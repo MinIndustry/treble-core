@@ -367,6 +367,20 @@ impl System {
         });
     }
 
+    /// Starts a source by index (note-on)
+    pub fn start_source(&mut self, index: usize) {
+        if let Some((source, _)) = self.sources.get_mut(index) {
+            source.start();
+        }
+    }
+
+    /// Stops a source by index (note-off)
+    pub fn stop_source(&mut self, index: usize) {
+        if let Some((source, _)) = self.sources.get_mut(index) {
+            source.stop();
+        }
+    }
+
     /// Returns a sink pipe from the system. If the index is out of bounds, returns an error.
     pub fn get_sink(&mut self, index: usize) -> Result<&mut Box<dyn Sink>, &str> {
         self.sinks
