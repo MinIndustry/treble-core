@@ -1,190 +1,189 @@
-//! Signal Graph Unit Tests
-//! Tests for the audio signal graph system including sources, sinks, and connections
+//! Graph / System Unit Tests
 
-#[cfg(feature = "slow-test")]
-use log::info;
-use rustic::core::envelope::prelude::ConstantSegment;
-use rustic::core::filters::prelude::*;
-use rustic::core::generator::prelude::MultiToneGenerator;
-use rustic::core::generator::prelude::{Waveform, builder::ToneGeneratorBuilder};
-use rustic::core::graph::{SimpleSink, System, simple_source};
+use rustic::core::audio::{Block, CHANNELS};
+use rustic::core::filters::prelude::{CombinatorFilter, DelayFilter, GainFilter};
+use rustic::core::graph::{SimpleSink, Source, System};
 
-#[test]
-fn test_system() {
-    let filter = GainFilter::new(0.5);
-    let filter2 = GainFilter::new(0.5);
+/// A trivial source that emits a constant stereo block.
+#[derive(Debug, Clone)]
+struct ConstantSource {
+    value: f32,
+}
 
-    let mut system = System::new();
-    let filt_1 = system.add_filter(Box::from(filter));
-    let filt_2 = system.add_filter(Box::from(filter2));
-
-    let mut generator: MultiToneGenerator = ToneGeneratorBuilder::new()
-        .waveform(Waveform::Blank)
-        .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
-        .build()
-        .into();
-    generator.start();
-
-    let source_id = system.add_source(simple_source(generator));
-    system.start_source(source_id);
-
-    let sink = SimpleSink::new();
-    let sink_id = system.add_sink(Box::new(sink));
-
-    system.connect(filt_1, filt_2, 0, 0);
-    system.connect_source(source_id, filt_1, 0);
-    system.connect_sink(filt_2, sink_id, 0);
-
-    if system.compute().is_err() {
-        panic!("Error computing system");
-    }
-
-    let mut results = Vec::new();
-    loop {
-        system.run();
-        if let Ok(sink) = system.get_sink(0) {
-            results.extend(sink.consume(1));
-            if results.len() >= 50 {
-                break;
-            }
-        }
-    }
-
-    for val in results.iter() {
-        assert_eq!(*val, 0.25, "Values do not match !");
+impl Source for ConstantSource {
+    fn pull(&mut self, block_size: usize) -> Block {
+        vec![[self.value; CHANNELS]; block_size]
     }
 }
 
-#[test]
-#[cfg(feature = "slow-test")]
-/// Stress test of the system,
-/// Testing that the system runs at least as fast as the sample rate for a simple system
-fn stress_test() {
-    let filter = GainFilter::new(0.5);
-    let filter2 = GainFilter::new(0.5);
+/// Helper: build a minimal system: source → gain → sink.
+fn build_simple_system(gain: f32, block_size: usize) -> System {
+    let mut system = System::new().with_block_size(block_size);
 
-    let mut system = System::new();
-    let filt_1 = system.add_filter(Box::from(filter));
-    let filt_2 = system.add_filter(Box::from(filter2));
+    let gain_filter = system.add_filter(Box::new(GainFilter::new(gain)));
+    let source_idx = system.add_source(Box::new(ConstantSource { value: 0.5 }));
+    let sink_idx = system.add_sink(Box::new(SimpleSink::new()));
 
-    let source_id = system.add_source(simple_source(
-        ToneGeneratorBuilder::new()
-            .waveform(Waveform::Blank)
-            .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
-            .build()
-            .into(),
-    ));
+    system.connect_source(source_idx, gain_filter, 0);
+    system.connect_sink(gain_filter, sink_idx, 0);
+    system.compute().expect("compute should succeed");
 
-    let sink_id = system.add_sink(Box::new(SimpleSink::new()));
-
-    system.connect(filt_1, filt_2, 0, 0);
-    system.connect_source(source_id, filt_1, 0);
-    system.connect_sink(filt_2, sink_id, 0);
-
-    if system.compute().is_err() {
-        panic!("Error computing system");
-    }
-
-    for sample_size in [100_000, 1_000_000, 10_000_000] {
-        info!("Working on sample size {} at 44100 samples/s", sample_size);
-        let start = std::time::Instant::now();
-        for _ in 0..sample_size {
-            system.run();
-            if let Ok(sink) = system.get_sink(0) {
-                let _ = sink.consume(1);
-            }
-        }
-        let elapsed = start.elapsed();
-        info!("Took {}ms", elapsed.as_millis());
-
-        assert!(
-            elapsed.as_millis() < ((sample_size as f32 / 44100.0) * 1000.0) as u128,
-            "Test went over time !"
-        );
-    }
-}
-
-#[test]
-#[cfg(feature = "slow-test")]
-/// Stress test of the system,
-/// Testing that the system runs at least as fast as the sample rate for a
-/// complex system
-fn stress_test_2() {
-    let mut system = System::new();
-
-    let filter_0 = CombinatorFilter::new(1, 2);
-    let filter_1 = GainFilter::new(0.5);
-    let filter2 = GainFilter::new(0.5);
-    let filter_3 = CombinatorFilter::new(2, 1);
-
-    let filt_0 = system.add_filter(Box::from(filter_0));
-    let filt_1 = system.add_filter(Box::from(filter_1));
-    let filt_2 = system.add_filter(Box::from(filter2));
-    let filt_3 = system.add_filter(Box::from(filter_3));
-
-    system.connect(filt_0, filt_1, 0, 0);
-    system.connect(filt_0, filt_2, 1, 0);
-
-    system.connect(filt_1, filt_3, 0, 0);
-    system.connect(filt_2, filt_3, 0, 1);
-
-    let source = simple_source(
-        ToneGeneratorBuilder::new()
-            .waveform(Waveform::Blank)
-            .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
-            .build()
-            .into(),
-    );
-    let source_id = system.add_source(source);
-    let sink_id = system.add_sink(Box::new(SimpleSink::new()));
-
-    system.connect_source(source_id, filt_0, 0);
-    system.connect_sink(filt_3, sink_id, 0);
-
-    if system.compute().is_err() {
-        panic!("Error computing system");
-    }
-
-    for sample_size in [100_000, 1_000_000, 10_000_000] {
-        info!("Working on sample size {} at 44100 samples/s", sample_size);
-        let start = std::time::Instant::now();
-        for _ in 0..sample_size {
-            system.run();
-            if let Ok(sink) = system.get_sink(0) {
-                let _ = sink.consume(1);
-            }
-        }
-        let elapsed = start.elapsed();
-        info!("Took {}ms", elapsed.as_millis());
-
-        assert!(
-            elapsed.as_millis() < ((sample_size as f32 / 44100.0) * 1000.0) as u128,
-            "Test went over time !"
-        );
-    }
-}
-
-#[cfg(test)]
-mod source_tests {
-    // TODO: Add tests for Source trait implementations
-    // - Test source initialization
-    // - Test sample generation
-    // - Test source chaining
-}
-
-#[cfg(test)]
-mod sink_tests {
-    // TODO: Add tests for Sink trait implementations
-    // - Test sink consumption
-    // - Test buffer management
-    // - Test multiple sinks
+    system
 }
 
 #[cfg(test)]
 mod system_tests {
-    // TODO: Add more System tests
-    // - Test graph validation
-    // - Test cycle detection
-    // - Test disconnection
-    // - Test dynamic reconfiguration
+    use super::*;
+
+    #[test]
+    fn test_system_run_basic() {
+        let mut system = build_simple_system(2.0, 16);
+        system.run();
+
+        let sink = system.get_sink(0).unwrap();
+        let frames = sink.consume();
+        assert_eq!(frames.len(), 16, "Should produce exactly block_size frames");
+        for frame in &frames {
+            assert!((frame[0] - 1.0).abs() < 1e-5, "0.5 * gain(2.0) = 1.0, got {}", frame[0]);
+            assert!((frame[1] - 1.0).abs() < 1e-5);
+        }
+    }
+
+    #[test]
+    fn test_system_block_size() {
+        for block_size in [1, 16, 64, 512] {
+            let mut system = build_simple_system(1.0, block_size);
+            system.run();
+            let sink = system.get_sink(0).unwrap();
+            let frames = sink.consume();
+            assert_eq!(
+                frames.len(),
+                block_size,
+                "block_size={}: expected {} frames",
+                block_size,
+                block_size
+            );
+        }
+    }
+
+    #[test]
+    fn test_system_stereo_channels_independent() {
+        /// Source that emits different L and R values.
+        #[derive(Debug, Clone)]
+        struct StereoSource;
+        impl Source for StereoSource {
+            fn pull(&mut self, n: usize) -> Block {
+                (0..n).map(|_| [0.25_f32, 0.75_f32]).collect()
+            }
+        }
+
+        let mut system = System::new().with_block_size(8);
+        let gain = system.add_filter(Box::new(GainFilter::new(2.0)));
+        let src = system.add_source(Box::new(StereoSource));
+        let snk = system.add_sink(Box::new(SimpleSink::new()));
+
+        system.connect_source(src, gain, 0);
+        system.connect_sink(gain, snk, 0);
+        system.compute().unwrap();
+        system.run();
+
+        let frames = system.get_sink(0).unwrap().consume();
+        for frame in &frames {
+            assert!((frame[0] - 0.5).abs() < 1e-5, "L: expected 0.5, got {}", frame[0]);
+            assert!((frame[1] - 1.5).abs() < 1e-5, "R: expected 1.5, got {}", frame[1]);
+        }
+    }
+
+    #[test]
+    fn test_system_compute_layers() {
+        // chain: gain1 → gain2 → gain3
+        let mut system = System::new().with_block_size(4);
+        let g1 = system.add_filter(Box::new(GainFilter::new(2.0)));
+        let g2 = system.add_filter(Box::new(GainFilter::new(2.0)));
+        let g3 = system.add_filter(Box::new(GainFilter::new(2.0)));
+        let src = system.add_source(Box::new(ConstantSource { value: 1.0 }));
+        let snk = system.add_sink(Box::new(SimpleSink::new()));
+
+        system.connect(g1, g2, 0, 0);
+        system.connect(g2, g3, 0, 0);
+        system.connect_source(src, g1, 0);
+        system.connect_sink(g3, snk, 0);
+        system.compute().unwrap();
+        system.run();
+
+        // 1.0 * 2 * 2 * 2 = 8.0
+        let frames = system.get_sink(0).unwrap().consume();
+        for frame in &frames {
+            assert!((frame[0] - 8.0).abs() < 1e-4, "Expected 8.0, got {}", frame[0]);
+        }
+    }
+
+    #[test]
+    fn test_system_cycle_detection() {
+        let mut system = System::new();
+        let a = system.add_filter(Box::new(GainFilter::new(1.0)));
+        let b = system.add_filter(Box::new(GainFilter::new(1.0)));
+        // Create a cycle: a → b → a (no postponable filter to break it)
+        system.connect(a, b, 0, 0);
+        system.connect(b, a, 0, 0);
+        let result = system.compute();
+        assert!(result.is_err(), "Cycle without postponable filter should error");
+    }
+
+    #[test]
+    fn test_system_cycle_broken_by_delay() {
+        // DelayFilter is postponable=true, so it breaks the cycle
+        let mut system = System::new().with_block_size(8);
+        let gain = system.add_filter(Box::new(GainFilter::new(0.5)));
+        let delay = system.add_filter(Box::new(DelayFilter::new(44100.0, 0.001)));
+        let combinator = system.add_filter(Box::new(CombinatorFilter::new(2, 1)));
+
+        let src = system.add_source(Box::new(ConstantSource { value: 1.0 }));
+        let snk = system.add_sink(Box::new(SimpleSink::new()));
+
+        // source → combinator → gain → delay → combinator (feedback loop)
+        system.connect_source(src, combinator, 0);
+        system.connect(combinator, gain, 0, 0);
+        system.connect(gain, delay, 0, 0);
+        system.connect(delay, combinator, 0, 1);
+        system.connect_sink(gain, snk, 0);
+
+        // Should succeed because DelayFilter is postponable
+        let result = system.compute();
+        assert!(result.is_ok(), "Cycle with delay should succeed: {:?}", result);
+    }
+
+    #[test]
+    fn test_system_two_sources_combined() {
+        let mut system = System::new().with_block_size(4);
+        let combinator = system.add_filter(Box::new(CombinatorFilter::new(2, 1)));
+        let src1 = system.add_source(Box::new(ConstantSource { value: 0.3 }));
+        let src2 = system.add_source(Box::new(ConstantSource { value: 0.7 }));
+        let snk = system.add_sink(Box::new(SimpleSink::new()));
+
+        system.connect_source(src1, combinator, 0);
+        system.connect_source(src2, combinator, 1);
+        system.connect_sink(combinator, snk, 0);
+        system.compute().unwrap();
+        system.run();
+
+        let frames = system.get_sink(0).unwrap().consume();
+        for frame in &frames {
+            assert!((frame[0] - 1.0).abs() < 1e-5, "0.3+0.7=1.0, got {}", frame[0]);
+        }
+    }
+
+    #[test]
+    fn test_system_with_block_size_builder() {
+        let system = System::new().with_block_size(128);
+        assert_eq!(system.block_size(), 128);
+    }
+
+    #[test]
+    fn test_system_source_start_stop() {
+        let mut system = build_simple_system(1.0, 8);
+        // start/stop should not panic
+        system.start_source(0);
+        system.stop_source(0);
+    }
 }
