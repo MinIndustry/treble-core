@@ -1,5 +1,5 @@
 use crate::core::graph::{Entry, Filter};
-use crate::core::{Block, Frame, CHANNELS};
+use crate::core::{Block, CHANNELS, Frame};
 use rustic_derive::FilterMetaData;
 use std::{collections::VecDeque, fmt};
 
@@ -54,7 +54,8 @@ impl fmt::Debug for DelayFilter {
 
 impl Filter for DelayFilter {
     fn transform(&mut self) -> Vec<Block> {
-        let output: Block = self.source
+        let output: Block = self
+            .source
             .iter()
             .map(|frame| {
                 self.buffer.push_back(*frame);

@@ -44,7 +44,11 @@ mod system_tests {
         let frames = sink.consume();
         assert_eq!(frames.len(), 16, "Should produce exactly block_size frames");
         for frame in &frames {
-            assert!((frame[0] - 1.0).abs() < 1e-5, "0.5 * gain(2.0) = 1.0, got {}", frame[0]);
+            assert!(
+                (frame[0] - 1.0).abs() < 1e-5,
+                "0.5 * gain(2.0) = 1.0, got {}",
+                frame[0]
+            );
             assert!((frame[1] - 1.0).abs() < 1e-5);
         }
     }
@@ -89,8 +93,16 @@ mod system_tests {
 
         let frames = system.get_sink(0).unwrap().consume();
         for frame in &frames {
-            assert!((frame[0] - 0.5).abs() < 1e-5, "L: expected 0.5, got {}", frame[0]);
-            assert!((frame[1] - 1.5).abs() < 1e-5, "R: expected 1.5, got {}", frame[1]);
+            assert!(
+                (frame[0] - 0.5).abs() < 1e-5,
+                "L: expected 0.5, got {}",
+                frame[0]
+            );
+            assert!(
+                (frame[1] - 1.5).abs() < 1e-5,
+                "R: expected 1.5, got {}",
+                frame[1]
+            );
         }
     }
 
@@ -114,7 +126,11 @@ mod system_tests {
         // 1.0 * 2 * 2 * 2 = 8.0
         let frames = system.get_sink(0).unwrap().consume();
         for frame in &frames {
-            assert!((frame[0] - 8.0).abs() < 1e-4, "Expected 8.0, got {}", frame[0]);
+            assert!(
+                (frame[0] - 8.0).abs() < 1e-4,
+                "Expected 8.0, got {}",
+                frame[0]
+            );
         }
     }
 
@@ -127,7 +143,10 @@ mod system_tests {
         system.connect(a, b, 0, 0);
         system.connect(b, a, 0, 0);
         let result = system.compute();
-        assert!(result.is_err(), "Cycle without postponable filter should error");
+        assert!(
+            result.is_err(),
+            "Cycle without postponable filter should error"
+        );
     }
 
     #[test]
@@ -150,7 +169,11 @@ mod system_tests {
 
         // Should succeed because DelayFilter is postponable
         let result = system.compute();
-        assert!(result.is_ok(), "Cycle with delay should succeed: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "Cycle with delay should succeed: {:?}",
+            result
+        );
     }
 
     #[test]
@@ -169,7 +192,11 @@ mod system_tests {
 
         let frames = system.get_sink(0).unwrap().consume();
         for frame in &frames {
-            assert!((frame[0] - 1.0).abs() < 1e-5, "0.3+0.7=1.0, got {}", frame[0]);
+            assert!(
+                (frame[0] - 1.0).abs() < 1e-5,
+                "0.3+0.7=1.0, got {}",
+                frame[0]
+            );
         }
     }
 

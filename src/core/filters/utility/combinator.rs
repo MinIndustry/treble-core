@@ -1,5 +1,5 @@
 use crate::core::graph::{Entry, Filter};
-use crate::core::{Block, Frame, CHANNELS};
+use crate::core::{Block, CHANNELS, Frame};
 use rustic_meta::{FilterInfo, FilterInput, MetaFilter};
 use std::fmt;
 
@@ -55,7 +55,10 @@ impl MetaFilter for CombinatorFilter {
         FilterInfo {
             name: "CombinatorFilter",
             description: "Combines multiple audio inputs into outputs with optional weighting",
-            inputs: vec![FilterInput { label: None, parameter: None }],
+            inputs: vec![FilterInput {
+                label: None,
+                parameter: None,
+            }],
             outputs: 1,
         }
     }
@@ -70,7 +73,12 @@ impl crate::meta::traits::FilterFactory for CombinatorFilter {
 impl Filter for CombinatorFilter {
     fn transform(&mut self) -> Vec<Block> {
         // Find the block size from the first non-empty source
-        let block_size = self.sources.iter().find(|s| !s.is_empty()).map(|s| s.len()).unwrap_or(0);
+        let block_size = self
+            .sources
+            .iter()
+            .find(|s| !s.is_empty())
+            .map(|s| s.len())
+            .unwrap_or(0);
 
         if block_size == 0 {
             return vec![Vec::new(); self.output];

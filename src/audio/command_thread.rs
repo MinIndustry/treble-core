@@ -115,7 +115,10 @@ fn handle_graph_command(
     match cmd {
         // -- Structural --
         GraphCommand::AddNode {
-            id, node_type, kind, ..
+            id,
+            node_type,
+            kind,
+            ..
         } => {
             match kind {
                 NodeKind::Generator => {

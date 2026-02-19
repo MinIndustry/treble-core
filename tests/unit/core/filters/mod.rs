@@ -114,7 +114,11 @@ mod compressor_tests {
         let out = f.transform();
         let last_frame = out[0].last().unwrap();
         // Compressed output should be less than raw input amplitude
-        assert!(last_frame[0] < 0.9, "Compressor should reduce loud signal, got {}", last_frame[0]);
+        assert!(
+            last_frame[0] < 0.9,
+            "Compressor should reduce loud signal, got {}",
+            last_frame[0]
+        );
     }
 }
 
@@ -173,7 +177,11 @@ mod lowpass_tests {
         f.push(const_block(512, 1.0), 0);
         let out = f.transform();
         let last = out[0].last().unwrap();
-        assert!(last[0] > 0.99, "LPF should converge near 1.0, got {}", last[0]);
+        assert!(
+            last[0] > 0.99,
+            "LPF should converge near 1.0, got {}",
+            last[0]
+        );
     }
 
     #[test]
@@ -185,7 +193,11 @@ mod lowpass_tests {
         f.push(const_block(1, 1.0), 0);
         let out = f.transform();
         // With low cutoff, the first frame response is small
-        assert!(out[0][0][0] < 0.5, "LPF should attenuate step, got {}", out[0][0][0]);
+        assert!(
+            out[0][0][0] < 0.5,
+            "LPF should attenuate step, got {}",
+            out[0][0][0]
+        );
     }
 }
 
@@ -206,7 +218,11 @@ mod highpass_tests {
         let out = f.transform();
         let last = out[0].last().unwrap();
         // After many blocks the HPF output should approach 0 for constant input
-        assert!(last[0].abs() < 0.1, "HPF should attenuate DC, got {}", last[0]);
+        assert!(
+            last[0].abs() < 0.1,
+            "HPF should attenuate DC, got {}",
+            last[0]
+        );
     }
 }
 
@@ -237,7 +253,10 @@ mod tremolo_tests {
         let out = f.transform();
         assert_eq!(out[0].len(), 512);
         // With depth=1.0, some frames should be attenuated
-        let max_val = out[0].iter().map(|fr| fr[0]).fold(f32::NEG_INFINITY, f32::max);
+        let max_val = out[0]
+            .iter()
+            .map(|fr| fr[0])
+            .fold(f32::NEG_INFINITY, f32::max);
         let min_val = out[0].iter().map(|fr| fr[0]).fold(f32::INFINITY, f32::min);
         assert!(max_val > min_val, "Tremolo should modulate amplitude");
     }
@@ -248,7 +267,10 @@ mod tremolo_tests {
         f.push(const_block(512, 0.8), 0);
         let out = f.transform();
         for frame in &out[0] {
-            assert!((frame[0] - 0.8).abs() < 1e-5, "Zero-depth tremolo should pass through");
+            assert!(
+                (frame[0] - 0.8).abs() < 1e-5,
+                "Zero-depth tremolo should pass through"
+            );
         }
     }
 }
@@ -266,7 +288,11 @@ mod combinator_tests {
         let out = f.transform();
         assert_eq!(out.len(), 1);
         for frame in &out[0] {
-            assert!((frame[0] - 0.5).abs() < 1e-5, "Expected 0.3+0.2=0.5, got {}", frame[0]);
+            assert!(
+                (frame[0] - 0.5).abs() < 1e-5,
+                "Expected 0.3+0.2=0.5, got {}",
+                frame[0]
+            );
         }
     }
 
@@ -294,7 +320,11 @@ mod duplicate_tests {
         let mut f = DuplicateFilter::new();
         f.push(const_block(4, 0.7), 0);
         let out = f.transform();
-        assert_eq!(out.len(), 2, "DuplicateFilter should produce 2 output ports");
+        assert_eq!(
+            out.len(),
+            2,
+            "DuplicateFilter should produce 2 output ports"
+        );
         assert_eq!(out[0], out[1], "Both outputs should be identical");
         for frame in &out[0] {
             assert!((frame[0] - 0.7).abs() < 1e-5);
@@ -318,6 +348,10 @@ mod moving_average_tests {
         let out = f.transform();
         // The average should ramp up from 0 to 1 over the window size
         let last = out[0].last().unwrap();
-        assert!((last[0] - 1.0).abs() < 0.01, "MA should converge to 1.0, got {}", last[0]);
+        assert!(
+            (last[0] - 1.0).abs() < 0.01,
+            "MA should converge to 1.0, got {}",
+            last[0]
+        );
     }
 }

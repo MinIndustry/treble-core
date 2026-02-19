@@ -1,6 +1,6 @@
-use dyn_clone::DynClone;
 use crate::core::audio::Block;
 use crate::core::utils::Note;
+use dyn_clone::DynClone;
 
 /// The source trait defines node that can be used as source in the audio graph.
 pub trait Source: std::fmt::Debug + DynClone + Send {
@@ -16,11 +16,17 @@ pub trait Source: std::fmt::Debug + DynClone + Send {
     fn kill(&mut self) {}
 
     /// Note-aware start (defaults to start()).
-    fn start_note(&mut self, _note: Note, _velocity: f32) { self.start(); }
+    fn start_note(&mut self, _note: Note, _velocity: f32) {
+        self.start();
+    }
     /// Note-aware stop (defaults to stop()).
-    fn stop_note(&mut self, _note: Note) { self.stop(); }
+    fn stop_note(&mut self, _note: Note) {
+        self.stop();
+    }
 
     /// True while the source is producing non-silent output (or during release).
-    fn is_active(&self) -> bool { false }
+    fn is_active(&self) -> bool {
+        false
+    }
 }
 dyn_clone::clone_trait_object!(Source);

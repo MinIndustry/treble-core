@@ -46,7 +46,8 @@ impl Filter for HighPassFilter {
         let dt = 1.0 / self.sample_rate;
         let alpha = rc / (rc + dt);
 
-        let output: Block = self.source
+        let output: Block = self
+            .source
             .iter()
             .map(|frame| {
                 std::array::from_fn(|ch| {

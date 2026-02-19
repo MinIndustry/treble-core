@@ -1,5 +1,5 @@
-use crate::core::graph::{Entry, Filter};
 use crate::core::Block;
+use crate::core::graph::{Entry, Filter};
 use rustic_derive::FilterMetaData;
 use std::fmt;
 
@@ -47,7 +47,8 @@ impl Filter for Tremolo {
         let phase_increment =
             (2.0 * std::f32::consts::PI * self.frequency) / self.sample_rate.max(1.0);
 
-        let output: Block = self.source
+        let output: Block = self
+            .source
             .iter()
             .map(|frame| {
                 let modulation = 1.0 - self.depth * (0.5 * (1.0 + self.phase.sin()));

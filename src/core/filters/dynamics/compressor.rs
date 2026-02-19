@@ -58,7 +58,8 @@ impl Filter for Compressor {
         let attack_coeff = (-1.0 / (self.attack * self.sample_rate)).exp();
         let release_coeff = (-1.0 / (self.release * self.sample_rate)).exp();
 
-        let output: Block = self.source
+        let output: Block = self
+            .source
             .iter()
             .map(|frame| {
                 std::array::from_fn(|ch| {

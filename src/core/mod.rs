@@ -40,10 +40,10 @@ pub mod generator;
 /// Audio signal graph processing and routing
 pub mod graph;
 
+pub mod audio;
 /// Core utilities including note types, tones, and helper functions
 pub mod utils;
-pub mod audio;
 
 // Re-export commonly used types from utils
+pub use audio::{Block, CHANNELS, Frame};
 pub use utils::{NOTES, Note};
-pub use audio::{CHANNELS, Frame, Block};

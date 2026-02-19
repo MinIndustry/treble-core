@@ -1,5 +1,5 @@
-use crate::core::graph::{Entry, Filter};
 use crate::core::Block;
+use crate::core::graph::{Entry, Filter};
 use rustic_derive::FilterMetaData;
 use std::fmt;
 

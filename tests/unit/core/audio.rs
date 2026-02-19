@@ -1,4 +1,7 @@
-use rustic::core::{Frame, audio::{mono_to_frame, silent_block}, CHANNELS};
+use rustic::core::{
+    CHANNELS, Frame,
+    audio::{mono_to_frame, silent_block},
+};
 
 #[test]
 fn test_mono_to_frame() {

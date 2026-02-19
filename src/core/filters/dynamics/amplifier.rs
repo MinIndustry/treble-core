@@ -1,5 +1,5 @@
-use crate::core::graph::{Entry, Filter};
 use crate::core::Block;
+use crate::core::graph::{Entry, Filter};
 use rustic_derive::FilterMetaData;
 use std::fmt;
 
@@ -38,7 +38,8 @@ impl fmt::Display for GainFilter {
 impl Filter for GainFilter {
     fn transform(&mut self) -> Vec<Block> {
         let factor = self.factor;
-        let output: Block = self.source
+        let output: Block = self
+            .source
             .iter()
             .map(|frame| std::array::from_fn(|ch| frame[ch] * factor))
             .collect();

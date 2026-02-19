@@ -31,8 +31,12 @@ pub enum GraphCommand {
     },
 
     // -- Playback control (command-thread → render-thread) --
-    StartNode { id: u64 },
-    StopNode { id: u64 },
+    StartNode {
+        id: u64,
+    },
+    StopNode {
+        id: u64,
+    },
     SetParameter {
         node_id: u64,
         param_name: String,

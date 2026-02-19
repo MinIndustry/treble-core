@@ -1,5 +1,5 @@
-use crate::core::{Block, Frame};
 use crate::core::graph::{Entry, Sink};
+use crate::core::{Block, Frame};
 
 /// A sink that writes audio samples to the cpal ring buffer for playback
 #[derive(Clone, Default, Debug)]

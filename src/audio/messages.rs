@@ -38,8 +38,12 @@ pub enum GraphAudioMessage {
         param_name: String,
         value: f32,
     },
-    StartSource { source_index: usize },
-    StopSource { source_index: usize },
+    StartSource {
+        source_index: usize,
+    },
+    StopSource {
+        source_index: usize,
+    },
     Swap(System), // Use `System` as new audio graph
     Clear,
 }

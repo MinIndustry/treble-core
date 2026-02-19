@@ -46,7 +46,8 @@ impl Entry for MovingAverage {
 impl Filter for MovingAverage {
     fn transform(&mut self) -> Vec<Block> {
         let size = self.size.max(1) as f32;
-        let output: Block = self.source
+        let output: Block = self
+            .source
             .iter()
             .map(|frame| {
                 std::array::from_fn(|ch| {

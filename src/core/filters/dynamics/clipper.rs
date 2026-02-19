@@ -1,5 +1,5 @@
-use crate::core::graph::{Entry, Filter};
 use crate::core::Block;
+use crate::core::graph::{Entry, Filter};
 use rustic_derive::FilterMetaData;
 use std::fmt;
 
@@ -35,7 +35,8 @@ impl Entry for Clipper {
 impl Filter for Clipper {
     fn transform(&mut self) -> Vec<Block> {
         let max = self.max_ampl;
-        let output: Block = self.source
+        let output: Block = self
+            .source
             .iter()
             .map(|frame| std::array::from_fn(|ch| frame[ch].clamp(-max, max)))
             .collect();

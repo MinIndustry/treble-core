@@ -1,5 +1,5 @@
-use std::fmt;
 use dyn_clone::DynClone;
+use std::fmt;
 
 use crate::core::Block;
 

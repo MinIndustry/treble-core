@@ -78,7 +78,8 @@ impl Entry for ResonantBandpassFilter {
 
 impl Filter for ResonantBandpassFilter {
     fn transform(&mut self) -> Vec<Block> {
-        let output: Block = self.source
+        let output: Block = self
+            .source
             .iter()
             .map(|frame| {
                 std::array::from_fn(|ch| {

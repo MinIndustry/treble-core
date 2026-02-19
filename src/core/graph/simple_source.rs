@@ -1,5 +1,5 @@
 use super::Source;
-use crate::core::audio::{mono_to_frame, silent_block, Block};
+use crate::core::audio::{Block, mono_to_frame, silent_block};
 use crate::core::generator::prelude::MultiToneGenerator;
 
 #[derive(Debug, Clone)]
@@ -52,7 +52,7 @@ impl Source for SimpleSource {
     }
 
     fn stop(&mut self) {
-        self.generator.stop();  // Records note off + triggers release
+        self.generator.stop(); // Records note off + triggers release
         self.released = true;
     }
 

@@ -1,9 +1,9 @@
+use crate::core::Block;
 /// This file contains structural filters i.e. filters that do not modify
 /// values that pass through it but rather duplicate/merges its inputs
 use crate::core::graph::{Entry, Filter};
-use crate::core::Block;
-use rustic_derive::FilterMetaData;
 use log::trace;
+use rustic_derive::FilterMetaData;
 use std::fmt;
 
 /// Duplicates the content of the input onto two outputs
