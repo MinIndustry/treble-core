@@ -47,10 +47,12 @@ pub struct System {
     // The node index is the index of the filter that the sink is connected to
     // The second usize is the port of the filter that the sink is connected to
     sinks: Vec<((NodeIndex<u32>, usize), Box<dyn Sink>)>,
+    /// Number of frames to produce per `run()` call
+    block_size: usize,
 }
 
 impl System {
-    /// Creates a new system with simple null sources & simple sinks
+    /// Creates a new system with a default block size of 512 frames.
     #[allow(clippy::type_complexity)]
     pub fn new() -> Self {
         System {
@@ -58,7 +60,19 @@ impl System {
             layers: Vec::new(),
             sources: Vec::new(),
             sinks: Vec::new(),
+            block_size: 512,
         }
+    }
+
+    /// Builder-style setter for the block size.
+    pub fn with_block_size(mut self, n: usize) -> Self {
+        self.block_size = n;
+        self
+    }
+
+    /// Returns the current block size.
+    pub fn block_size(&self) -> usize {
+        self.block_size
     }
 
     /// Merges the two systems to create a new one. The graphs are merged following the given mapping from sinks to sources.
@@ -164,6 +178,7 @@ impl System {
             layers: self.layers,
             sources: self.sources,
             sinks: new_sinks,
+            block_size: self.block_size,
         };
 
         Ok(new_system)
@@ -285,6 +300,8 @@ impl System {
     // Creates the execution layers by sorting the graph topologically.
     #[allow(clippy::result_unit_err)]
     pub fn compute(&mut self) -> Result<(), AudioGraphError> {
+        self.layers.clear();
+
         // Makes the graph acyclic to be able to create a topology sort
         let acyclic_graph = self.graph.filter_map(
             |_index, node| Some(node),
@@ -305,9 +322,6 @@ impl System {
         if let Ok(topo) = toposort(&acyclic_graph, None) {
             for node in topo {
                 // TODO: Add same-layer ability (to run some filters in parallel)
-                // For each node in the topological order, push the node's index into the layers vector
-                // if the next node has no dependencies to the current node, push it to the current layer as well
-                // else push it to the next layer
                 self.layers.push(vec![node.index()])
             }
 
@@ -320,14 +334,17 @@ impl System {
     // Performs one full run of the system, running every filter once in an order such that data that entered the system this
     // run, can exit it this run as well.
     pub fn run(&mut self) {
+        let block_size = self.block_size;
+
+        // Pull from sources and push to their connected filters
         self.sources.iter_mut().for_each(|(source, (desc, port))| {
-            let value = source.pull();
+            let block = source.pull(block_size);
             let filter = &mut self.graph[*desc];
-            filter.push(value, *port);
+            filter.push(block, *port);
         });
 
+        // Process filters in topological layer order
         for layer in self.layers.iter() {
-            // TODO: Make this parallel
             layer.iter().for_each(|f| {
                 let from_node_index = NodeIndex::new(*f);
                 let outputs = {
@@ -351,19 +368,19 @@ impl System {
                     let neighbour_node = &mut self.graph[neighbour];
 
                     edges.iter().for_each(|edge| {
-                        neighbour_node.push(outputs[edge.0], edge.1);
+                        neighbour_node.push(outputs[edge.0].clone(), edge.1);
                     });
                 }
             });
         }
 
-        // Makes the sinks pull from their connected nodes
+        // Push last filter outputs into sinks
         self.sinks.iter_mut().for_each(|((node, port), sink)| {
             let values = {
                 let node = &mut self.graph[*node];
                 node.transform()
             };
-            sink.push(values[*port], 0);
+            sink.push(values[*port].clone(), 0);
         });
     }
 
@@ -378,6 +395,20 @@ impl System {
     pub fn stop_source(&mut self, index: usize) {
         if let Some((source, _)) = self.sources.get_mut(index) {
             source.stop();
+        }
+    }
+
+    /// Sends a start_note event to a source by index.
+    pub fn start_note(&mut self, index: usize, note: crate::core::utils::Note, velocity: f32) {
+        if let Some((source, _)) = self.sources.get_mut(index) {
+            source.start_note(note, velocity);
+        }
+    }
+
+    /// Sends a stop_note event to a source by index.
+    pub fn stop_note(&mut self, index: usize, note: crate::core::utils::Note) {
+        if let Some((source, _)) = self.sources.get_mut(index) {
+            source.stop_note(note);
         }
     }
 
@@ -402,10 +433,7 @@ impl System {
     }
 
     /// Creates a deep clone of this system for handoff to the render thread.
-    /// Sources and sinks are cloned via DynClone.
     pub fn clone_for_render(&self) -> System {
-        // Implementation depends on Source/Sink also implementing DynClone
-        // If they don't, rebuild from scratch using the same topology
-        todo!()
+        self.clone()
     }
 }

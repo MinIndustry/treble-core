@@ -20,6 +20,15 @@ use super::{GraphAudioMessage, RenderMode};
 /// - Processes control messages from the command thread
 /// - Generates audio by calling instrument methods
 /// - Writes audio to the ring buffer for the cpal callback to consume
+///
+/// # Examples
+///
+/// ```
+/// use rustic::audio::render_thread::spawn_audio_render_thread;
+///
+/// let result = spawn_audio_render_thread(shared_state, instruments, message_rx, audio_queue, config);
+/// assert!(result.is_ok());
+/// ```
 pub fn spawn_audio_render_thread(
     shared_state: Arc<SharedAudioState>,
     instruments: Vec<Box<dyn Instrument + Send + Sync>>,
@@ -60,14 +69,17 @@ pub fn spawn_audio_render_thread(
                     }
                     RenderMode::Graph => {
                         if let Some(ref mut system) = system {
-                            for sample in chunk_buffer.iter_mut() {
-                                system.run();
-                                if let Ok(sink) = system.get_sink(0) {
-                                    let values = sink.consume(1);
-                                    *sample = values.first().copied().unwrap_or(0.0);
-                                } else {
-                                    *sample = 0.0;
+                            system.run();
+                            if let Ok(sink) = system.get_sink(0) {
+                                let frames = sink.consume();
+                                chunk_buffer.clear();
+                                for frame in &frames {
+                                    // Push L then R for interleaved stereo
+                                    chunk_buffer.push(frame[0]);
+                                    chunk_buffer.push(frame[1]);
                                 }
+                            } else {
+                                chunk_buffer.fill(0.0);
                             }
                         } else {
                             chunk_buffer.fill(0.0);
@@ -153,16 +165,7 @@ fn process_graph_message(command: GraphAudioMessage, system: &mut Option<System>
             if let Some(system) = system
                 && let Some(f) = system.get_filter_mut(NodeIndex::new(node_index))
             {
-                #[cfg(feature = "meta")]
                 f.set_parameter(param_name.as_str(), value);
-                #[cfg(not(feature = "meta"))]
-                log::warn!(
-                    "SetParameter requires the 'meta' feature (node={}, filter={}, param={}, value={})",
-                    node_index,
-                    f,
-                    param_name,
-                    value
-                );
             }
         }
     }

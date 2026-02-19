@@ -25,20 +25,21 @@ simplelog = "0.12.2"
 thiserror = "2.0.12"
 toml = "0.8.22"
 typetag = "0.2.21"
+rustic-derive = { path = "../rustic-derive" }
+rustic-meta = { path = "../rustic-meta" }
 evdev = { version = "0.12.2", optional = true }
 plotters = { version = "0.3.7", optional = true }
 plotters-backend = { version = "0.3.7", optional = true }
-rustic-derive = { path = "../rustic-derive", optional = true }
-rustic-meta = { path = "../rustic-meta", optional = true }
 
 [dev-dependencies]
 pretty_assertions = "1.1.0"
 
 [features]
 plotting = ["plotters", "plotters-backend"]
-meta = ["rustic-derive", "rustic-meta"]
 ts = ["rustic-meta/ts"]
 input = ["evdev"]
+# meta is now always-on; kept as empty feature for backwards compatibility
+meta = []
 
 # Testing
 slow-test = []

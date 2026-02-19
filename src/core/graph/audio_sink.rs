@@ -1,9 +1,10 @@
+use crate::core::{Block, Frame};
 use crate::core::graph::{Entry, Sink};
 
 /// A sink that writes audio samples to the cpal ring buffer for playback
 #[derive(Clone, Default, Debug)]
 pub struct AudioOutputSink {
-    values: Vec<f32>,
+    values: Vec<Frame>,
 }
 
 impl AudioOutputSink {
@@ -13,19 +14,19 @@ impl AudioOutputSink {
 }
 
 impl Entry for AudioOutputSink {
-    fn push(&mut self, value: f32, _port: usize) {
-        self.values.push(value);
+    fn push(&mut self, block: Block, _port: usize) {
+        self.values.extend(block);
     }
 }
 
 impl Sink for AudioOutputSink {
-    fn consume(&mut self, amount: usize) -> Vec<f32> {
-        let amount = std::cmp::min(amount, self.values.len());
-        self.values.drain(0..amount).collect()
+    fn consume(&mut self) -> Block {
+        // let amount = std::cmp::min(n_frames, self.values.len());
+        self.values.drain(..).collect()
     }
 
-    fn get_values(&self) -> Vec<f32> {
-        self.values.clone()
+    fn get_frames(&self) -> &[Frame] {
+        &self.values
     }
 
     fn into_entry(self) -> Box<dyn Entry> {
