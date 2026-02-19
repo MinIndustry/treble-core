@@ -76,6 +76,7 @@ impl MultiToneGenerator {
         self.tone_generators.iter().all(|tg| tg.completed())
     }
 
+    /// Runs the generator for 1 sample
     pub fn tick(&mut self, time_elapsed: f32) -> f32 {
         let actual_elapsed = if let Some(envelope) = &self.global_pitch_envelope {
             time_elapsed * envelope.at(self.time, self.note_off.unwrap_or(0.0))
@@ -118,6 +119,11 @@ impl MultiToneGenerator {
 
             ampl
         }
+    }
+
+    /// Runs the generator for `n` samples
+    pub fn tick_block(&mut self, n: usize, dt: f32) -> Vec<f32> {
+        (0..n).map(|_| self.tick(dt)).collect()
     }
 
     pub fn add_tone(&mut self, tone: SingleToneGenerator) {

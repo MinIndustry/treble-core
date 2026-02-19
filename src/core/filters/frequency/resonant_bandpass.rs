@@ -1,24 +1,19 @@
-use std::{f64::consts::PI, fmt};
-
-#[cfg(feature = "meta")]
-use rustic_derive::FilterMetaData;
-
 use crate::core::graph::{Entry, Filter};
+use crate::core::{Block, CHANNELS};
+use rustic_derive::FilterMetaData;
+use std::{f64::consts::PI, fmt};
 
 /// Applies a bandpass filter to the input signal
 /// source: <https://en.wikipedia.org/wiki/Digital_biquad_filter>
 /// This structure implements the Direct form 2 from the above link.
-#[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "meta", derive(FilterMetaData))]
+#[derive(FilterMetaData, Clone, Debug, Default)]
 pub struct ResonantBandpassFilter {
-    #[cfg_attr(feature = "meta", filter_source)]
-    source: f32,
-    #[cfg_attr(feature = "meta", filter_parameter(vec, 3, float))]
+    #[filter_source]
+    source: Block,
     b: [f64; 3], // b0, b1, b2
-    #[cfg_attr(feature = "meta", filter_parameter(vec, 3, float))]
     a: [f64; 3], // a0, a1, a2
-    #[cfg_attr(feature = "meta", filter_parameter(vec, 2, float))]
-    zs: [f64; 2], // Delay elements z1, z2 for the filter
+    /// Per-channel biquad delay elements: zs[ch][0..1]
+    zs: [[f64; 2]; CHANNELS],
 }
 
 impl fmt::Display for ResonantBandpassFilter {
@@ -45,10 +40,10 @@ impl ResonantBandpassFilter {
         ];
 
         Self {
-            source: 0.0,
+            source: Vec::new(),
             b,
             a,
-            zs: [0.0; 2],
+            zs: [[0.0; 2]; CHANNELS],
         }
     }
 
@@ -69,27 +64,33 @@ impl ResonantBandpassFilter {
 
     /// Resets the filter's internal state (delay elements).
     /// This is critical for percussive sounds where each hit should start with clean filter state.
-    /// Without reset, residual energy from previous notes can cause tonal artifacts and
-    /// reduced transient clarity.
     pub fn reset(&mut self) {
-        self.zs = [0.0; 2];
-        self.source = 0.0;
+        self.zs = [[0.0; 2]; CHANNELS];
+        self.source.clear();
     }
 }
 
 impl Entry for ResonantBandpassFilter {
-    fn push(&mut self, value: f32, _port: usize) {
-        self.source = value;
+    fn push(&mut self, block: Block, _port: usize) {
+        self.source = block;
     }
 }
 
 impl Filter for ResonantBandpassFilter {
-    fn transform(&mut self) -> Vec<f32> {
-        let output = self.b[0] * self.source as f64 + self.zs[0];
-        self.zs[0] = self.b[2] * self.source as f64 - self.a[1] * output + self.zs[1];
-        self.zs[1] = -self.a[2] * output;
-
-        vec![output as f32]
+    fn transform(&mut self) -> Vec<Block> {
+        let output: Block = self.source
+            .iter()
+            .map(|frame| {
+                std::array::from_fn(|ch| {
+                    let input = frame[ch] as f64;
+                    let out = self.b[0] * input + self.zs[ch][0];
+                    self.zs[ch][0] = self.b[2] * input - self.a[1] * out + self.zs[ch][1];
+                    self.zs[ch][1] = -self.a[2] * out;
+                    out as f32
+                })
+            })
+            .collect();
+        vec![output]
     }
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {

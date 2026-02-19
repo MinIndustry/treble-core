@@ -1,35 +1,42 @@
-use std::collections::VecDeque;
-use std::fmt;
-
-#[cfg(feature = "meta")]
-use rustic_derive::FilterMetaData;
-
 use crate::core::graph::{Entry, Filter};
+use crate::core::{Block, Frame, CHANNELS};
+use rustic_derive::FilterMetaData;
+use std::{collections::VecDeque, fmt};
 
 /// Delays its input by a fixed number of seconds.
-#[derive(Clone, Default)]
-#[cfg_attr(feature = "meta", derive(FilterMetaData))]
+#[derive(FilterMetaData, Clone)]
 pub struct DelayFilter {
-    #[cfg_attr(feature = "meta", filter_source)]
-    sources: [f32; 1],
-    #[cfg_attr(feature = "meta", filter_parameter(range, 0, 20.0, 0.5))]
+    #[filter_source]
+    source: Block,
+    #[filter_parameter(range, 0.0, 20.0, 0.5)]
     delay_for: f32,
-    buffer: VecDeque<f32>,
+    buffer: VecDeque<Frame>,
+    /// Stored for future use (e.g. recomputing buffer size on set_parameter)
+    #[allow(dead_code)]
+    sample_rate: f32,
 }
 
 impl DelayFilter {
     pub fn new(sample_rate: f32, delay: f32) -> Self {
+        let n_frames = (delay * sample_rate) as usize;
         Self {
-            sources: [0.0],
+            source: Vec::new(),
             delay_for: delay,
-            buffer: VecDeque::from(vec![0.0; (delay * sample_rate) as usize]),
+            buffer: VecDeque::from(vec![[0.0; CHANNELS]; n_frames]),
+            sample_rate,
         }
     }
 }
 
+impl Default for DelayFilter {
+    fn default() -> Self {
+        Self::new(44100.0, 0.5)
+    }
+}
+
 impl Entry for DelayFilter {
-    fn push(&mut self, value: f32, port: usize) {
-        self.sources[port] = value;
+    fn push(&mut self, block: Block, _port: usize) {
+        self.source = block;
     }
 }
 
@@ -46,11 +53,14 @@ impl fmt::Debug for DelayFilter {
 }
 
 impl Filter for DelayFilter {
-    fn transform(&mut self) -> Vec<f32> {
-        let input = self.sources[0];
-        let output = self.buffer.pop_front().unwrap_or(0.0);
-
-        self.buffer.push_back(input);
+    fn transform(&mut self) -> Vec<Block> {
+        let output: Block = self.source
+            .iter()
+            .map(|frame| {
+                self.buffer.push_back(*frame);
+                self.buffer.pop_front().unwrap_or([0.0; CHANNELS])
+            })
+            .collect();
         vec![output]
     }
 

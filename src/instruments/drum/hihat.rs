@@ -124,13 +124,13 @@ impl Instrument for HiHat {
     }
 
     fn get_output(&mut self) -> f32 {
-        *self
-            .graph
+        self.graph
             .get_sink(0)
             .unwrap()
-            .consume(1)
+            .consume()
             .first()
-            .unwrap_or(&0.0)
+            .map(|frame| frame[0])
+            .unwrap_or(0.0)
     }
 
     fn tick(&mut self) {

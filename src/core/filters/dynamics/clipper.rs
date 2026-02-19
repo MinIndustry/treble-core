@@ -1,23 +1,20 @@
+use crate::core::graph::{Entry, Filter};
+use crate::core::Block;
+use rustic_derive::FilterMetaData;
 use std::fmt;
 
-#[cfg(feature = "meta")]
-use rustic_derive::FilterMetaData;
-
-use crate::core::graph::{Entry, Filter};
-
-#[derive(Debug, Clone, Default)]
-#[cfg_attr(feature = "meta", derive(FilterMetaData))]
+#[derive(FilterMetaData, Debug, Clone, Default)]
 pub struct Clipper {
-    #[cfg_attr(feature = "meta", filter_source)]
-    pub source: f32,
-    #[cfg_attr(feature = "meta", filter_parameter(range, 0.0, 1.0, 0.5))]
+    #[filter_source]
+    source: Block,
+    #[filter_parameter(range, 0.0, 1.0, 0.5)]
     pub max_ampl: f32,
 }
 
 impl Clipper {
     pub fn new(max: f32) -> Self {
         Self {
-            source: 0.0,
+            source: Vec::new(),
             max_ampl: max,
         }
     }
@@ -30,14 +27,19 @@ impl fmt::Display for Clipper {
 }
 
 impl Entry for Clipper {
-    fn push(&mut self, value: f32, _port: usize) {
-        self.source = value;
+    fn push(&mut self, block: Block, _port: usize) {
+        self.source = block;
     }
 }
 
 impl Filter for Clipper {
-    fn transform(&mut self) -> Vec<f32> {
-        vec![self.source.clamp(-self.max_ampl, self.max_ampl)]
+    fn transform(&mut self) -> Vec<Block> {
+        let max = self.max_ampl;
+        let output: Block = self.source
+            .iter()
+            .map(|frame| std::array::from_fn(|ch| frame[ch].clamp(-max, max)))
+            .collect();
+        vec![output]
     }
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {

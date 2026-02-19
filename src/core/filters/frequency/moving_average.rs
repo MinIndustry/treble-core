@@ -1,21 +1,24 @@
-use std::fmt;
-
-#[cfg(feature = "meta")]
-use rustic_derive::FilterMetaData;
-
 use crate::core::graph::{Entry, Filter};
+use crate::core::{Block, CHANNELS};
+use rustic_derive::FilterMetaData;
+use std::{collections::VecDeque, fmt};
 
 /// A moving average filter implementation.
 /// Based only on the previous samples
-#[derive(Debug, Clone, Default)]
-#[cfg_attr(feature = "meta", derive(FilterMetaData))]
+#[derive(FilterMetaData, Debug, Clone)]
 pub struct MovingAverage {
-    #[cfg_attr(feature = "meta", filter_parameter(val, 3, 0))]
+    #[filter_parameter(val, 3, 0)]
     size: usize,
-    buffer: Vec<f32>,
-    write_pos: usize,
-    #[cfg_attr(feature = "meta", filter_source)]
-    source: f32,
+    /// Per-channel circular buffers
+    buffers: [VecDeque<f32>; CHANNELS],
+    #[filter_source]
+    source: Block,
+}
+
+impl Default for MovingAverage {
+    fn default() -> Self {
+        Self::new(3)
+    }
 }
 
 impl fmt::Display for MovingAverage {
@@ -28,27 +31,33 @@ impl MovingAverage {
     pub fn new(size: usize) -> Self {
         Self {
             size,
-            buffer: vec![0.0; size],
-            write_pos: 0,
-            source: 0.0,
+            buffers: std::array::from_fn(|_| VecDeque::from(vec![0.0f32; size])),
+            source: Vec::new(),
         }
     }
 }
 
 impl Entry for MovingAverage {
-    fn push(&mut self, value: f32, _port: usize) {
-        self.source = value;
+    fn push(&mut self, block: Block, _port: usize) {
+        self.source = block;
     }
 }
 
 impl Filter for MovingAverage {
-    fn transform(&mut self) -> Vec<f32> {
-        self.buffer[self.write_pos] = self.source;
-        self.write_pos = (self.write_pos + 1) % self.size;
-
-        let sum: f32 = self.buffer.iter().sum();
-        let output = sum / self.size as f32;
-
+    fn transform(&mut self) -> Vec<Block> {
+        let size = self.size.max(1) as f32;
+        let output: Block = self.source
+            .iter()
+            .map(|frame| {
+                std::array::from_fn(|ch| {
+                    self.buffers[ch].push_back(frame[ch]);
+                    if self.buffers[ch].len() > self.size {
+                        self.buffers[ch].pop_front();
+                    }
+                    self.buffers[ch].iter().sum::<f32>() / size
+                })
+            })
+            .collect();
         vec![output]
     }
 

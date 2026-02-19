@@ -1,25 +1,22 @@
-use std::fmt;
-
-#[cfg(feature = "meta")]
-use rustic_derive::FilterMetaData;
-
 use crate::core::graph::{Entry, Filter};
+use crate::core::Block;
+use rustic_derive::FilterMetaData;
+use std::fmt;
 
 use super::{HighPassFilter, LowPassFilter};
 
-#[derive(Debug, Clone, Default)]
-#[cfg_attr(feature = "meta", derive(FilterMetaData))]
+#[derive(FilterMetaData, Debug, Clone, Default)]
 /// Bandpass filter using a high-pass and low-pass filter
 pub struct BandPass {
-    #[cfg_attr(feature = "meta", filter_parameter(range, 0.0, 20000.0, 1000.0))]
+    #[filter_parameter(range, 0.0, 20000.0, 1000.0)]
     pub low: f32,
-    #[cfg_attr(feature = "meta", filter_parameter(range, 0.0, 20000.0, 1000.0))]
+    #[filter_parameter(range, 0.0, 20000.0, 1000.0)]
     pub high: f32,
-    #[cfg_attr(feature = "meta", filter_parameter(range, 0.0, 192000.0, 44100.0))]
+    #[filter_parameter(range, 0.0, 192000.0, 44100.0)]
     pub sample_rate: f32,
     pub filters: (HighPassFilter, LowPassFilter),
-    #[cfg_attr(feature = "meta", filter_source)]
-    pub source: f32,
+    #[filter_source]
+    pub source: Block,
 }
 
 impl BandPass {
@@ -32,7 +29,7 @@ impl BandPass {
                 HighPassFilter::new(low, sample_rate),
                 LowPassFilter::new(high, sample_rate),
             ),
-            source: 0.0,
+            source: Vec::new(),
         }
     }
 }
@@ -44,16 +41,18 @@ impl fmt::Display for BandPass {
 }
 
 impl Entry for BandPass {
-    fn push(&mut self, value: f32, _port: usize) {
-        self.source = value;
+    fn push(&mut self, block: Block, _port: usize) {
+        self.source = block;
     }
 }
 
 impl Filter for BandPass {
-    fn transform(&mut self) -> Vec<f32> {
-        self.filters.0.push(self.source, 0);
-        let value = *self.filters.0.transform().first().unwrap_or(&0.0);
-        self.filters.1.push(value, 0);
+    fn transform(&mut self) -> Vec<Block> {
+        self.filters.0.push(self.source.clone(), 0);
+        let hp_output = self.filters.0.transform();
+        self.filters
+            .1
+            .push(hp_output.into_iter().next().unwrap_or_default(), 0);
         self.filters.1.transform()
     }
 

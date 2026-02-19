@@ -1,31 +1,27 @@
-use std::fmt;
-
-#[cfg(feature = "meta")]
-use rustic_derive::FilterMetaData;
-
 /// This file contains structural filters i.e. filters that do not modify
 /// values that pass through it but rather duplicate/merges its inputs
 use crate::core::graph::{Entry, Filter};
-
+use crate::core::Block;
+use rustic_derive::FilterMetaData;
 use log::trace;
+use std::fmt;
 
 /// Duplicates the content of the input onto two outputs
-#[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "meta", derive(FilterMetaData))]
+#[derive(FilterMetaData, Clone, Debug, Default)]
 pub struct DuplicateFilter {
-    #[cfg_attr(feature = "meta", filter_source)]
-    sources: [f32; 1],
+    #[filter_source]
+    source: Block,
 }
 
 impl DuplicateFilter {
     pub fn new() -> Self {
-        Self { sources: [0.0] }
+        Self { source: Vec::new() }
     }
 }
 
 impl Entry for DuplicateFilter {
-    fn push(&mut self, value: f32, port: usize) {
-        self.sources[port] = value;
+    fn push(&mut self, block: Block, _port: usize) {
+        self.source = block;
     }
 }
 
@@ -36,14 +32,9 @@ impl fmt::Display for DuplicateFilter {
 }
 
 impl Filter for DuplicateFilter {
-    fn transform(&mut self) -> Vec<f32> {
-        let source_value = self.sources[0];
-
-        trace!(
-            "Duplicate filter running {} -> {}, {}",
-            source_value, source_value, source_value
-        );
-        vec![source_value, source_value]
+    fn transform(&mut self) -> Vec<Block> {
+        trace!("Duplicate filter running");
+        vec![self.source.clone(), self.source.clone()]
     }
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
