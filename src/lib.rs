@@ -51,7 +51,6 @@ pub mod inputs;
 /// Instruments are structures that implement the `Instrument` trait.
 pub mod instruments;
 
-#[cfg(feature = "meta")]
 /// This module defines the metadata structures for the application.
 /// It allows to store and retrieve metadata about filters
 pub mod meta;

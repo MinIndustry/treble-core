@@ -42,6 +42,8 @@ pub mod graph;
 
 /// Core utilities including note types, tones, and helper functions
 pub mod utils;
+pub mod audio;
 
 // Re-export commonly used types from utils
 pub use utils::{NOTES, Note};
+pub use audio::{CHANNELS, Frame, Block};
