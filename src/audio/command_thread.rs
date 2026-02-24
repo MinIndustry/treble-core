@@ -1,8 +1,9 @@
 //! Command processing thread implementation
 
-use crate::app::commands::AudioCommand;
-use crate::app::prelude::*;
-use std::sync::Arc;
+use crate::app::commands::{AppCommand, AudioCommand, SystemCommand};
+use crate::app::prelude::Command;
+use crate::app::state::AppState;
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread::{self, JoinHandle};
@@ -36,13 +37,10 @@ fn create_source(node_type: &str, params: &[(String, f32)]) -> Result<Box<dyn So
         .map(|(_, v)| *v)
         .unwrap_or(440.0);
 
-    let waveform = match node_type {
-        "Sine Wave" => Waveform::Sine,
-        "Square Wave" => Waveform::Square,
-        "Sawtooth Wave" => Waveform::Sawtooth,
-        "Triangle Wave" => Waveform::Triangle,
-        "White Noise" => Waveform::WhiteNoise,
-        other => return Err(format!("Unknown generator type: {}", other)),
+    let waveform: Waveform = node_type.into();
+    match waveform {
+        Waveform::Err(name) => return Err(format!("Unknown generator type: {name}")),
+        _ => (),
     };
 
     let generator: MultiToneGenerator = ToneGeneratorBuilder::new()
@@ -259,7 +257,7 @@ fn rebuild_and_swap(
 /// - Sends audio messages to the render thread
 /// - Reports errors and events back to the frontend
 pub fn spawn_command_thread(
-    mut app: App,
+    state: Arc<Mutex<AppState>>,
     shared_state: Arc<SharedAudioState>,
     command_rx: Receiver<Command>,
     event_tx: Sender<BackendEvent>,
@@ -284,7 +282,7 @@ pub fn spawn_command_thread(
                     }
 
                     // Audio commands: validate + translate in one step
-                    Ok(Command::Audio(cmd)) => match cmd.into_audio_message(&app) {
+                    Ok(Command::Audio(cmd)) => match cmd.into_audio_message() {
                         Ok(msg) => {
                             if message_tx.send(msg).is_err() {
                                 log::warn!("Audio message channel closed");
@@ -312,7 +310,7 @@ pub fn spawn_command_thread(
 
                     // App commands: validate then apply to app state
                     Ok(Command::App(cmd)) => {
-                        if let Err(e) = cmd.validate(&app) {
+                        if let Err(e) = cmd.validate() {
                             let _ = event_tx.send(BackendEvent::CommandError {
                                 command: format!("{:?}", cmd),
                                 error: e.to_string(),
@@ -320,7 +318,13 @@ pub fn spawn_command_thread(
                             log::warn!("App command validation failed: {:?} - {}", cmd, e);
                             continue;
                         }
-                        app.on_event(cmd);
+                        let AppCommand::System(system_cmd) = cmd;
+                        let _state = state.lock().unwrap();
+                        match system_cmd {
+                            SystemCommand::Reset => {
+                                log::error!("Not implemented System::Reset");
+                            }
+                        }
                     }
 
                     Err(_) => {

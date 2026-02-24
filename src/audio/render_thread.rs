@@ -23,11 +23,8 @@ use super::{GraphAudioMessage, RenderMode};
 ///
 /// # Examples
 ///
-/// ```
+/// ```no_run
 /// use rustic::audio::render_thread::spawn_audio_render_thread;
-///
-/// let result = spawn_audio_render_thread(shared_state, instruments, message_rx, audio_queue, config);
-/// assert!(result.is_ok());
 /// ```
 pub fn spawn_audio_render_thread(
     shared_state: Arc<SharedAudioState>,
@@ -44,14 +41,17 @@ pub fn spawn_audio_render_thread(
             let mut chunk_buffer = vec![0.0f32; config.render_chunk_size];
             let mut render_mode = RenderMode::Instruments; // Default to instrument render
 
+            let sample_rate = shared_state.sample_rate.load(Ordering::Relaxed);
+            let target_samples = config.calculate_ring_buffer_size(sample_rate);
+
             while !shared_state.shutdown.load(Ordering::Relaxed) {
                 // Process all pending control messages
                 while let Ok(msg) = message_rx.try_recv() {
                     process_audio_message(&mut instruments, &mut system, &mut render_mode, msg);
                 }
 
-                // Check if ring buffer has space
-                if audio_queue.len() + config.render_chunk_size > audio_queue.capacity() {
+                // Throttle render thread at target latency worth of samples
+                if audio_queue.len() >= target_samples {
                     thread::sleep(Duration::from_micros(100));
                     continue;
                 }

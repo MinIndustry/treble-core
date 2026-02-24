@@ -1,14 +1,16 @@
 use rodio::buffer::SamplesBuffer;
 use rodio::{OutputStream, Sink};
 
+use core::time;
 use log::error;
 use simplelog::*;
 use std::fs::File;
+use std::thread;
 
-use rustic::Note;
 use rustic::instruments::Instrument;
 use rustic::instruments::prelude::{HiHat, Kick, Snare};
-use rustic::prelude::App;
+use rustic::prelude::{App, AudioCommand, Command};
+use rustic::{NOTES, Note};
 
 #[cfg(feature = "plotting")]
 use rustic::plotting::plot_data;
@@ -29,7 +31,8 @@ fn main() {
     ])
     .unwrap();
 
-    let app = App::init();
+    log::info!("Starting engine");
+    let mut app = App::init();
 
     let mut hihat = match HiHat::new() {
         Ok(h) => h,
@@ -38,50 +41,67 @@ fn main() {
             return;
         }
     };
-
     let mut kick = Kick::new();
     let mut snare = Snare::new();
 
-    let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-    let sink = Sink::try_new(&stream_handle).unwrap();
+    app.instruments.push(Box::new(hihat));
+    app.instruments.push(Box::new(kick));
+    app.instruments.push(Box::new(snare));
 
-    let mut values = vec![];
-    let mut complete_value_list = vec![];
+    let event_rx = match app.start() {
+        Ok(er) => er,
+        Err(e) => {
+            log::error!("Unable to start rustic app: {e:?}");
+            return;
+        }
+    };
+
+    std::thread::spawn(move || {
+        log::info!("Event thread started");
+        while let Ok(event) = event_rx.recv() {
+            log::info!("Received event: {event:?}");
+        }
+    });
+
+    let mut values: Vec<f32> = vec![];
+    let mut complete_value_list: Vec<f32> = vec![];
     for i in 0..40 {
         values.clear();
 
         if i % 4 == 1 {
-            kick.start_note(Note(rustic::core::utils::tones::NOTES::A, 0), 0.0);
+            app.send(Command::Audio(AudioCommand::NoteStart {
+                instrument_idx: 1,
+                note: Note::new(NOTES::A, 4),
+                velocity: 1.0,
+            }));
         } else if i % 4 == 3 {
-            snare.start_note(Note(rustic::core::utils::tones::NOTES::A, 0), 0.0);
+            app.send(Command::Audio(AudioCommand::NoteStart {
+                instrument_idx: 2,
+                note: Note::new(NOTES::A, 4),
+                velocity: 1.0,
+            }));
         } else if i < 39 {
-            hihat.start_note(Note(rustic::core::utils::tones::NOTES::A, 0), 0.0);
+            app.send(Command::Audio(AudioCommand::NoteStart {
+                instrument_idx: 0,
+                note: Note::new(NOTES::A, 4),
+                velocity: 1.0,
+            }));
         }
 
-        for _ in 0..(app.config.system.sample_rate as usize / 4) {
-            kick.tick();
-            hihat.tick();
-            snare.tick();
+        thread::sleep(time::Duration::from_millis(250));
 
-            let hihat_output = hihat.get_output();
-            let full = hihat_output + kick.get_output() + snare.get_output();
-
-            values.push(full); // Left
-            values.push(full); // Right
-
-            complete_value_list.push(full);
-            complete_value_list.push(full);
-        }
-
-        kick.stop_note(Note(rustic::core::utils::tones::NOTES::A, 0));
-        hihat.stop_note(Note(rustic::core::utils::tones::NOTES::A, 0));
-        snare.stop_note(Note(rustic::core::utils::tones::NOTES::A, 0));
-
-        sink.append(SamplesBuffer::new(
-            2_u16,
-            app.config.system.sample_rate,
-            values.to_vec(),
-        ));
+        app.send(Command::Audio(AudioCommand::NoteStop {
+            instrument_idx: 0,
+            note: Note::new(NOTES::A, 4),
+        }));
+        app.send(Command::Audio(AudioCommand::NoteStop {
+            instrument_idx: 1,
+            note: Note::new(NOTES::A, 4),
+        }));
+        app.send(Command::Audio(AudioCommand::NoteStop {
+            instrument_idx: 2,
+            note: Note::new(NOTES::A, 4),
+        }));
     }
 
     #[cfg(feature = "plotting")]
@@ -108,5 +128,6 @@ fn main() {
         }
     }
 
-    sink.sleep_until_end();
+    thread::sleep(time::Duration::from_secs(10));
+    app.stop();
 }

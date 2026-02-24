@@ -29,12 +29,8 @@
 //! - `meta`: filter/instrument metadata used by GUI frontends
 //!
 //! # Audio I/O
-//! See `start_app` for an example that uses `cpal` for audio output and a simple
-//! audio callback loop used in the examples folder.
-
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use log::error;
-use std::sync::mpsc::{Receiver, Sender};
+//! See `App::start()` for an example that uses `cpal` for audio output and a
+//! real-time safe three-thread audio pipeline.
 
 pub mod app;
 
@@ -61,8 +57,6 @@ pub mod meta;
 /// This allows to build complex notes, chords, ...
 pub mod score;
 
-const APP_ID: (&str, &str, &str) = ("rustic", "minigrim0", "xyz");
-
 /// Main prelude module that exports the most commonly used types from the crate
 pub mod prelude {
     // App exports
@@ -86,6 +80,8 @@ pub mod prelude {
 
 #[cfg(feature = "plotting")]
 pub mod plotting;
+
+pub const APP_ID: (&str, &str, &str) = ("rustic", "minigrim0", "xyz");
 
 // Re-export Note from core utils
 pub use core::{NOTES, Note};
@@ -140,131 +136,4 @@ pub fn init_logging(
 
     CombinedLogger::init(loggers)?;
     Ok(())
-}
-
-pub fn start_app(
-    event_tx: Sender<audio::BackendEvent>,
-    command_rx: Receiver<prelude::Command>,
-    skip_logging: bool,
-) -> Result<audio::AudioHandle, audio::AudioError> {
-    use std::sync::Arc;
-    use std::sync::atomic::Ordering;
-
-    // Initialize app (loads config from file or defaults)
-    let mut app = match app::prelude::FSConfig::app_root_dir() {
-        Ok(root) => {
-            let config_path = root.join("config.toml");
-            prelude::App::from_file(&config_path).unwrap_or_else(|_| prelude::App::new())
-        }
-        Err(_) => prelude::App::new(),
-    };
-
-    // Initialize logging from config (skip if caller owns logging)
-    if !skip_logging {
-        if let Ok(config_dir) = app::prelude::FSConfig::app_root_dir() {
-            let _ = init_logging(&app.config.logging, &config_dir);
-        }
-    }
-
-    log::info!("Starting Rustic audio system");
-
-    // Validate audio config
-    app.config
-        .audio
-        .validate()
-        .map_err(audio::AudioError::ConfigError)?;
-
-    let config = app.config.audio.clone();
-    let shared_state = Arc::new(audio::SharedAudioState::new());
-
-    // Create lock-free queues using crossbeam
-    use crossbeam::queue::ArrayQueue;
-    let audio_queue = Arc::new(ArrayQueue::<f32>::new(config.audio_ring_buffer_size));
-    let audio_queue_producer = audio_queue.clone();
-    let audio_queue_consumer = audio_queue;
-
-    let (message_tx, message_rx) = crossbeam::channel::bounded(config.message_ring_buffer_size);
-
-    // Move instruments to audio thread
-    let instruments = std::mem::take(&mut app.instruments);
-
-    // Setup cpal
-    let host = cpal::default_host();
-    let device = host
-        .default_output_device()
-        .ok_or(audio::AudioError::NoDevice)?;
-
-    let mut supported_configs_range = device
-        .supported_output_configs()
-        .map_err(|e| audio::AudioError::StreamError(e.to_string()))?;
-
-    let supported_config = supported_configs_range
-        .next()
-        .ok_or(audio::AudioError::StreamError(
-            "No supported config".to_string(),
-        ))?
-        .with_max_sample_rate();
-
-    let mut cpal_config = supported_config.config();
-    cpal_config.buffer_size = cpal::BufferSize::Fixed(config.cpal_buffer_size as u32);
-
-    let sample_rate = cpal_config.sample_rate.0;
-    app.config.system.sample_rate = sample_rate;
-    shared_state
-        .sample_rate
-        .store(sample_rate, Ordering::Relaxed);
-
-    log::info!(
-        "Audio configuration: sample_rate={}, buffer_size={}, ring_buffer={}",
-        sample_rate,
-        config.cpal_buffer_size,
-        config.audio_ring_buffer_size
-    );
-
-    // Spawn threads
-    let render_thread = audio::spawn_audio_render_thread(
-        shared_state.clone(),
-        instruments,
-        message_rx,
-        audio_queue_producer,
-        config.clone(),
-    );
-
-    let command_thread = audio::spawn_command_thread(
-        app,
-        shared_state.clone(),
-        command_rx,
-        event_tx.clone(),
-        message_tx,
-    );
-
-    // Build cpal stream
-    let callback = audio::create_cpal_callback(audio_queue_consumer, shared_state.clone());
-
-    let stream = device
-        .build_output_stream(
-            &cpal_config,
-            callback,
-            move |err| {
-                error!("Audio stream error: {}", err);
-            },
-            None,
-        )
-        .map_err(|e| audio::AudioError::StreamError(e.to_string()))?;
-
-    stream
-        .play()
-        .map_err(|e| audio::AudioError::StreamError(e.to_string()))?;
-
-    // Notify frontend
-    let _ = event_tx.send(audio::BackendEvent::AudioStarted { sample_rate });
-
-    log::info!("Audio system started successfully");
-
-    Ok(audio::AudioHandle::new(
-        command_thread,
-        render_thread,
-        stream,
-        shared_state,
-    ))
 }

@@ -2,7 +2,6 @@
 mod app;
 mod cli;
 pub mod commands;
-mod row;
 
 /// The filesystem module is used to interact with the filesystem.
 /// Its purpose is to help organize the filesystem and provide a way to interact with it.
@@ -14,14 +13,7 @@ mod error;
 /// Its purpose is to help organize the system and provide a way to interact with it.
 mod system;
 
-#[derive(Default)]
-pub enum RunMode {
-    Live,  // App is ready to play live, has loaded instruments
-    Score, // App is ready to play a score
-    Graph, // App is ready to play a graph or multiple graphs
-    #[default]
-    Unknown,
-}
+pub mod state;
 
 #[derive(Default)]
 pub enum AppMode {
@@ -38,5 +30,6 @@ pub mod prelude {
     pub use super::commands::{AppCommand, AudioCommand, Command};
     pub use super::filesystem::FSConfig;
     pub use super::system::SystemConfig;
-    pub use super::{AppMode, RunMode};
+    pub use super::state::AppState;
+    pub use super::AppMode;
 }

@@ -73,8 +73,8 @@ impl SingleToneGenerator {
         self.phase = (self.phase + TAU * actual_elapsed * self.current_frequency) % TAU;
 
         let tone_value = match self.waveform {
-            Waveform::Blank => 1.0, // Returns 1.0 that will be mapped to the amplitude envelope
-            Waveform::PinkNoise => 1.0, // TODO impl pink noise
+            Waveform::Blank | Waveform::Err(_) => 1.0, // Returns 1.0 that will be mapped to the amplitude envelope
+            Waveform::PinkNoise => 1.0,                // TODO impl pink noise
             Waveform::Sawtooth => (self.phase * f32::consts::FRAC_1_PI) - 1.0,
             Waveform::Sine => f32::sin(self.phase),
             Waveform::Square => {

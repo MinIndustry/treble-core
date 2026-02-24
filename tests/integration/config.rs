@@ -27,8 +27,8 @@ fn test_audioconfig_default_values() {
         "Default render_chunk_size should be 256"
     );
     assert_eq!(
-        config.audio_ring_buffer_size, 88200,
-        "Default audio_ring_buffer_size should be 88200 (2s @ 44.1kHz)"
+        config.audio_ring_buffer_size, 4096,
+        "Default audio_ring_buffer_size should be 4096 (~93ms capacity @ 44.1kHz)"
     );
     assert_eq!(
         config.message_ring_buffer_size, 1024,
@@ -196,7 +196,7 @@ fn test_audioconfig_toml_missing_fields_use_defaults() {
     assert_eq!(config.render_chunk_size, 512);
 
     // Missing fields should have default values
-    assert_eq!(config.audio_ring_buffer_size, 88200);
+    assert_eq!(config.audio_ring_buffer_size, 4096);
     assert_eq!(config.message_ring_buffer_size, 1024);
     assert_eq!(config.target_latency_ms, 50.0);
 }

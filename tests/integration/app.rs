@@ -2,12 +2,8 @@
 //!
 //! This test suite validates application state management:
 //! - App initialization with default and custom configs
-//! - Event handling for various command types
-//! - Octave management (OctaveUp, OctaveDown, SetOctave)
-//! - Row management and state updates
 //! - Configuration loading from files
 
-use rustic::app::commands::{AppCommand, LiveCommand, SystemCommand};
 use rustic::prelude::App;
 use std::io::Write;
 
@@ -21,7 +17,7 @@ fn test_app_new_default_config() {
 
     assert_eq!(app.config.audio.cpal_buffer_size, 64);
     assert_eq!(app.config.audio.render_chunk_size, 256);
-    assert_eq!(app.config.audio.audio_ring_buffer_size, 88200);
+    assert_eq!(app.config.audio.audio_ring_buffer_size, 4096);
 
     assert_eq!(app.config.logging.level, "info");
     assert!(!app.config.logging.log_to_file);
@@ -29,21 +25,12 @@ fn test_app_new_default_config() {
 }
 
 #[test]
-fn test_app_new_default_rows() {
+fn test_app_new_starts_without_instruments() {
     let app = App::new();
-
-    assert_eq!(app.rows[0].octave, 3, "Row 0 should start at octave 3");
-    assert_eq!(app.rows[1].octave, 4, "Row 1 should have default octave 4");
-    assert_eq!(app.rows[0].instrument, 0);
-    assert_eq!(app.rows[1].instrument, 0);
-}
-
-#[test]
-fn test_app_new_has_instruments() {
-    let app = App::new();
-
-    assert!(!app.instruments.is_empty());
-    assert_eq!(app.instruments.len(), 1);
+    assert!(
+        app.instruments.is_empty(),
+        "New App should start with no instruments; add them explicitly"
+    );
 }
 
 #[test]
@@ -151,161 +138,6 @@ fn test_app_from_file_nonexistent_file() {
 }
 
 // ============================================================================
-// Event Handling Tests - Octave Control
-// ============================================================================
-
-#[test]
-fn test_on_event_octaveup() {
-    let mut app = App::new();
-    app.rows[0].octave = 4;
-    app.rows[1].octave = 3;
-
-    app.on_event(AppCommand::Live(LiveCommand::OctaveUp(0)));
-    assert_eq!(app.rows[0].octave, 5);
-    assert_eq!(app.rows[1].octave, 3);
-
-    app.on_event(AppCommand::Live(LiveCommand::OctaveUp(1)));
-    assert_eq!(app.rows[0].octave, 5);
-    assert_eq!(app.rows[1].octave, 4);
-}
-
-#[test]
-fn test_on_event_octavedown() {
-    let mut app = App::new();
-    app.rows[0].octave = 5;
-    app.rows[1].octave = 6;
-
-    app.on_event(AppCommand::Live(LiveCommand::OctaveDown(0)));
-    assert_eq!(app.rows[0].octave, 4);
-    assert_eq!(app.rows[1].octave, 6);
-
-    app.on_event(AppCommand::Live(LiveCommand::OctaveDown(1)));
-    assert_eq!(app.rows[0].octave, 4);
-    assert_eq!(app.rows[1].octave, 5);
-}
-
-#[test]
-fn test_on_event_octaveup_multiple_times() {
-    let mut app = App::new();
-    app.rows[0].octave = 2;
-
-    app.on_event(AppCommand::Live(LiveCommand::OctaveUp(0)));
-    app.on_event(AppCommand::Live(LiveCommand::OctaveUp(0)));
-    app.on_event(AppCommand::Live(LiveCommand::OctaveUp(0)));
-
-    assert_eq!(app.rows[0].octave, 5);
-}
-
-#[test]
-fn test_on_event_octavedown_multiple_times() {
-    let mut app = App::new();
-    app.rows[1].octave = 7;
-
-    app.on_event(AppCommand::Live(LiveCommand::OctaveDown(1)));
-    app.on_event(AppCommand::Live(LiveCommand::OctaveDown(1)));
-
-    assert_eq!(app.rows[1].octave, 5);
-}
-
-#[test]
-fn test_on_event_octaveup_and_down() {
-    let mut app = App::new();
-    app.rows[0].octave = 4;
-
-    app.on_event(AppCommand::Live(LiveCommand::OctaveUp(0)));
-    app.on_event(AppCommand::Live(LiveCommand::OctaveUp(0)));
-    app.on_event(AppCommand::Live(LiveCommand::OctaveDown(0)));
-
-    assert_eq!(app.rows[0].octave, 5);
-}
-
-#[test]
-#[should_panic(expected = "index out of bounds")]
-fn test_on_event_octaveup_invalid_row_panics() {
-    let mut app = App::new();
-    app.on_event(AppCommand::Live(LiveCommand::OctaveUp(2)));
-}
-
-#[test]
-#[should_panic(expected = "index out of bounds")]
-fn test_on_event_octavedown_invalid_row_panics() {
-    let mut app = App::new();
-    app.on_event(AppCommand::Live(LiveCommand::OctaveDown(5)));
-}
-
-// ============================================================================
-// Event Handling Tests - Other Commands
-// ============================================================================
-
-#[test]
-fn test_on_event_unhandled_commands() {
-    let mut app = App::new();
-
-    app.on_event(AppCommand::System(SystemCommand::Reset));
-    app.on_event(AppCommand::Live(LiveCommand::LinkOctaves));
-    app.on_event(AppCommand::Live(LiveCommand::UnlinkOctaves));
-
-    // No panic = success
-}
-
-// ============================================================================
-// Row Management Tests
-// ============================================================================
-
-#[test]
-fn test_row_get_note() {
-    let mut app = App::new();
-    app.rows[0].octave = 4;
-
-    let note = app.rows[0].get_note(0);
-    assert_eq!(note.octave(), 4);
-
-    app.rows[0].octave = 5;
-    let note = app.rows[0].get_note(7);
-    assert_eq!(note.octave(), 5);
-}
-
-#[test]
-fn test_row_independent_octaves() {
-    let mut app = App::new();
-    app.rows[0].octave = 3;
-    app.rows[1].octave = 6;
-
-    app.on_event(AppCommand::Live(LiveCommand::OctaveUp(0)));
-    assert_eq!(app.rows[0].octave, 4);
-    assert_eq!(app.rows[1].octave, 6);
-
-    app.on_event(AppCommand::Live(LiveCommand::OctaveDown(1)));
-    assert_eq!(app.rows[0].octave, 4);
-    assert_eq!(app.rows[1].octave, 5);
-}
-
-#[test]
-fn test_row_instrument_assignment() {
-    let app = App::new();
-    assert_eq!(app.rows[0].instrument, 0);
-    assert_eq!(app.rows[1].instrument, 0);
-}
-
-// ============================================================================
-// Live Tick Tests
-// ============================================================================
-
-#[test]
-fn test_live_tick_produces_output() {
-    let mut app = App::new();
-    let _output = app.live_tick();
-}
-
-#[test]
-fn test_live_tick_multiple_calls() {
-    let mut app = App::new();
-    for _ in 0..100 {
-        let _output = app.live_tick();
-    }
-}
-
-// ============================================================================
 // Configuration Validation Integration
 // ============================================================================
 
@@ -322,53 +154,4 @@ fn test_app_with_invalid_config() {
     app.config.audio.cpal_buffer_size = 0;
     let result = app.config.audio.validate();
     assert!(result.is_err(), "Invalid config should fail validation");
-}
-
-// ============================================================================
-// State Consistency Tests
-// ============================================================================
-
-#[test]
-fn test_multiple_commands_sequence() {
-    let mut app = App::new();
-    app.rows[0].octave = 4;
-
-    app.on_event(AppCommand::Live(LiveCommand::OctaveUp(0)));
-    app.on_event(AppCommand::Live(LiveCommand::OctaveDown(0)));
-
-    assert_eq!(app.rows[0].octave, 4);
-}
-
-#[test]
-fn test_interleaved_row_commands() {
-    let mut app = App::new();
-    app.rows[0].octave = 3;
-    app.rows[1].octave = 5;
-
-    app.on_event(AppCommand::Live(LiveCommand::OctaveUp(0)));
-    app.on_event(AppCommand::Live(LiveCommand::OctaveUp(1)));
-    app.on_event(AppCommand::Live(LiveCommand::OctaveDown(0)));
-
-    assert_eq!(app.rows[0].octave, 3);
-    assert_eq!(app.rows[1].octave, 6);
-}
-
-// ============================================================================
-// Edge Case Tests
-// ============================================================================
-
-#[test]
-#[should_panic(expected = "attempt to subtract with overflow")]
-fn test_octave_underflow_behavior() {
-    let mut app = App::new();
-    app.rows[0].octave = 0;
-    app.on_event(AppCommand::Live(LiveCommand::OctaveDown(0)));
-}
-
-#[test]
-#[should_panic(expected = "attempt to add with overflow")]
-fn test_octave_overflow_behavior() {
-    let mut app = App::new();
-    app.rows[0].octave = 255;
-    app.on_event(AppCommand::Live(LiveCommand::OctaveUp(0)));
 }

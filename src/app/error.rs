@@ -10,4 +10,13 @@ pub enum AppError {
 
     #[error("File not found")]
     FileNotFound,
+
+    #[error("App has not been started yet")]
+    NotStarted,
+
+    #[error("Command channel closed")]
+    ChannelClosed,
+
+    #[error("Audio error: {0}")]
+    AudioError(String),
 }

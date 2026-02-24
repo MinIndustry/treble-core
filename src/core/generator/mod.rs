@@ -66,6 +66,58 @@ pub mod prelude {
         WhiteNoise,
         PinkNoise,
         Blank,
+        Err(String), // Only used to inform of a conversion error
+    }
+
+    impl From<&str> for Waveform {
+        fn from(value: &str) -> Self {
+            match value {
+                "sine" => Self::Sine,
+                "square" => Self::Square,
+                "saw" => Self::Sawtooth,
+                "triangle" => Self::Triangle,
+                "whitenoise" => Self::WhiteNoise,
+                "pinknoise" => Self::PinkNoise,
+                "blank" => Self::Blank,
+                other => {
+                    log::warn!("Unknown from for waveform {other}, defaulting to blank");
+                    Self::Err(other.into())
+                }
+            }
+        }
+    }
+
+    impl From<String> for Waveform {
+        fn from(value: String) -> Self {
+            match value.as_str() {
+                "sine" => Self::Sine,
+                "square" => Self::Square,
+                "saw" => Self::Sawtooth,
+                "triangle" => Self::Triangle,
+                "whitenoise" => Self::WhiteNoise,
+                "pinknoise" => Self::PinkNoise,
+                "blank" => Self::Blank,
+                other => {
+                    log::warn!("Unknown from for waveform {other}, defaulting to blank");
+                    Self::Err(other.into())
+                }
+            }
+        }
+    }
+
+    impl From<Waveform> for String {
+        fn from(value: Waveform) -> Self {
+            match value {
+                Waveform::Sine => "sine".into(),
+                Waveform::Square => "square".into(),
+                Waveform::Sawtooth => "saw".into(),
+                Waveform::Triangle => "triangle".into(),
+                Waveform::WhiteNoise => "white".into(),
+                Waveform::PinkNoise => "pink".into(),
+                Waveform::Blank => "blank".into(),
+                Waveform::Err(name) => name,
+            }
+        }
     }
 
     /// A frequency relation type for tone generation.

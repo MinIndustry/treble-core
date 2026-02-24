@@ -3,7 +3,7 @@ use crate::core::utils::Note;
 use dyn_clone::DynClone;
 
 /// The source trait defines node that can be used as source in the audio graph.
-pub trait Source: std::fmt::Debug + DynClone + Send {
+pub trait Source: std::fmt::Debug + DynClone + Send + Sync {
     /// Pull exactly one Block (block_size frames) of stereo audio.
     /// The block_size is known to the source via the System that owns it.
     fn pull(&mut self, block_size: usize) -> Block;

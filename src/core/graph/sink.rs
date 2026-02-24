@@ -3,7 +3,7 @@ use crate::core::{Block, Frame};
 
 /// A trait for AudioGraphElements that allow other parts of the
 /// code to consume values from them. (Acts as a graph output)
-pub trait Sink: Entry {
+pub trait Sink: Entry + Send + Sync {
     /// Gets the values of the sink
     fn consume(&mut self) -> Block;
     fn get_frames(&self) -> &[Frame];

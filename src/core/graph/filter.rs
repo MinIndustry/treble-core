@@ -3,7 +3,7 @@ use crate::core::graph::Entry;
 use std::fmt;
 
 /// A filter that can process data. Data should be pushed to the filter's input by either the preceding filter or a source.
-pub trait Filter: Entry + fmt::Display + rustic_meta::MetaFilter {
+pub trait Filter: Entry + fmt::Display + rustic_meta::MetaFilter + Send + Sync {
     /// Applies the filter's transformation to the input
     /// Returns a Vector of Blocks. Each block correspond to output port `x` of the filter
     fn transform(&mut self) -> Vec<Block>;

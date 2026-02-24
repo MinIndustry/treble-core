@@ -33,8 +33,8 @@ fn default_render_chunk_size() -> usize {
     256
 }
 fn default_audio_ring_buffer_size() -> usize {
-    88200
-} // 2s @ 44.1kHz
+    4096
+} // ~93ms capacity @ 44.1kHz; render thread throttles at target_latency_ms
 fn default_message_ring_buffer_size() -> usize {
     1024
 }
@@ -68,7 +68,7 @@ impl AudioConfig {
         if self.render_chunk_size < self.cpal_buffer_size {
             return Err("render_chunk_size must be >= cpal_buffer_size".to_string());
         }
-        if self.audio_ring_buffer_size < self.render_chunk_size * 2 {
+        if self.audio_ring_buffer_size < self.render_chunk_size * 4 {
             return Err("audio_ring_buffer_size too small".to_string());
         }
         Ok(())
