@@ -3,9 +3,9 @@
 //! utilities for managing files and directories.
 
 use std::path::Path;
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::{Receiver, Sender, channel};
+use std::sync::{Arc, Mutex};
 
 use clap::Parser;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -101,9 +101,7 @@ impl App {
         let instruments = std::mem::take(&mut self.instruments);
 
         let host = cpal::default_host();
-        let device = host
-            .default_output_device()
-            .ok_or(AudioError::NoDevice)?;
+        let device = host.default_output_device().ok_or(AudioError::NoDevice)?;
 
         let mut supported_configs_range = device
             .supported_output_configs()
@@ -111,9 +109,7 @@ impl App {
 
         let supported_config = supported_configs_range
             .next()
-            .ok_or(AudioError::StreamError(
-                "No supported config".to_string(),
-            ))?
+            .ok_or(AudioError::StreamError("No supported config".to_string()))?
             .with_max_sample_rate();
 
         let mut cpal_config = supported_config.config();
@@ -127,8 +123,7 @@ impl App {
 
         info!(
             "Audio config: sample_rate={sample_rate}, buffer_size={}, ring_buffer={}",
-            config.cpal_buffer_size,
-            config.audio_ring_buffer_size
+            config.cpal_buffer_size, config.audio_ring_buffer_size
         );
 
         let render_thread = crate::audio::spawn_audio_render_thread(

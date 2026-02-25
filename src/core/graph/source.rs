@@ -2,6 +2,9 @@ use crate::core::audio::Block;
 use crate::core::utils::Note;
 use dyn_clone::DynClone;
 
+pub mod monophonic;
+pub mod polyphonic;
+
 /// The source trait defines node that can be used as source in the audio graph.
 pub trait Source: std::fmt::Debug + DynClone + Send + Sync {
     /// Pull exactly one Block (block_size frames) of stereo audio.

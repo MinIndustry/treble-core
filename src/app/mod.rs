@@ -25,11 +25,11 @@ pub enum AppMode {
 
 // Export essential types directly from the app module
 pub mod prelude {
+    pub use super::AppMode;
     pub use super::app::App;
     pub use super::cli::Cli;
     pub use super::commands::{AppCommand, AudioCommand, Command};
     pub use super::filesystem::FSConfig;
-    pub use super::system::SystemConfig;
     pub use super::state::AppState;
-    pub use super::AppMode;
+    pub use super::system::SystemConfig;
 }

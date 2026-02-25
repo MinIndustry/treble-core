@@ -3,9 +3,9 @@
 use crate::app::commands::{AppCommand, AudioCommand, SystemCommand};
 use crate::app::prelude::Command;
 use crate::app::state::AppState;
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::{Receiver, Sender};
+use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
 use super::RenderMode;
