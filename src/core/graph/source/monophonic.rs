@@ -11,7 +11,7 @@ use super::Source;
 
 #[derive(Debug, Clone, Default)]
 /// Strategies for replacing or not a playing note in the monophonic generator.
-pub enum OverPlayStrategy {
+pub enum MonophonicAllocationStrategy {
     #[default]
     Replace,
     Drop,
@@ -22,7 +22,7 @@ pub enum OverPlayStrategy {
 /// A monophonic source for the graph system.
 pub struct MonophonicSource {
     generator: MultiToneGenerator,
-    replacement_strategy: OverPlayStrategy,
+    replacement_strategy: MonophonicAllocationStrategy,
     sample_rate: f32,
     active: bool,
     released: bool,
@@ -33,7 +33,7 @@ impl MonophonicSource {
     pub fn new(
         generator: MultiToneGenerator,
         sample_rate: f32,
-        replacement_strategy: OverPlayStrategy,
+        replacement_strategy: MonophonicAllocationStrategy,
     ) -> Self {
         Self {
             generator,
@@ -47,13 +47,16 @@ impl MonophonicSource {
 
     fn should_replace(&self) -> bool {
         // TODO: Update with power based replacement strategy
-        matches!(self.replacement_strategy, OverPlayStrategy::Replace)
+        matches!(
+            self.replacement_strategy,
+            MonophonicAllocationStrategy::Replace
+        )
     }
 }
 
 impl From<MultiToneGenerator> for MonophonicSource {
     fn from(generator: MultiToneGenerator) -> Self {
-        Self::new(generator, 44100.0, OverPlayStrategy::Replace)
+        Self::new(generator, 44100.0, MonophonicAllocationStrategy::Replace)
     }
 }
 
@@ -75,12 +78,12 @@ impl Source for MonophonicSource {
     fn start(&mut self) {
         if self.active {
             match self.replacement_strategy {
-                OverPlayStrategy::Replace => {
+                MonophonicAllocationStrategy::Replace => {
                     self.generator.start();
                     self.active = true;
                     self.released = false;
                 }
-                OverPlayStrategy::Drop => {}
+                MonophonicAllocationStrategy::Drop => {}
             }
         } else {
             self.generator.start();
