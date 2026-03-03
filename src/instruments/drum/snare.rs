@@ -2,10 +2,12 @@ use crate::Note;
 use crate::core::envelope::prelude::{
     ADSREnvelopeBuilder, BezierSegment, ConstantSegment, LinearSegment,
 };
+use crate::core::filters::prelude::GainFilter;
 use crate::core::generator::prelude::{
     FrequencyRelation, MixMode, MultiToneGenerator, Waveform,
     builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder},
 };
+use crate::core::graph::{MonophonicSource, SimpleSink, System};
 use crate::instruments::Instrument;
 
 /// A snare for the drum kit
@@ -91,5 +93,17 @@ impl Instrument for Snare {
         if self.generator.completed() {
             self.playing = false;
         }
+    }
+
+    fn into_system(self: Box<Self>) -> System {
+        let source = MonophonicSource::from(self.generator);
+        let mut system = System::new();
+        let source_idx = system.add_source(Box::new(source));
+        let output = system.add_filter(Box::new(GainFilter::new(1.0)));
+        system.connect_source(source_idx, output, 0);
+        let sink_idx = system.add_sink(Box::new(SimpleSink::new()));
+        system.connect_sink(output, sink_idx, 0);
+        system.compute().expect("Snare system compute failed");
+        system
     }
 }

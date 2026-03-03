@@ -125,6 +125,10 @@ impl Instrument for HiHat {
         // Percussive: let the decay envelope finish naturally — no hard cut.
     }
 
+    fn into_system(self: Box<Self>) -> System {
+        self.graph
+    }
+
     fn get_output(&mut self) -> f32 {
         self.graph
             .get_sink(0)
