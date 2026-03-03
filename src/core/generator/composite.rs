@@ -66,13 +66,20 @@ impl MultiToneGenerator {
     }
 
     pub fn completed(&self) -> bool {
-        // A composite generator is completed when all its tone generators are completed
-        // or when there's a note_off and sufficient time has passed for all envelopes to finish
         if self.tone_generators.is_empty() {
             return true;
         }
 
-        // Check if all tone generators have completed
+        // When a global amplitude envelope is present it is the sole authority on
+        // completion — individual tone generators may use infinite-duration segments
+        // as static mix-ratio controls and should not block completion.
+        if let Some(envelope) = &self.global_amplitude_envelope {
+            return self
+                .note_off
+                .map(|note_off| envelope.completed(self.time, note_off))
+                .unwrap_or(false);
+        }
+
         self.tone_generators.iter().all(|tg| tg.completed())
     }
 
