@@ -444,4 +444,58 @@ impl System {
     pub fn clone_for_render(&self) -> System {
         self.clone()
     }
+
+    /// Returns an empty `System` that produces silence.
+    ///
+    /// `run()` on a silent system is a no-op; `get_sink(0)` returns `Err`,
+    /// so the render thread produces an empty chunk (→ ring buffer silence).
+    /// Use this to initialise the render thread before any instruments are loaded.
+    pub fn silent() -> Self {
+        System::new()
+    }
+
+    /// Absorbs all filter nodes, edges, and sources from `other` into `self`,
+    /// remapping `NodeIndex`es to the new graph.
+    ///
+    /// Returns the remapped `NodeIndex` of the filter that was feeding `other`'s
+    /// first sink — the "output node" of the absorbed sub-graph — so the caller
+    /// can wire it into a master combinator or sink.
+    ///
+    /// `other`'s sinks are intentionally **not** imported; the caller is responsible
+    /// for providing a master sink and connecting to the returned output node.
+    pub fn absorb(&mut self, other: System) -> Result<NodeIndex<u32>, AudioGraphError> {
+        if other.sinks.is_empty() {
+            return Err(AudioGraphError::InvalidMerging);
+        }
+
+        // Record which filter node fed other's first sink before we consume other
+        let (other_output_node, _) = other.sinks[0].0;
+
+        // Import all filter nodes, building old-index → new-index mapping
+        let mut remap: HashMap<NodeIndex<u32>, NodeIndex<u32>> = HashMap::new();
+        for old_idx in other.graph.node_indices() {
+            let node = dyn_clone::clone_box(&*other.graph[old_idx]);
+            let new_idx = self.graph.add_node(node);
+            remap.insert(old_idx, new_idx);
+        }
+
+        // Re-add edges with remapped endpoints
+        for edge_idx in other.graph.edge_indices() {
+            let (from, to) = other.graph.edge_endpoints(edge_idx).unwrap();
+            let weight = other.graph[edge_idx];
+            self.graph.add_edge(remap[&from], remap[&to], weight);
+        }
+
+        // Transfer sources, remapping their connected filter NodeIndex
+        for (source, (node_idx, port)) in other.sources {
+            let remapped = remap.get(&node_idx).copied().unwrap_or(node_idx);
+            self.sources.push((source, (remapped, port)));
+        }
+
+        // Return the remapped output node so the caller can connect it
+        remap
+            .get(&other_output_node)
+            .copied()
+            .ok_or(AudioGraphError::InvalidNode)
+    }
 }
