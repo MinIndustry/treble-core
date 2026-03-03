@@ -101,22 +101,8 @@ impl MultiToneGenerator {
         };
 
         if let Some(envelope) = &self.global_amplitude_envelope {
-            trace!(
-                "Composite Generator ticking: t:{} e:{} a:{} ae:{} ({}Hz)",
-                self.time,
-                envelope.at(self.time, self.note_off.unwrap_or(0.0)),
-                ampl,
-                ampl * envelope.at(self.time, self.note_off.unwrap_or(0.0)),
-                self.base_frequency
-            );
-
             ampl * envelope.at(self.time, self.note_off.unwrap_or(0.0))
         } else {
-            trace!(
-                "Composite Generator ticking: t:{} a:{} ({}Hz)",
-                self.time, ampl, self.base_frequency
-            );
-
             ampl
         }
     }

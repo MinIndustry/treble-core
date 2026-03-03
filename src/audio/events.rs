@@ -6,16 +6,36 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum BackendEvent {
     // Status updates
-    AudioStarted { sample_rate: u32 },
+    AudioStarted {
+        sample_rate: u32,
+    },
     AudioStopped,
 
     // Error reporting
-    CommandError { command: String, error: String },
-    BufferUnderrun { count: u64 },
+    CommandError {
+        command: String,
+        error: String,
+    },
+    BufferUnderrun {
+        count: u64,
+    },
 
     // Diagnostics
-    Metrics { cpu_usage: f32, latency_ms: f32 },
-    OutputDeviceList { devices: Vec<String> },
-    OutputDeviceChanged { device: String },
-    GraphError { description: String },
+    Metrics {
+        cpu_usage: f32,
+        latency_ms: f32,
+    },
+    OutputDeviceList {
+        devices: Vec<String>,
+    },
+    OutputDeviceChanged {
+        device: String,
+    },
+    GraphError {
+        description: String,
+    },
+
+    /// Stereo-interleaved audio samples (L, R, L, R, …) from the render thread.
+    /// Useful for offline analysis and waveform plotting.
+    AudioChunk(Vec<f32>),
 }

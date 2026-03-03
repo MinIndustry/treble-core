@@ -3,12 +3,14 @@
 use super::config::AudioConfig;
 use super::messages::{AudioMessage, InstrumentAudioMessage};
 use super::shared_state::SharedAudioState;
+use crate::audio::BackendEvent;
 use crate::core::graph::System;
 use crate::instruments::Instrument;
 use crossbeam::queue::ArrayQueue;
 use petgraph::graph::NodeIndex;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::sync::mpsc::Sender;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
@@ -32,17 +34,22 @@ pub fn spawn_audio_render_thread(
     message_rx: crossbeam::channel::Receiver<AudioMessage>,
     audio_queue: Arc<ArrayQueue<f32>>,
     config: AudioConfig,
+    event_tx: Sender<BackendEvent>,
 ) -> JoinHandle<()> {
     thread::Builder::new()
         .name("audio-render".to_string())
         .spawn(move || {
             let mut instruments = instruments;
             let mut system: Option<System> = None;
-            let mut chunk_buffer = vec![0.0f32; config.render_chunk_size];
+            // Buffer holds interleaved stereo samples (L, R, L, R, …) for both render modes
+            let mut chunk_buffer =
+                Vec::with_capacity(config.render_chunk_size * crate::core::audio::CHANNELS);
             let mut render_mode = RenderMode::Instruments; // Default to instrument render
 
             let sample_rate = shared_state.sample_rate.load(Ordering::Relaxed);
-            let target_samples = config.calculate_ring_buffer_size(sample_rate);
+            // target_samples accounts for stereo interleaving (2 samples per frame)
+            let target_samples =
+                config.calculate_ring_buffer_size(sample_rate) * crate::core::audio::CHANNELS;
 
             while !shared_state.shutdown.load(Ordering::Relaxed) {
                 // Process all pending control messages
@@ -56,15 +63,20 @@ pub fn spawn_audio_render_thread(
                     continue;
                 }
 
-                // Generate audio chunk
+                // Generate audio chunk (always stereo-interleaved: L, R, L, R, …)
                 match render_mode {
                     RenderMode::Instruments => {
-                        for sample in chunk_buffer.iter_mut() {
+                        chunk_buffer.clear();
+                        let n = instruments.len().max(1) as f32;
+                        for _ in 0..config.render_chunk_size {
                             instruments.iter_mut().for_each(|inst| inst.tick());
-                            *sample = instruments
+                            let mono = instruments
                                 .iter_mut()
                                 .map(|inst| inst.get_output())
-                                .sum::<f32>();
+                                .sum::<f32>()
+                                / n;
+                            chunk_buffer.push(mono); // L
+                            chunk_buffer.push(mono); // R
                         }
                     }
                     RenderMode::Graph => {
@@ -74,15 +86,14 @@ pub fn spawn_audio_render_thread(
                                 let frames = sink.consume();
                                 chunk_buffer.clear();
                                 for frame in &frames {
-                                    // Push L then R for interleaved stereo
-                                    chunk_buffer.push(frame[0]);
-                                    chunk_buffer.push(frame[1]);
+                                    chunk_buffer.push(frame[0]); // L
+                                    chunk_buffer.push(frame[1]); // R
                                 }
                             } else {
-                                chunk_buffer.fill(0.0);
+                                chunk_buffer.clear();
                             }
                         } else {
-                            chunk_buffer.fill(0.0);
+                            chunk_buffer.clear();
                         }
                     }
                 }
@@ -103,6 +114,9 @@ pub fn spawn_audio_render_thread(
                         chunk_buffer.len()
                     );
                 }
+
+                // Broadcast chunk for recording / analysis (best-effort, ignore send errors)
+                let _ = event_tx.send(BackendEvent::AudioChunk(chunk_buffer.clone()));
             }
 
             log::info!("Audio render thread shutting down");

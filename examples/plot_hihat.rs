@@ -2,6 +2,7 @@ use simplelog::*;
 use std::fs::File;
 use std::{thread, time};
 
+use rustic::audio::BackendEvent;
 use rustic::instruments::prelude::HiHat;
 use rustic::prelude::{App, AudioCommand, Command};
 use rustic::{NOTES, Note};
@@ -18,7 +19,7 @@ fn main() {
             ColorChoice::Auto,
         ),
         WriteLogger::new(
-            LevelFilter::Trace,
+            LevelFilter::Warn,
             Config::default(),
             File::create("app.log").unwrap(),
         ),
@@ -27,9 +28,14 @@ fn main() {
 
     let mut app = App::init();
 
-    let snare = HiHat::new().unwrap();
-
-    app.instruments.push(Box::new(snare));
+    let hihat = match HiHat::new() {
+        Ok(h) => h,
+        Err(e) => {
+            log::error!("Unable to create hihat: {}", e);
+            return;
+        }
+    };
+    app.instruments.push(Box::new(hihat));
 
     log::info!("Starting rustic app");
     let event_rx = match app.start() {
@@ -40,27 +46,32 @@ fn main() {
         }
     };
 
-    std::thread::spawn(move || {
-        log::info!("Event thread started");
+    let sample_rate = app.config.system.sample_rate;
+
+    // Collect audio chunks from the render thread for plotting
+    let capture_handle = std::thread::spawn(move || {
+        let mut samples: Vec<f32> = vec![];
         while let Ok(event) = event_rx.recv() {
-            log::info!("Received event: {event:?}");
+            match event {
+                BackendEvent::AudioChunk(chunk) => {
+                    // Chunks are stereo-interleaved (L, R, L, R, …); take left channel only
+                    samples.extend(chunk.into_iter().step_by(2));
+                }
+                BackendEvent::AudioStopped => break,
+                _ => {}
+            }
         }
+        samples
     });
 
-    let mut values: Vec<f32> = vec![];
-    // let mut complete_value_list: Vec<f32> = vec![];
-
-    values.clear();
-
-    log::info!("Starting the hihat");
+    log::info!("Starting hihat");
     let _ = app.send(Command::Audio(AudioCommand::NoteStart {
         instrument_idx: 0,
         note: Note::new(NOTES::A, 4),
         velocity: 1.0,
     }));
 
-    // Play 10 seconds
-    thread::sleep(time::Duration::from_secs(10));
+    thread::sleep(time::Duration::from_millis(250));
 
     log::info!("Stopping hihat");
     let _ = app.send(Command::Audio(AudioCommand::NoteStop {
@@ -68,32 +79,32 @@ fn main() {
         note: Note::new(NOTES::A, 4),
     }));
 
-    // Sleep two more seconds
     thread::sleep(time::Duration::from_secs(2));
-
     let _ = app.stop();
+
+    let samples = capture_handle.join().unwrap_or_default();
+    log::info!(
+        "Captured {} mono samples ({:.2}s)",
+        samples.len(),
+        samples.len() as f32 / sample_rate as f32
+    );
 
     #[cfg(feature = "plotting")]
     {
-        let left_ear: Vec<(f32, f32)> = complete_value_list
+        let waveform: Vec<(f32, f32)> = samples
             .iter()
             .enumerate()
-            .map(|(position, element)| {
-                (
-                    (position as f32 / 2.0) / app.config.system.sample_rate as f32,
-                    *element,
-                )
-            })
+            .map(|(i, &s)| (i as f32 / sample_rate as f32, s))
             .collect();
 
         if let Err(e) = plot_data(
-            left_ear,
-            "Snare Waveform",
-            (-0.1, 1.1),
+            waveform,
+            "HiHat Waveform",
+            (-0.1, 2.3),
             (-1.1, 1.1),
             "hihat.png",
         ) {
-            log::error!("Error: {}", e.to_string());
+            log::error!("Error: {}", e);
         }
     }
 }

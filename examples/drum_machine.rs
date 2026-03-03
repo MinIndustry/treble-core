@@ -59,7 +59,10 @@ fn main() {
         }
     });
 
+    // Wait a bit for the audio to start
+    thread::sleep(time::Duration::from_millis(500));
     let mut values: Vec<f32> = vec![];
+
     // let mut complete_value_list: Vec<f32> = vec![];
     for i in 0..40 {
         values.clear();
@@ -126,6 +129,6 @@ fn main() {
         }
     }
 
-    thread::sleep(time::Duration::from_secs(10));
+    thread::sleep(time::Duration::from_secs(3));
     let _ = app.stop();
 }

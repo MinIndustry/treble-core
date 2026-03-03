@@ -139,6 +139,7 @@ impl App {
             message_rx,
             audio_queue_producer,
             config.clone(),
+            event_tx.clone(),
         );
 
         let app_state = self.state.clone();
