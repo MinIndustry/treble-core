@@ -1,13 +1,10 @@
-use rodio::buffer::SamplesBuffer;
-use rodio::{OutputStream, Sink};
-
 use simplelog::*;
 use std::fs::File;
+use std::{thread, time};
 
-use rustic::Note;
-use rustic::instruments::Instrument;
 use rustic::instruments::prelude::HiHat;
-use rustic::prelude::App;
+use rustic::prelude::{App, AudioCommand, Command};
+use rustic::{NOTES, Note};
 
 #[cfg(feature = "plotting")]
 use rustic::plotting::plot_data;
@@ -28,37 +25,53 @@ fn main() {
     ])
     .unwrap();
 
-    let app = App::init();
+    let mut app = App::init();
 
-    let mut snare = HiHat::new().unwrap();
+    let snare = HiHat::new().unwrap();
 
-    let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-    let sink = Sink::try_new(&stream_handle).unwrap();
+    app.instruments.push(Box::new(snare));
 
-    let mut values = vec![];
-    let mut complete_value_list = vec![];
+    log::info!("Starting rustic app");
+    let event_rx = match app.start() {
+        Ok(er) => er,
+        Err(e) => {
+            log::error!("Unable to start rustic app: {e:?}");
+            return;
+        }
+    };
+
+    std::thread::spawn(move || {
+        log::info!("Event thread started");
+        while let Ok(event) = event_rx.recv() {
+            log::info!("Received event: {event:?}");
+        }
+    });
+
+    let mut values: Vec<f32> = vec![];
+    // let mut complete_value_list: Vec<f32> = vec![];
 
     values.clear();
 
-    snare.start_note(Note(rustic::core::utils::tones::NOTES::A, 0), 0.0);
+    log::info!("Starting the hihat");
+    let _ = app.send(Command::Audio(AudioCommand::NoteStart {
+        instrument_idx: 0,
+        note: Note::new(NOTES::A, 4),
+        velocity: 1.0,
+    }));
 
-    for _ in 0..(app.config.system.sample_rate as usize) {
-        snare.tick();
+    // Play 10 seconds
+    thread::sleep(time::Duration::from_secs(10));
 
-        let full = snare.get_output();
+    log::info!("Stopping hihat");
+    let _ = app.send(Command::Audio(AudioCommand::NoteStop {
+        instrument_idx: 0,
+        note: Note::new(NOTES::A, 4),
+    }));
 
-        values.push(full);
+    // Sleep two more seconds
+    thread::sleep(time::Duration::from_secs(2));
 
-        complete_value_list.push(full);
-    }
-
-    snare.stop_note(Note(rustic::core::utils::tones::NOTES::A, 0));
-
-    sink.append(SamplesBuffer::new(
-        1_u16,
-        app.config.system.sample_rate,
-        values.to_vec(),
-    ));
+    let _ = app.stop();
 
     #[cfg(feature = "plotting")]
     {
@@ -83,6 +96,4 @@ fn main() {
             log::error!("Error: {}", e.to_string());
         }
     }
-
-    sink.sleep_until_end();
 }

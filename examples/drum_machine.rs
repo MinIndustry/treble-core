@@ -1,13 +1,9 @@
-use rodio::buffer::SamplesBuffer;
-use rodio::{OutputStream, Sink};
-
 use core::time;
 use log::error;
 use simplelog::*;
 use std::fs::File;
 use std::thread;
 
-use rustic::instruments::Instrument;
 use rustic::instruments::prelude::{HiHat, Kick, Snare};
 use rustic::prelude::{App, AudioCommand, Command};
 use rustic::{NOTES, Note};
@@ -34,15 +30,15 @@ fn main() {
     log::info!("Starting engine");
     let mut app = App::init();
 
-    let mut hihat = match HiHat::new() {
+    let hihat = match HiHat::new() {
         Ok(h) => h,
         Err(e) => {
             error!("Unable to create hihat: {}", e);
             return;
         }
     };
-    let mut kick = Kick::new();
-    let mut snare = Snare::new();
+    let kick = Kick::new();
+    let snare = Snare::new();
 
     app.instruments.push(Box::new(hihat));
     app.instruments.push(Box::new(kick));
@@ -64,24 +60,26 @@ fn main() {
     });
 
     let mut values: Vec<f32> = vec![];
-    let mut complete_value_list: Vec<f32> = vec![];
+    // let mut complete_value_list: Vec<f32> = vec![];
     for i in 0..40 {
         values.clear();
 
         if i % 4 == 1 {
-            app.send(Command::Audio(AudioCommand::NoteStart {
+            if let Err(e) = app.send(Command::Audio(AudioCommand::NoteStart {
                 instrument_idx: 1,
                 note: Note::new(NOTES::A, 4),
                 velocity: 1.0,
-            }));
+            })) {
+                log::error!("Unable to start note: {}", e);
+            }
         } else if i % 4 == 3 {
-            app.send(Command::Audio(AudioCommand::NoteStart {
+            let _ = app.send(Command::Audio(AudioCommand::NoteStart {
                 instrument_idx: 2,
                 note: Note::new(NOTES::A, 4),
                 velocity: 1.0,
             }));
         } else if i < 39 {
-            app.send(Command::Audio(AudioCommand::NoteStart {
+            let _ = app.send(Command::Audio(AudioCommand::NoteStart {
                 instrument_idx: 0,
                 note: Note::new(NOTES::A, 4),
                 velocity: 1.0,
@@ -90,15 +88,15 @@ fn main() {
 
         thread::sleep(time::Duration::from_millis(250));
 
-        app.send(Command::Audio(AudioCommand::NoteStop {
+        let _ = app.send(Command::Audio(AudioCommand::NoteStop {
             instrument_idx: 0,
             note: Note::new(NOTES::A, 4),
         }));
-        app.send(Command::Audio(AudioCommand::NoteStop {
+        let _ = app.send(Command::Audio(AudioCommand::NoteStop {
             instrument_idx: 1,
             note: Note::new(NOTES::A, 4),
         }));
-        app.send(Command::Audio(AudioCommand::NoteStop {
+        let _ = app.send(Command::Audio(AudioCommand::NoteStop {
             instrument_idx: 2,
             note: Note::new(NOTES::A, 4),
         }));
@@ -129,5 +127,5 @@ fn main() {
     }
 
     thread::sleep(time::Duration::from_secs(10));
-    app.stop();
+    let _ = app.stop();
 }
