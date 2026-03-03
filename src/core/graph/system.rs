@@ -398,6 +398,14 @@ impl System {
         }
     }
 
+    /// Returns whether a source is still active (producing audio)
+    pub fn is_source_active(&self, index: usize) -> bool {
+        self.sources
+            .get(index)
+            .map(|(s, _)| s.is_active())
+            .unwrap_or(false)
+    }
+
     /// Sends a start_note event to a source by index.
     pub fn start_note(&mut self, index: usize, note: crate::core::utils::Note, velocity: f32) {
         if let Some((source, _)) = self.sources.get_mut(index) {

@@ -13,6 +13,7 @@ pub struct Kick {
     generator: MultiToneGenerator,
     current_tick: u32,
     output: f32,
+    playing: bool,
 }
 
 impl Kick {
@@ -45,11 +46,19 @@ impl Kick {
                     0.3,
                     (2.0, 0.2),
                 ))))
+                .amplitude_envelope(Some(Box::new(
+                    ADSREnvelopeBuilder::new()
+                        .attack(Box::new(BezierSegment::new(0.0, 1.0, 0.001, (0.0, 1.0))))
+                        .decay(Box::new(LinearSegment::new(1.0, 0.0, 0.3)))
+                        .release(Box::new(LinearSegment::new(0.0, 0.0, 0.0)))
+                        .build(),
+                )))
                 .mix_mode(MixMode::Sum)
                 .frequency(58.0)
                 .build(),
             current_tick: 0,
             output: 0.0,
+            playing: false,
         }
     }
 }
@@ -57,11 +66,11 @@ impl Kick {
 impl Instrument for Kick {
     fn start_note(&mut self, _note: Note, _velocity: f32) {
         self.current_tick = 0;
+        self.playing = true;
         self.generator.start();
     }
 
     fn stop_note(&mut self, _note: Note) {
-        // The note will continue playing until completed
         self.generator.stop();
     }
 
@@ -70,6 +79,13 @@ impl Instrument for Kick {
     }
 
     fn tick(&mut self) {
+        if !self.playing {
+            self.output = 0.0;
+            return;
+        }
         self.output = self.generator.tick(1.0 / 44100.0);
+        if self.generator.completed() {
+            self.playing = false;
+        }
     }
 }

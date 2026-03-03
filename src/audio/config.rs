@@ -33,8 +33,8 @@ fn default_render_chunk_size() -> usize {
     256
 }
 fn default_audio_ring_buffer_size() -> usize {
-    4096
-} // ~93ms capacity @ 44.1kHz; render thread throttles at target_latency_ms
+    8192
+} // ~93ms stereo capacity @ 44.1kHz (4096 stereo frames); render thread throttles at target_latency_ms
 fn default_message_ring_buffer_size() -> usize {
     1024
 }

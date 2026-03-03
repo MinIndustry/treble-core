@@ -14,6 +14,7 @@ pub struct Snare {
     generator: MultiToneGenerator,
     current_tick: u32,
     output: f32,
+    playing: bool,
 }
 
 impl Default for Snare {
@@ -60,6 +61,7 @@ impl Snare {
                 .build(),
             current_tick: 0,
             output: 0.0,
+            playing: false,
         }
     }
 }
@@ -67,11 +69,11 @@ impl Snare {
 impl Instrument for Snare {
     fn start_note(&mut self, _note: Note, _velocity: f32) {
         self.current_tick = 0;
+        self.playing = true;
         self.generator.start();
     }
 
     fn stop_note(&mut self, _note: Note) {
-        // The note will continue playing until completed
         self.generator.stop();
     }
 
@@ -80,8 +82,14 @@ impl Instrument for Snare {
     }
 
     fn tick(&mut self) {
+        if !self.playing {
+            self.output = 0.0;
+            return;
+        }
         self.current_tick += 1;
-
         self.output = self.generator.tick(1.0 / 44100.0);
+        if self.generator.completed() {
+            self.playing = false;
+        }
     }
 }

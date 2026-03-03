@@ -27,8 +27,8 @@ fn test_audioconfig_default_values() {
         "Default render_chunk_size should be 256"
     );
     assert_eq!(
-        config.audio_ring_buffer_size, 4096,
-        "Default audio_ring_buffer_size should be 4096 (~93ms capacity @ 44.1kHz)"
+        config.audio_ring_buffer_size, 8192,
+        "Default audio_ring_buffer_size should be 8192 (~93ms capacity @ 44.1kHz)"
     );
     assert_eq!(
         config.message_ring_buffer_size, 1024,
@@ -93,7 +93,7 @@ fn test_audioconfig_validate_zero_cpal_buffer_size() {
 fn test_audioconfig_validate_excessive_cpal_buffer_size() {
     // Buffer size over 2048 should fail validation
     let config = AudioConfig {
-        cpal_buffer_size: 4096,
+        cpal_buffer_size: 8192,
         ..Default::default()
     };
 
@@ -196,7 +196,7 @@ fn test_audioconfig_toml_missing_fields_use_defaults() {
     assert_eq!(config.render_chunk_size, 512);
 
     // Missing fields should have default values
-    assert_eq!(config.audio_ring_buffer_size, 4096);
+    assert_eq!(config.audio_ring_buffer_size, 8192);
     assert_eq!(config.message_ring_buffer_size, 1024);
     assert_eq!(config.target_latency_ms, 50.0);
 }

@@ -17,7 +17,7 @@ fn test_app_new_default_config() {
 
     assert_eq!(app.config.audio.cpal_buffer_size, 64);
     assert_eq!(app.config.audio.render_chunk_size, 256);
-    assert_eq!(app.config.audio.audio_ring_buffer_size, 4096);
+    assert_eq!(app.config.audio.audio_ring_buffer_size, 8192);
 
     assert_eq!(app.config.logging.level, "info");
     assert!(!app.config.logging.log_to_file);

@@ -8,8 +8,8 @@ use crate::core::generator::prelude::{
     builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder},
 };
 use crate::core::graph::SimpleSink;
+use crate::core::graph::SimpleSource;
 use crate::core::graph::System;
-use crate::core::graph::simple_source;
 use crate::instruments::Instrument;
 
 /// A HiHat instrument.
@@ -24,7 +24,7 @@ pub struct HiHat {
 
 impl HiHat {
     pub fn new() -> Result<Self, String> {
-        let source = simple_source(
+        let source = SimpleSource::new(
             MultiToneGeneratorBuilder::new()
                 .add_generator(
                     ToneGeneratorBuilder::new()
@@ -70,9 +70,11 @@ impl HiHat {
                 ))))
                 .mix_mode(MixMode::Average)
                 .build(),
-        );
+            44100.0,
+        )
+        .boxed();
 
-        let mut system = System::new();
+        let mut system = System::new().with_block_size(1);
         let source_id = system.add_source(source);
 
         let bandpass = system.add_filter(Box::from(ResonantBandpassFilter::new(
@@ -99,14 +101,15 @@ impl HiHat {
 
 impl Instrument for HiHat {
     fn start_note(&mut self, _note: Note, _velocity: f32) {
-        log::trace!("Starting HiHat note");
+        // Restart the source from the beginning of its decay envelope.
+        // Immediately calling stop_source marks it as "released" so the
+        // SimpleSource auto-deactivates once the envelope has fully decayed.
+        self.graph.start_source(0);
+        self.graph.stop_source(0);
         self.playing = true;
 
-        // Reset the bandpass filter state to ensure clean retriggering.
-        // For percussive sounds, residual filter state from previous hits
-        // causes tonal artifacts and reduces transient clarity.
+        // Reset bandpass filter to avoid tonal artifacts from residual state.
         if let Some(filter_box) = self.graph.get_filter_mut(self.bandpass_filter_index) {
-            // Downcast to ResonantBandpassFilter to access its reset method
             if let Some(bandpass) = filter_box
                 .as_any_mut()
                 .downcast_mut::<ResonantBandpassFilter>()
@@ -119,8 +122,7 @@ impl Instrument for HiHat {
     }
 
     fn stop_note(&mut self, _note: Note) {
-        log::trace!("Stopping HiHat note");
-        self.playing = false;
+        // Percussive: let the decay envelope finish naturally — no hard cut.
     }
 
     fn get_output(&mut self) -> f32 {
@@ -134,6 +136,11 @@ impl Instrument for HiHat {
     }
 
     fn tick(&mut self) {
-        self.graph.run();
+        if self.playing {
+            self.graph.run();
+            // Once the source has finished its decay the graph produces silence;
+            // stop ticking until the next start_note to avoid wasting CPU.
+            self.playing = self.graph.is_source_active(0);
+        }
     }
 }
