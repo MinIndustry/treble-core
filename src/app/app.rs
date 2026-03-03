@@ -8,6 +8,7 @@ use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Mutex};
 
 use clap::Parser;
+use cpal::SampleRate;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use log::info;
 
@@ -108,9 +109,15 @@ impl App {
             .map_err(|e| AudioError::StreamError(e.to_string()))?;
 
         let supported_config = supported_configs_range
-            .next()
+            .find(|c| c.channels() == crate::core::audio::CHANNELS as u16)
+            .or_else(|| {
+                device
+                    .supported_output_configs()
+                    .ok()
+                    .and_then(|mut r| r.next())
+            })
             .ok_or(AudioError::StreamError("No supported config".to_string()))?
-            .with_max_sample_rate();
+            .with_sample_rate(SampleRate(44100));
 
         let mut cpal_config = supported_config.config();
         cpal_config.buffer_size = cpal::BufferSize::Fixed(config.cpal_buffer_size as u32);

@@ -66,13 +66,11 @@ impl Snare {
 
 impl Instrument for Snare {
     fn start_note(&mut self, _note: Note, _velocity: f32) {
-        log::trace!("Starting snare");
         self.current_tick = 0;
         self.generator.start();
     }
 
     fn stop_note(&mut self, _note: Note) {
-        log::trace!("Stopping snare");
         // The note will continue playing until completed
         self.generator.stop();
     }

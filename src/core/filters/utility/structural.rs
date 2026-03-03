@@ -33,7 +33,6 @@ impl fmt::Display for DuplicateFilter {
 
 impl Filter for DuplicateFilter {
     fn transform(&mut self) -> Vec<Block> {
-        trace!("Duplicate filter running");
         vec![self.source.clone(), self.source.clone()]
     }
 

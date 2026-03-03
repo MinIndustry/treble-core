@@ -116,7 +116,6 @@ impl Source for MonophonicSource {
         if let Some(current_note) = self.current_note
             && current_note == note
         {
-            log::trace!("Stopping generator note");
             self.stop();
         }
     }
