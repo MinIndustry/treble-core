@@ -7,7 +7,7 @@ use crate::{
     },
 };
 
-use super::Source;
+use crate::core::graph::Source;
 
 #[derive(Debug, Clone, Default)]
 /// Strategies for replacing or not a playing note in the monophonic generator.
@@ -104,10 +104,9 @@ impl Source for MonophonicSource {
     }
 
     fn start_note(&mut self, note: crate::Note, _velocity: f32) {
-        // TODO: Convert Note to frequency here.
         if self.should_replace() {
             self.current_note = Some(note);
-            self.generator.set_base_frequency(440.0);
+            self.generator.set_base_frequency(note.frequency());
             self.start();
         }
     }

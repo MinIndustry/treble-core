@@ -1,9 +1,13 @@
 use crate::Note;
 
+mod custom;
 mod drum;
+mod voices;
 
 pub mod prelude {
+    pub use super::custom::*;
     pub use super::drum::*;
+    pub use super::voices::*;
 }
 
 pub trait Instrument: std::fmt::Debug {

@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-use super::Source;
+use crate::core::graph::Source;
 
 #[derive(Debug, Clone, Default)]
 /// Strategies for replacing or not a playing note in the polyphonic generator.

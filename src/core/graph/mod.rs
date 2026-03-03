@@ -12,6 +12,8 @@ mod simple_sink;
 mod simple_source;
 mod sink;
 mod source;
+/// Monophonic and polyphonic Source implementations.
+pub mod sources;
 mod system;
 
 pub use audio_sink::AudioOutputSink;
@@ -23,6 +25,9 @@ pub use source::Source;
 
 pub use simple_sink::SimpleSink;
 pub use simple_source::{SimpleSource, simple_source};
+pub use sources::{
+    MonophonicAllocationStrategy, MonophonicSource, PolyphonicAllocationStrategy, PolyphonicSource,
+};
 
 /// The system module contains the implementation of the system element.
 pub use system::System;
