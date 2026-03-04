@@ -4,6 +4,7 @@ use simplelog::*;
 use std::fs::File;
 use std::thread;
 
+use rustic::audio::BackendEvent;
 use rustic::instruments::prelude::{HiHat, Kick, Snare};
 use rustic::prelude::{App, AudioCommand, Command};
 use rustic::{NOTES, Note};
@@ -40,9 +41,9 @@ fn main() {
     let kick = Kick::new();
     let snare = Snare::new();
 
-    app.instruments.push(Box::new(hihat));
-    app.instruments.push(Box::new(kick));
-    app.instruments.push(Box::new(snare));
+    app.add_instrument(Box::new(hihat));
+    app.add_instrument(Box::new(kick));
+    app.add_instrument(Box::new(snare));
 
     let event_rx = match app.start() {
         Ok(er) => er,
@@ -52,18 +53,26 @@ fn main() {
         }
     };
 
-    std::thread::spawn(move || {
-        log::info!("Event thread started");
+    // Collect audio chunks from the render thread for plotting
+    let capture_handle = std::thread::spawn(move || {
+        let mut samples: Vec<f32> = vec![];
         while let Ok(event) = event_rx.recv() {
-            log::info!("Received event: {event:?}");
+            match event {
+                BackendEvent::AudioChunk(chunk) => {
+                    // Chunks are stereo-interleaved (L, R, L, R, …); take left channel only
+                    samples.extend(chunk.into_iter().step_by(2));
+                }
+                BackendEvent::AudioStopped => break,
+                _ => {}
+            }
         }
+        samples
     });
 
     // Wait a bit for the audio to start
     thread::sleep(time::Duration::from_millis(500));
     let mut values: Vec<f32> = vec![];
 
-    // let mut complete_value_list: Vec<f32> = vec![];
     for i in 0..40 {
         values.clear();
 
@@ -105,9 +114,13 @@ fn main() {
         }));
     }
 
+    thread::sleep(time::Duration::from_secs(3));
+    let _ = app.stop();
+    let samples = capture_handle.join().unwrap_or_default();
+
     #[cfg(feature = "plotting")]
     {
-        let left_ear: Vec<(f32, f32)> = complete_value_list
+        let left_ear: Vec<(f32, f32)> = samples
             .iter()
             .enumerate()
             .map(|(position, element)| {
@@ -121,14 +134,11 @@ fn main() {
         if let Err(e) = plot_data(
             left_ear,
             "Drum machine Waveform",
-            (-0.1, 1.1),
+            (-0.1, 2.1),
             (-1.1, 1.1),
             "drum_machine.png",
         ) {
             log::error!("Error: {}", e.to_string());
         }
     }
-
-    thread::sleep(time::Duration::from_secs(3));
-    let _ = app.stop();
 }

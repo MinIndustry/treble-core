@@ -35,7 +35,7 @@ fn main() {
             return;
         }
     };
-    app.instruments.push(Box::new(hihat));
+    app.add_instrument(Box::new(hihat));
 
     log::info!("Starting rustic app");
     let event_rx = match app.start() {

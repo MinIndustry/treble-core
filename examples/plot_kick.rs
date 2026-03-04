@@ -29,7 +29,7 @@ fn main() {
     let mut app = App::init();
 
     let kick = Kick::new();
-    app.instruments.push(Box::new(kick));
+    app.add_instrument(Box::new(kick));
 
     log::info!("Starting rustic app");
     let event_rx = match app.start() {
