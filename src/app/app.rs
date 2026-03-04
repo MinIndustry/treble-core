@@ -125,8 +125,7 @@ impl App {
         use crossbeam::queue::ArrayQueue;
         let audio_queue = Arc::new(ArrayQueue::<f32>::new(config.audio_ring_buffer_size));
 
-        let (message_tx, message_rx) =
-            crossbeam::channel::bounded(config.message_ring_buffer_size);
+        let (message_tx, message_rx) = crossbeam::channel::bounded(config.message_ring_buffer_size);
 
         let host = cpal::default_host();
         let device = host.default_output_device().ok_or(AudioError::NoDevice)?;
@@ -215,11 +214,13 @@ impl App {
             .get(&instrument_idx)
             .copied()
             .ok_or(AppError::InvalidInstrumentIndex)?;
-        self.send_message(AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
-            source_index,
-            note,
-            velocity,
-        }))
+        self.send_message(AudioMessage::Instrument(
+            InstrumentAudioMessage::NoteStart {
+                source_index,
+                note,
+                velocity,
+            },
+        ))
     }
 
     /// Trigger note-off for the instrument at `instrument_idx`.
@@ -253,9 +254,7 @@ impl App {
                 note,
             }) => self.note_off(instrument_idx, note),
 
-            Command::Audio(AudioCommand::Shutdown) => {
-                self.send_message(AudioMessage::Shutdown)
-            }
+            Command::Audio(AudioCommand::Shutdown) => self.send_message(AudioMessage::Shutdown),
 
             Command::Graph(cmd) => {
                 let message_tx = self.message_tx.as_ref().ok_or(AppError::NotStarted)?;
@@ -289,7 +288,9 @@ impl App {
     pub fn from_file(path: &Path) -> Result<App, AppError> {
         Ok(App {
             config: AppConfig::from_file(path)?,
-            state: Arc::new(Mutex::new(AppState { mode: AppMode::Setup })),
+            state: Arc::new(Mutex::new(AppState {
+                mode: AppMode::Setup,
+            })),
             audio_graph: AudioGraph::new(),
             graph_system: Mutex::new(GraphData::default()),
             handle: None,

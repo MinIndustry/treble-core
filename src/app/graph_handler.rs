@@ -41,15 +41,14 @@ pub(crate) fn handle_graph_command(
             match kind {
                 NodeKind::Generator => {
                     log::info!("Adding generator ({node_type}) to graph system");
-                    let source = create_source(&node_type)
-                        .map_err(AppError::AudioError)?;
+                    let source = create_source(&node_type).map_err(AppError::AudioError)?;
                     let idx = gs.system.add_source(source);
                     gs.source_map.insert(id, idx);
                 }
                 NodeKind::Filter => {
                     log::info!("Adding filter ({node_type}) to graph system");
-                    let filter = create_filter(&node_type, sample_rate)
-                        .map_err(AppError::AudioError)?;
+                    let filter =
+                        create_filter(&node_type, sample_rate).map_err(AppError::AudioError)?;
                     let idx = gs.system.add_filter(filter);
                     gs.filter_map.insert(id, idx);
                 }
@@ -178,7 +177,10 @@ fn create_source(node_type: &str) -> Result<Box<dyn Source>, String> {
     if let Waveform::Err(name) = waveform {
         return Err(format!("Unknown generator type: {name}"));
     }
-    let generator: MultiToneGenerator = ToneGeneratorBuilder::new().waveform(waveform).build().into();
+    let generator: MultiToneGenerator = ToneGeneratorBuilder::new()
+        .waveform(waveform)
+        .build()
+        .into();
     Ok(simple_source(generator))
 }
 

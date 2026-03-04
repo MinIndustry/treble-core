@@ -309,10 +309,7 @@ fn test_audiomessage_notestop() {
     });
 
     match msg {
-        AudioMessage::Instrument(InstrumentAudioMessage::NoteStop {
-            source_index,
-            note,
-        }) => {
+        AudioMessage::Instrument(InstrumentAudioMessage::NoteStop { source_index, note }) => {
             assert_eq!(source_index, 1, "Source index should be 1");
             assert_eq!(note, Note(NOTES::C, 5), "Note should be C5");
         }

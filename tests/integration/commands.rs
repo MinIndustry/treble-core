@@ -9,8 +9,8 @@
 
 use rustic::Note;
 use rustic::app::commands::{AppCommand, AudioCommand, SystemCommand};
-use rustic::audio::messages::InstrumentAudioMessage;
 use rustic::audio::AudioMessage;
+use rustic::audio::messages::InstrumentAudioMessage;
 use rustic::core::utils::NOTES;
 use rustic::prelude::App;
 
@@ -26,7 +26,11 @@ fn test_notestart_command_fields() {
         velocity: 0.5,
     };
     match cmd {
-        AudioCommand::NoteStart { instrument_idx, note, velocity } => {
+        AudioCommand::NoteStart {
+            instrument_idx,
+            note,
+            velocity,
+        } => {
             assert_eq!(instrument_idx, 0);
             assert_eq!(note, Note(NOTES::C, 4));
             assert_eq!(velocity, 0.5);
@@ -42,7 +46,10 @@ fn test_notestop_command_fields() {
         note: Note(NOTES::A, 5),
     };
     match cmd {
-        AudioCommand::NoteStop { instrument_idx, note } => {
+        AudioCommand::NoteStop {
+            instrument_idx,
+            note,
+        } => {
             assert_eq!(instrument_idx, 1);
             assert_eq!(note, Note(NOTES::A, 5));
         }
@@ -92,7 +99,10 @@ fn test_notestart_valid_velocity_boundaries() {
 #[test]
 fn test_appcommand_validate() {
     let cmd = AppCommand::System(SystemCommand::Reset);
-    assert!(cmd.validate().is_ok(), "System::Reset should pass validation");
+    assert!(
+        cmd.validate().is_ok(),
+        "System::Reset should pass validation"
+    );
 }
 
 // ============================================================================
@@ -107,7 +117,11 @@ fn test_instrument_message_notestart_fields() {
         velocity: 0.7,
     };
     match msg {
-        InstrumentAudioMessage::NoteStart { source_index, note, velocity } => {
+        InstrumentAudioMessage::NoteStart {
+            source_index,
+            note,
+            velocity,
+        } => {
             assert_eq!(source_index, 2);
             assert_eq!(note, Note(NOTES::D, 4));
             assert_eq!(velocity, 0.7);

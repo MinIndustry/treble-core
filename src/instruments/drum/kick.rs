@@ -7,7 +7,7 @@ use crate::core::generator::prelude::{
     FrequencyRelation, MixMode, MultiToneGenerator, Waveform,
     builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder},
 };
-use crate::core::graph::{MonophonicSource, MonophonicAllocationStrategy, SimpleSink, System};
+use crate::core::graph::{MonophonicAllocationStrategy, MonophonicSource, SimpleSink, System};
 use crate::instruments::Instrument;
 
 #[derive(Default, Debug)]
@@ -92,7 +92,11 @@ impl Instrument for Kick {
     }
 
     fn into_system(self: Box<Self>) -> System {
-        let source = MonophonicSource::new_percussive(self.generator, 44100.0, MonophonicAllocationStrategy::Replace);
+        let source = MonophonicSource::new_percussive(
+            self.generator,
+            44100.0,
+            MonophonicAllocationStrategy::Replace,
+        );
         let mut system = System::new();
         let source_idx = system.add_source(Box::new(source));
         let output = system.add_filter(Box::new(GainFilter::new(1.0)));

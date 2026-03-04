@@ -116,7 +116,11 @@ fn main() {
 
     thread::sleep(time::Duration::from_secs(3));
     let _ = app.stop();
+
+    #[cfg(feature = "plotting")]
     let samples = capture_handle.join().unwrap_or_default();
+    #[cfg(not(feature = "plotting"))]
+    drop(capture_handle);
 
     #[cfg(feature = "plotting")]
     {

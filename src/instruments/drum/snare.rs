@@ -96,7 +96,11 @@ impl Instrument for Snare {
     }
 
     fn into_system(self: Box<Self>) -> System {
-        let source = MonophonicSource::new_percussive(self.generator, 44100.0, MonophonicAllocationStrategy::Replace);
+        let source = MonophonicSource::new_percussive(
+            self.generator,
+            44100.0,
+            MonophonicAllocationStrategy::Replace,
+        );
         let mut system = System::new();
         let source_idx = system.add_source(Box::new(source));
         let output = system.add_filter(Box::new(GainFilter::new(1.0)));
