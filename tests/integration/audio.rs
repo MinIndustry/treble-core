@@ -281,18 +281,18 @@ fn test_backend_event_debug() {
 fn test_audiomessage_notestart() {
     // Test creating NoteStart message
     let msg = AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
-        instrument_idx: 0,
+        source_index: 0,
         note: Note(NOTES::A, 4),
         velocity: 0.8,
     });
 
     match msg {
         AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
-            instrument_idx,
+            source_index,
             note,
             velocity,
         }) => {
-            assert_eq!(instrument_idx, 0, "Instrument index should be 0");
+            assert_eq!(source_index, 0, "Source index should be 0");
             assert_eq!(note, Note(NOTES::A, 4), "Note should be A4");
             assert_eq!(velocity, 0.8, "Velocity should be 0.8");
         }
@@ -304,16 +304,16 @@ fn test_audiomessage_notestart() {
 fn test_audiomessage_notestop() {
     // Test creating NoteStop message
     let msg = AudioMessage::Instrument(InstrumentAudioMessage::NoteStop {
-        instrument_idx: 1,
+        source_index: 1,
         note: Note(NOTES::C, 5),
     });
 
     match msg {
         AudioMessage::Instrument(InstrumentAudioMessage::NoteStop {
-            instrument_idx,
+            source_index,
             note,
         }) => {
-            assert_eq!(instrument_idx, 1, "Instrument index should be 1");
+            assert_eq!(source_index, 1, "Source index should be 1");
             assert_eq!(note, Note(NOTES::C, 5), "Note should be C5");
         }
         _ => panic!("Expected NoteStop message"),
@@ -337,7 +337,7 @@ fn test_audiomessage_shutdown() {
 fn test_audiomessage_clone() {
     // Test that AudioMessage can be cloned
     let original = AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
-        instrument_idx: 0,
+        source_index: 0,
         note: Note(NOTES::D, 3),
         velocity: 0.5,
     });
@@ -346,17 +346,17 @@ fn test_audiomessage_clone() {
     match (original, cloned) {
         (
             AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
-                instrument_idx: idx1,
+                source_index: idx1,
                 note: note1,
                 velocity: vel1,
             }),
             AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
-                instrument_idx: idx2,
+                source_index: idx2,
                 note: note2,
                 velocity: vel2,
             }),
         ) => {
-            assert_eq!(idx1, idx2, "Cloned instrument index should match");
+            assert_eq!(idx1, idx2, "Cloned source index should match");
             assert_eq!(note1, note2, "Cloned note should match");
             assert_eq!(vel1, vel2, "Cloned velocity should match");
         }
@@ -368,7 +368,7 @@ fn test_audiomessage_clone() {
 fn test_audiomessage_debug() {
     // Test that AudioMessage can be formatted with Debug
     let msg = AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
-        instrument_idx: 0,
+        source_index: 0,
         note: Note(NOTES::E, 4),
         velocity: 0.9,
     });
@@ -385,12 +385,12 @@ fn test_audiomessage_all_variants() {
     // Test that all AudioMessage variants can be created
     let messages: Vec<AudioMessage> = vec![
         AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
-            instrument_idx: 0,
+            source_index: 0,
             note: Note(NOTES::C, 4),
             velocity: 0.8,
         }),
         AudioMessage::Instrument(InstrumentAudioMessage::NoteStop {
-            instrument_idx: 0,
+            source_index: 0,
             note: Note(NOTES::C, 4),
         }),
         AudioMessage::Shutdown,
@@ -471,12 +471,12 @@ fn test_message_queue_pattern() {
     // (This doesn't test the actual queue, just the message types)
     let messages: Vec<AudioMessage> = vec![
         AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
-            instrument_idx: 0,
+            source_index: 0,
             note: Note(NOTES::C, 4),
             velocity: 0.8,
         }),
         AudioMessage::Instrument(InstrumentAudioMessage::NoteStop {
-            instrument_idx: 0,
+            source_index: 0,
             note: Note(NOTES::C, 4),
         }),
     ];

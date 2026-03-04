@@ -4,7 +4,7 @@
 
 mod audio_sink;
 mod entry;
-mod error;
+pub mod error;
 mod filter;
 /// The sink module provides implementations for various types of sinks.
 mod simple_sink;
@@ -17,6 +17,7 @@ pub mod sources;
 mod system;
 
 pub use audio_sink::AudioOutputSink;
+pub use error::AudioGraphError;
 
 pub use entry::Entry;
 pub use filter::Filter;

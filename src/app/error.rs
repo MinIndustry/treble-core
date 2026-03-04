@@ -17,6 +17,12 @@ pub enum AppError {
     #[error("Command channel closed")]
     ChannelClosed,
 
+    #[error("Invalid instrument index (not found in compiled graph)")]
+    InvalidInstrumentIndex,
+
+    #[error("Invalid parameter: {0}")]
+    InvalidParameter(String),
+
     #[error("Audio error: {0}")]
     AudioError(String),
 }

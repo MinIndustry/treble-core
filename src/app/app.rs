@@ -1,6 +1,4 @@
-//! The `app` module contains the main application data structures and functions.
-//! It provides CLI utilities for managing the application as well as filesystem
-//! utilities for managing files and directories.
+//! Application meta-object: configuration, audio graph, and runtime state.
 
 use std::path::Path;
 use std::sync::atomic::Ordering;
@@ -12,23 +10,40 @@ use cpal::SampleRate;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use log::info;
 
-use super::commands::SystemCommand;
+use super::commands::{AppCommand, AudioCommand, SystemCommand};
+use super::graph_handler::{GraphData, handle_graph_command};
 use super::prelude::*;
 use super::state::AppState;
 use super::{AppMode, config::AppConfig};
+use crate::app::audio_graph::AudioGraph;
 use crate::app::error::AppError;
-use crate::audio::{AudioError, AudioHandle, BackendEvent};
-use crate::prelude::Instrument;
+use crate::audio::{
+    AudioError, AudioHandle, AudioMessage, BackendEvent, GraphAudioMessage, InstrumentAudioMessage,
+};
+use crate::core::utils::Note;
+use crate::instruments::Instrument;
 
-/// Application metaobject, contains the application's configuration,
-/// Available instruments, paths to save/load files to/from, ...
+/// Application meta-object.
+///
+/// Owns all instruments via [`AudioGraph`] and sends [`AudioMessage`]s
+/// directly to the render thread after [`start()`](Self::start).
+///
+/// The frontend-facing API uses [`Command`] / [`AudioCommand`] with
+/// `instrument_idx`; App translates them to source indices internally
+/// so the render thread remains decoupled from instrument ordering.
 pub struct App {
     pub config: AppConfig,
     pub state: Arc<Mutex<AppState>>,
-    pub instruments: Vec<Box<dyn Instrument + Send + Sync>>, // All the instruments loaded in the app
+
+    /// All instrument slots. Populated before `start()`, compiled on start.
+    pub audio_graph: AudioGraph,
+
+    /// State for the visual graph editor. Protected by Mutex for `send(&self)`.
+    graph_system: Mutex<GraphData>,
 
     pub handle: Option<AudioHandle>,
-    pub command_tx: Option<Sender<Command>>,
+    /// Direct channel to the render thread (no intermediate command thread).
+    message_tx: Option<crossbeam::channel::Sender<AudioMessage>>,
 }
 
 impl Default for App {
@@ -36,23 +51,20 @@ impl Default for App {
         Self {
             config: AppConfig::default(),
             state: Arc::new(Mutex::new(AppState::default())),
-            instruments: Vec::new(),
-
+            audio_graph: AudioGraph::new(),
+            graph_system: Mutex::new(GraphData::default()),
             handle: None,
-            command_tx: None,
+            message_tx: None,
         }
     }
 }
 
 impl App {
-    /// Creates a new App with default configuration.
     pub fn new() -> App {
         App::default()
     }
 
-    /// Initializes the application settings from the command line arguments.
-    /// This function is susceptible to terminate the process (e.g. when the command
-    /// line arguments ask for the application version or a dump of the config).
+    /// Initializes the application from CLI arguments.
     pub fn init() -> App {
         let args = Cli::parse();
         let app = if let Some(path) = args.config {
@@ -77,10 +89,28 @@ impl App {
         app
     }
 
-    /// Starts the engine. Spawns the command, render and cpal threads
-    /// and holds the handles. Returns the receiver for backend events.
+    /// Add an instrument and return its slot index (for use with `note_on`/`note_off`).
+    ///
+    /// Call before [`start()`](Self::start). To add instruments at runtime,
+    /// call [`recompile()`](Self::recompile) afterwards.
+    pub fn add_instrument(&mut self, instrument: Box<dyn Instrument>) -> usize {
+        self.audio_graph.add_instrument(instrument)
+    }
+
+    /// Recompile the audio graph and hot-swap it into the running render thread.
+    pub fn recompile(&mut self) -> Result<(), AppError> {
+        let system = self
+            .audio_graph
+            .compile()
+            .map_err(|e| AppError::AudioError(format!("{:?}", e)))?;
+        self.send_message(AudioMessage::Graph(GraphAudioMessage::Swap(system)))
+    }
+
+    /// Start the audio engine.
+    ///
+    /// Compiles the instrument graph, spawns the render thread, and returns
+    /// a receiver for backend events.
     pub fn start(&mut self) -> Result<Receiver<BackendEvent>, AudioError> {
-        let (command_tx, command_rx): (Sender<Command>, Receiver<Command>) = channel();
         let (event_tx, event_rx): (Sender<BackendEvent>, Receiver<BackendEvent>) = channel();
 
         info!("Starting audio engine");
@@ -94,12 +124,9 @@ impl App {
 
         use crossbeam::queue::ArrayQueue;
         let audio_queue = Arc::new(ArrayQueue::<f32>::new(config.audio_ring_buffer_size));
-        let audio_queue_producer = audio_queue.clone();
-        let audio_queue_consumer = audio_queue;
 
-        let (message_tx, message_rx) = crossbeam::channel::bounded(config.message_ring_buffer_size);
-
-        let instruments = std::mem::take(&mut self.instruments);
+        let (message_tx, message_rx) =
+            crossbeam::channel::bounded(config.message_ring_buffer_size);
 
         let host = cpal::default_host();
         let device = host.default_output_device().ok_or(AudioError::NoDevice)?;
@@ -133,34 +160,27 @@ impl App {
             config.cpal_buffer_size, config.audio_ring_buffer_size
         );
 
+        let compiled = self
+            .audio_graph
+            .compile()
+            .map_err(|e| AudioError::StreamError(format!("Graph compile error: {:?}", e)))?;
+
         let render_thread = crate::audio::spawn_audio_render_thread(
             shared_state.clone(),
-            instruments,
+            compiled,
             message_rx,
-            audio_queue_producer,
+            audio_queue.clone(),
             config.clone(),
             event_tx.clone(),
         );
 
-        let app_state = self.state.clone();
-        let command_thread = crate::audio::spawn_command_thread(
-            app_state,
-            shared_state.clone(),
-            command_rx,
-            event_tx.clone(),
-            message_tx,
-        );
-
-        let callback =
-            crate::audio::create_cpal_callback(audio_queue_consumer, shared_state.clone());
+        let callback = crate::audio::create_cpal_callback(audio_queue, shared_state.clone());
 
         let stream = device
             .build_output_stream(
                 &cpal_config,
                 callback,
-                move |err| {
-                    log::error!("Audio stream error: {}", err);
-                },
+                move |err| log::error!("Audio stream error: {}", err),
                 None,
             )
             .map_err(|e| AudioError::StreamError(e.to_string()))?;
@@ -171,66 +191,127 @@ impl App {
 
         let _ = event_tx.send(BackendEvent::AudioStarted { sample_rate });
 
-        self.handle = Some(AudioHandle::new(
-            command_thread,
-            render_thread,
-            stream,
-            shared_state,
-        ));
-        self.command_tx = Some(command_tx);
+        self.handle = Some(AudioHandle::new(render_thread, stream, shared_state));
+        self.message_tx = Some(message_tx);
 
         Ok(event_rx)
     }
 
-    /// Send a command to the audio engine.
-    pub fn send(&self, command: Command) -> Result<(), AppError> {
-        self.command_tx
-            .as_ref()
-            .ok_or(AppError::NotStarted)?
-            .send(command)
-            .map_err(|_| AppError::ChannelClosed)
+    /// Trigger note-on for the instrument at `instrument_idx`.
+    pub fn note_on(
+        &self,
+        instrument_idx: usize,
+        note: Note,
+        velocity: f32,
+    ) -> Result<(), AppError> {
+        if !(0.0..=1.0).contains(&velocity) {
+            return Err(AppError::InvalidParameter(format!(
+                "velocity {velocity} out of range [0.0, 1.0]"
+            )));
+        }
+        let source_index = self
+            .audio_graph
+            .source_map
+            .get(&instrument_idx)
+            .copied()
+            .ok_or(AppError::InvalidInstrumentIndex)?;
+        self.send_message(AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
+            source_index,
+            note,
+            velocity,
+        }))
     }
 
-    /// Stops the engine, sends shutdown, joins the threads.
+    /// Trigger note-off for the instrument at `instrument_idx`.
+    pub fn note_off(&self, instrument_idx: usize, note: Note) -> Result<(), AppError> {
+        let source_index = self
+            .audio_graph
+            .source_map
+            .get(&instrument_idx)
+            .copied()
+            .ok_or(AppError::InvalidInstrumentIndex)?;
+        self.send_message(AudioMessage::Instrument(InstrumentAudioMessage::NoteStop {
+            source_index,
+            note,
+        }))
+    }
+
+    /// Dispatch a frontend [`Command`].
+    ///
+    /// `AudioCommand`s are translated to source-index `AudioMessage`s internally.
+    /// `GraphCommand`s mutate the visual graph and hot-swap the compiled result.
+    pub fn send(&self, command: Command) -> Result<(), AppError> {
+        match command {
+            Command::Audio(AudioCommand::NoteStart {
+                instrument_idx,
+                note,
+                velocity,
+            }) => self.note_on(instrument_idx, note, velocity),
+
+            Command::Audio(AudioCommand::NoteStop {
+                instrument_idx,
+                note,
+            }) => self.note_off(instrument_idx, note),
+
+            Command::Audio(AudioCommand::Shutdown) => {
+                self.send_message(AudioMessage::Shutdown)
+            }
+
+            Command::Graph(cmd) => {
+                let message_tx = self.message_tx.as_ref().ok_or(AppError::NotStarted)?;
+                let sample_rate = self.config.system.sample_rate as f32;
+                let mut gs = self.graph_system.lock().unwrap();
+                handle_graph_command(cmd, &mut gs, sample_rate, message_tx)
+            }
+
+            Command::App(AppCommand::System(SystemCommand::Reset)) => {
+                log::error!("Not implemented: System::Reset");
+                Ok(())
+            }
+        }
+    }
+
+    /// Stop the engine: signal shutdown and join the render thread.
     pub fn stop(&mut self) -> Result<(), AppError> {
-        if let Some(ref tx) = self.command_tx {
-            let _ = tx.send(Command::Audio(AudioCommand::Shutdown));
+        if let Some(ref tx) = self.message_tx {
+            let _ = tx.send(AudioMessage::Shutdown);
         }
         if let Some(handle) = self.handle.take() {
             handle
                 .shutdown()
                 .map_err(|e| AppError::AudioError(e.to_string()))?;
         }
-        self.command_tx = None;
+        self.message_tx = None;
         Ok(())
     }
 
-    /// Tries to load the application configuration from a file.
+    /// Load configuration from a file.
     pub fn from_file(path: &Path) -> Result<App, AppError> {
         Ok(App {
             config: AppConfig::from_file(path)?,
-            state: Arc::new(Mutex::new(AppState {
-                mode: AppMode::Setup,
-            })),
-            instruments: Vec::new(),
+            state: Arc::new(Mutex::new(AppState { mode: AppMode::Setup })),
+            audio_graph: AudioGraph::new(),
+            graph_system: Mutex::new(GraphData::default()),
             handle: None,
-            command_tx: None,
+            message_tx: None,
         })
     }
 
-    pub fn handle_system_command(&mut self, event: SystemCommand) {
-        match event {
-            SystemCommand::Reset => {
-                log::error!("Not implemented System::Reset");
-            }
-        }
+    // -----------------------------------------------------------------------
+    // Private helpers
+    // -----------------------------------------------------------------------
+
+    fn send_message(&self, msg: AudioMessage) -> Result<(), AppError> {
+        self.message_tx
+            .as_ref()
+            .ok_or(AppError::NotStarted)?
+            .send(msg)
+            .map_err(|_| AppError::ChannelClosed)
     }
 }
 
 impl Drop for App {
     fn drop(&mut self) {
-        // Best effort safety net, call `stop` explicitly!
-        // ignore error
         let _ = self.stop();
     }
 }

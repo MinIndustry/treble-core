@@ -246,6 +246,11 @@ impl System {
         }
     }
 
+    /// Returns the number of sources currently registered in this system.
+    pub fn sources_len(&self) -> usize {
+        self.sources.len()
+    }
+
     /// Adds a source and returns its index
     pub fn add_source(&mut self, source: Box<dyn Source>) -> usize {
         let idx = self.sources.len();

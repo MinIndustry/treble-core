@@ -28,7 +28,7 @@ fn test_app_new_default_config() {
 fn test_app_new_starts_without_instruments() {
     let app = App::new();
     assert!(
-        app.instruments.is_empty(),
+        app.audio_graph.is_empty(),
         "New App should start with no instruments; add them explicitly"
     );
 }
