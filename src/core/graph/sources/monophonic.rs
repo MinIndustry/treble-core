@@ -24,6 +24,9 @@ pub struct MonophonicSource {
     generator: MultiToneGenerator,
     replacement_strategy: MonophonicAllocationStrategy,
     sample_rate: f32,
+    /// When false, `start_note()` triggers the generator without updating its frequency.
+    /// Set to false for percussive instruments with fixed tuning (kick, snare, etc.).
+    track_pitch: bool,
     active: bool,
     released: bool,
     current_note: Option<Note>,
@@ -39,6 +42,23 @@ impl MonophonicSource {
             generator,
             replacement_strategy,
             sample_rate,
+            track_pitch: true,
+            active: false,
+            released: false,
+            current_note: None,
+        }
+    }
+
+    pub fn new_percussive(
+        generator: MultiToneGenerator,
+        sample_rate: f32,
+        replacement_strategy: MonophonicAllocationStrategy,
+    ) -> Self {
+        Self {
+            generator,
+            replacement_strategy,
+            sample_rate,
+            track_pitch: false,
             active: false,
             released: false,
             current_note: None,
@@ -106,12 +126,18 @@ impl Source for MonophonicSource {
     fn start_note(&mut self, note: crate::Note, _velocity: f32) {
         if self.should_replace() {
             self.current_note = Some(note);
-            self.generator.set_base_frequency(note.frequency());
+            if self.track_pitch {
+                self.generator.set_base_frequency(note.frequency());
+            }
             self.start();
         }
     }
 
     fn stop_note(&mut self, note: crate::Note) {
+        if !self.track_pitch {
+            self.stop();
+            return;
+        }
         if let Some(current_note) = self.current_note
             && current_note == note
         {
