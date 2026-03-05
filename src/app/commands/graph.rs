@@ -49,7 +49,12 @@ pub enum GraphCommand {
     StartNode {
         id: u64,
     },
+    /// Graceful stop — lets the release envelope finish.
     StopNode {
+        id: u64,
+    },
+    /// Hard stop — immediately silences the source regardless of envelope state.
+    KillNode {
         id: u64,
     },
     SetParameter {

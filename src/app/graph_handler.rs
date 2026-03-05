@@ -239,7 +239,20 @@ pub(crate) fn handle_graph_command(
 
         GraphCommand::StopNode { id } => {
             if let Some(&idx) = gs.source_map.get(&id) {
-                log::info!("[graph] StopNode id={id} → source_index={idx} (hard kill)");
+                log::info!("[graph] StopNode id={id} → source_index={idx} (graceful stop)");
+                message_tx
+                    .send(AudioMessage::Graph(GraphAudioMessage::StopSource {
+                        source_index: idx,
+                    }))
+                    .map_err(|_| AppError::ChannelClosed)
+            } else {
+                Ok(())
+            }
+        }
+
+        GraphCommand::KillNode { id } => {
+            if let Some(&idx) = gs.source_map.get(&id) {
+                log::info!("[graph] KillNode id={id} → source_index={idx} (immediate kill)");
                 message_tx
                     .send(AudioMessage::Graph(GraphAudioMessage::KillSource {
                         source_index: idx,
