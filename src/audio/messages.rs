@@ -4,7 +4,7 @@
 //! which App translates into these messages before forwarding to the render thread.
 
 use crate::core::Note;
-use crate::core::graph::System;
+use crate::core::graph::{ModTarget, System};
 
 /// Messages sent from App to the audio render thread.
 #[derive(Debug, Clone)]
@@ -41,13 +41,35 @@ pub enum GraphAudioMessage {
         param_name: String,
         value: f32,
     },
+    SetSourceParameter {
+        source_index: usize,
+        param_name: String,
+        value: f32,
+    },
     StartSource {
         source_index: usize,
     },
+    /// Graceful stop — lets the release envelope finish (may never end for infinite envelopes).
     StopSource {
+        source_index: usize,
+    },
+    /// Hard stop — immediately silences the source regardless of envelope state.
+    KillSource {
         source_index: usize,
     },
     /// Replace the entire running graph with a freshly compiled one.
     Swap(System),
     Clear,
+    /// Register a live modulation wire in the running system.
+    AddModulation {
+        from_source: usize,
+        target: ModTarget,
+        param_name: String,
+    },
+    /// Remove a live modulation wire from the running system.
+    RemoveModulation {
+        from_source: usize,
+        target: ModTarget,
+        param_name: String,
+    },
 }

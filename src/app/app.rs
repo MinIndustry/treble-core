@@ -18,8 +18,10 @@ use super::{AppMode, config::AppConfig};
 use crate::app::audio_graph::AudioGraph;
 use crate::app::error::AppError;
 use crate::audio::{
-    AudioError, AudioHandle, AudioMessage, BackendEvent, GraphAudioMessage, InstrumentAudioMessage,
+    AudioError, AudioHandle, AudioMessage, BackendEvent, EventFilter, GraphAudioMessage,
+    InstrumentAudioMessage, StatusEvent,
 };
+use crate::audio::EventSender;
 use crate::core::utils::Note;
 use crate::instruments::Instrument;
 
@@ -109,9 +111,11 @@ impl App {
     /// Start the audio engine.
     ///
     /// Compiles the instrument graph, spawns the render thread, and returns
-    /// a receiver for backend events.
-    pub fn start(&mut self) -> Result<Receiver<BackendEvent>, AudioError> {
-        let (event_tx, event_rx): (Sender<BackendEvent>, Receiver<BackendEvent>) = channel();
+    /// a receiver for backend events. Pass an [`EventFilter`] to control which
+    /// event categories are forwarded; use [`EventFilter::all()`] to receive everything.
+    pub fn start(&mut self, filter: EventFilter) -> Result<Receiver<BackendEvent>, AudioError> {
+        let (raw_tx, event_rx): (Sender<BackendEvent>, Receiver<BackendEvent>) = channel();
+        let event_tx = EventSender::new(raw_tx, filter);
 
         info!("Starting audio engine");
         self.config
@@ -164,7 +168,7 @@ impl App {
             .compile()
             .map_err(|e| AudioError::StreamError(format!("Graph compile error: {:?}", e)))?;
 
-        let render_thread = crate::audio::spawn_audio_render_thread(
+        let render_thread = crate::audio::render_thread::spawn_audio_render_thread(
             shared_state.clone(),
             compiled,
             message_rx,
@@ -188,7 +192,7 @@ impl App {
             .play()
             .map_err(|e| AudioError::StreamError(e.to_string()))?;
 
-        let _ = event_tx.send(BackendEvent::AudioStarted { sample_rate });
+        event_tx.send(BackendEvent::Status(StatusEvent::AudioStarted { sample_rate }));
 
         self.handle = Some(AudioHandle::new(render_thread, stream, shared_state));
         self.message_tx = Some(message_tx);

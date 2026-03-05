@@ -25,11 +25,13 @@ simplelog = "0.12.2"
 thiserror = "2.0.12"
 toml = "0.8.22"
 typetag = "0.2.21"
+inventory = "0.3"
 rustic-derive = { path = "../rustic-derive" }
 rustic-meta = { path = "../rustic-meta" }
 evdev = { version = "0.12.2", optional = true }
 plotters = { version = "0.3.7", optional = true }
 plotters-backend = { version = "0.3.7", optional = true }
+rayon = "1.11.0"
 
 [dev-dependencies]
 pretty_assertions = "1.1.0"

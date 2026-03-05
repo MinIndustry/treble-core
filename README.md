@@ -8,13 +8,12 @@ Rustic is a frontend-agnostic core library for audio synthesis. It provides comp
 
 ### Thread model
 
-The engine runs four concurrent roles:
+The engine runs three concurrent roles:
 
 | Role | Thread | Responsibility |
 |---|---|---|
-| **App** | caller | Creates `App`, loads instruments, calls `start()`, sends `Command`s, receives `BackendEvent`s |
-| **Command** | `command-processor` | Validates and translates `Command` → `AudioMessage`, maintains graph topology |
-| **Render** | `audio-render` | DSP synthesis loop, writes stereo samples to the ring buffer, emits `AudioChunk` events |
+| **App** | caller | Creates `App`, loads instruments, calls `start()`, sends `AudioMessage`s directly to the render thread, receives `BackendEvent`s |
+| **Render** | `audio-render` | Runs `system.run()` per block, writes stereo samples to the ring buffer, emits `BackendEvent`s |
 | **CPAL callback** | hardware | Pops samples from the ring buffer, writes to the sound card |
 
 ```mermaid
@@ -22,15 +21,12 @@ flowchart TD
     App["App (caller thread)"]
 
     subgraph engine["Audio Engine"]
-        CT["Command thread\ncommand-processor"]
         RT["Render thread\naudio-render"]
         CB["CPAL callback\nhardware thread"]
     end
 
-    App -->|"Command\n(mpsc::channel)"| CT
-    CT -->|"AudioMessage\n(crossbeam bounded)"| RT
-    RT -->|"AudioChunk events\n(mpsc::channel)"| App
-    CT -->|"BackendEvent\n(mpsc::channel)"| App
+    App -->|"AudioMessage\n(crossbeam bounded)"| RT
+    RT -->|"BackendEvent\n(mpsc::channel)"| App
 
     RT -->|"f32 samples\n(ArrayQueue, lock-free)"| CB
     CB -->|audio| HW["Sound card"]
@@ -41,16 +37,14 @@ flowchart TD
 ```mermaid
 sequenceDiagram
     participant U  as User code
-    participant CT as Command thread
     participant RT as Render thread
     participant Q  as Ring buffer (ArrayQueue<f32>)
     participant CB as CPAL callback
 
-    U  ->> CT : Command::Audio(NoteStart { .. })
-    CT ->> RT : AudioMessage::Instrument(NoteStart { .. })
-    Note over RT: inst.start_note() sets playing = true
+    U  ->> RT : AudioMessage::Instrument(NoteStart { source_index, note, velocity })
+    Note over RT: system.start_note(source_index, note, velocity)
     loop every render_chunk_size frames
-        RT ->> RT : tick all playing instruments
+        RT ->> RT : system.run() — block DSP
         RT ->> Q  : push stereo-interleaved samples (L,R,L,R,…)
         RT ->> U  : BackendEvent::AudioChunk(Vec<f32>)
     end
@@ -60,52 +54,33 @@ sequenceDiagram
 
 ### Ring buffer
 
-The ring buffer is a `crossbeam::queue::ArrayQueue<f32>`. Samples are always **stereo-interleaved**: `[L, R, L, R, …]`. The render thread produces two identical samples per mono instrument frame; the CPAL callback consumes exactly `buffer_size × channels` samples per callback. On underrun the callback fills with silence and increments a shared counter.
+The ring buffer is a `crossbeam::queue::ArrayQueue<f32>`. Samples are always **stereo-interleaved**: `[L, R, L, R, …]`. The render thread produces two samples per mono frame; the CPAL callback consumes exactly `buffer_size × channels` samples per callback. On underrun the callback fills with silence and increments a shared counter.
 
-Default capacity: **8 192 samples** (~93 ms at 44.1 kHz stereo).
+Default capacity: **8 192 samples** (~93 ms at 44.1 kHz stereo). The render thread throttles at `target_latency_ms` (default 50 ms) and never fills the buffer beyond that threshold, keeping command-to-sound latency low.
 
-### Render modes
+### Render pipeline
 
-The render thread operates in one of two modes, switched via `AudioMessage::SetRenderMode`:
+All audio is processed through a single `System` graph. There is no separate "instrument mode" — every instrument is compiled into a `Source` node inside the graph before playback starts.
 
-#### Instruments mode (default)
+On `App::start()`, `AudioGraph::compile()` assembles all loaded instruments into one `System` and passes it to the render thread. The render thread calls `system.run()` every block, draining all pending `AudioMessage`s between blocks.
 
-Each `Box<dyn Instrument>` exposes three methods:
-
-```
-start_note(note, velocity)  →  sets playing = true, resets generator
-stop_note(note)             →  arms release phase
-tick()                      →  advances DSP by 1/sample_rate seconds
-get_output() → f32          →  returns the latest mono sample
-```
-
-Instruments gate their own output with a `playing: bool` field — `tick()` returns 0.0 silently until `start_note` is called, and clears `playing` once `generator.completed()` is true (percussive one-shot behaviour).
-
-The render thread sums all instrument outputs, normalises by instrument count, and duplicates to stereo:
-
-```
-mono = Σ inst.get_output() / N
-chunk ← [mono, mono]  (for each frame)
-```
-
-#### Graph mode
-
-A node graph (`System`) of `Source → Filter → Sink` nodes processes audio as stereo `Frame = [f32; 2]` blocks. The command thread builds and computes the topology, then swaps the compiled graph into the render thread atomically via `AudioMessage::Graph(Swap(system))`. The render thread calls `system.run()` each chunk and reads stereo frames from the sink.
+To swap a new graph at runtime, send `AudioMessage::Graph(GraphAudioMessage::Swap(system))`. The render thread replaces its current system atomically between blocks.
 
 ### BackendEvent channel
 
-Both the command thread and the render thread share an `mpsc::Sender<BackendEvent>`. Events received by the caller:
+The render thread sends `BackendEvent`s back to the caller via an `mpsc::channel`:
 
-| Variant | Sender | Description |
-|---|---|---|
-| `AudioStarted { sample_rate }` | Command | Engine is ready |
-| `AudioStopped` | Command | Shutdown complete |
-| `AudioChunk(Vec<f32>)` | Render | Stereo-interleaved samples from the last chunk — use `.step_by(2)` to extract L or R |
-| `BufferUnderrun { count }` | Command | Ring buffer was empty during a callback |
-| `CommandError { .. }` | Command | A command failed validation |
-| `GraphError { .. }` | Command | Graph topology error (cycle, missing sink, …) |
-
-`AudioChunk` is emitted every chunk (~1 ms at default settings) and is intended for offline analysis and waveform capture. A feature flag to gate it for production use is planned.
+| Variant | Description |
+|---|---|
+| `AudioStarted { sample_rate }` | Engine is ready |
+| `AudioStopped` | Shutdown complete |
+| `AudioChunk(Vec<f32>)` | Stereo-interleaved samples from the last block — use `.step_by(2)` to extract L or R. Useful for offline analysis and waveform capture. |
+| `BufferUnderrun { count }` | Ring buffer was empty during a callback |
+| `CommandError { command, error }` | A command failed |
+| `GraphError { description }` | Graph topology error (cycle, missing sink, …) |
+| `Metrics { cpu_usage, latency_ms }` | Periodic diagnostics |
+| `OutputDeviceList { devices }` | Available output devices |
+| `OutputDeviceChanged { device }` | Active output device changed |
 
 ## DSP Primitives
 
@@ -129,7 +104,14 @@ Envelopes implement `Envelope::at(time: f32, note_off: f32) -> f32`. Built-in se
 
 `ADSREnvelope` composes four segments (attack, decay, sustain, release). The sustain level is the end value of the decay segment.
 
-### Filters (Graph mode)
+### Sources
+
+Sources implement the `Source` trait and feed audio into the graph. Two built-in source types wrap a `MultiToneGenerator`:
+
+- **`MonophonicSource`** — single voice, one note at a time. Suitable for percussive instruments (kick, snare). When `track_pitch` is false, the source always plays at its configured base frequency regardless of what note triggers it.
+- **`PolyphonicSource`** — voice pool, multiple simultaneous notes. Each voice is an independent generator instance. Suitable for melodic instruments (keyboard).
+
+### Filters
 
 Filters implement `Filter::process(input: Frame) -> Frame` and optionally `set_parameter(name, value)`:
 
@@ -137,4 +119,16 @@ Filters implement `Filter::process(input: Frame) -> Frame` and optionally `set_p
 
 ### Instruments
 
-Instruments wrap a `MultiToneGenerator` (or a graph `System` for more complex voices) and implement the `Instrument` trait. Built-in drum instruments: `Kick`, `Snare`, `HiHat`.
+Instruments implement the `Instrument` trait:
+
+```rust
+pub trait Instrument: Debug + Send + Sync {
+    fn start_note(&mut self, note: Note, velocity: f32);
+    fn stop_note(&mut self, note: Note);
+    fn into_system(self: Box<Self>) -> System;
+}
+```
+
+`into_system()` converts the instrument into a self-contained `System` sub-graph. `AudioGraph::compile()` calls this for each loaded instrument and assembles the sub-graphs into one unified `System` for the render thread.
+
+Built-in instruments: `Kick`, `Snare`, `HiHat` (percussive, fixed pitch), `Keyboard` (polyphonic, pitch-tracked).

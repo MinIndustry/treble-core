@@ -4,7 +4,7 @@ use simplelog::*;
 use std::fs::File;
 use std::thread;
 
-use rustic::audio::BackendEvent;
+use rustic::audio::{AudioEvent, BackendEvent, EventFilter, StatusEvent};
 use rustic::instruments::prelude::{HiHat, Kick, Snare};
 use rustic::prelude::{App, AudioCommand, Command};
 use rustic::{NOTES, Note};
@@ -45,7 +45,7 @@ fn main() {
     app.add_instrument(Box::new(kick));
     app.add_instrument(Box::new(snare));
 
-    let event_rx = match app.start() {
+    let event_rx = match app.start(EventFilter::all()) {
         Ok(er) => er,
         Err(e) => {
             log::error!("Unable to start rustic app: {e:?}");
@@ -58,11 +58,11 @@ fn main() {
         let mut samples: Vec<f32> = vec![];
         while let Ok(event) = event_rx.recv() {
             match event {
-                BackendEvent::AudioChunk(chunk) => {
+                BackendEvent::Audio(AudioEvent::Chunk(chunk)) => {
                     // Chunks are stereo-interleaved (L, R, L, R, …); take left channel only
                     samples.extend(chunk.into_iter().step_by(2));
                 }
-                BackendEvent::AudioStopped => break,
+                BackendEvent::Status(StatusEvent::AudioStopped) => break,
                 _ => {}
             }
         }

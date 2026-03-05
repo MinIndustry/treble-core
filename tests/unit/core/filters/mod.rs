@@ -275,62 +275,6 @@ mod tremolo_tests {
     }
 }
 
-#[cfg(test)]
-mod combinator_tests {
-    use super::*;
-    use rustic::core::filters::prelude::CombinatorFilter;
-
-    #[test]
-    fn test_combinator_sums_two_inputs() {
-        let mut f = CombinatorFilter::new(2, 1);
-        f.push(const_block(4, 0.3), 0);
-        f.push(const_block(4, 0.2), 1);
-        let out = f.transform();
-        assert_eq!(out.len(), 1);
-        for frame in &out[0] {
-            assert!(
-                (frame[0] - 0.5).abs() < 1e-5,
-                "Expected 0.3+0.2=0.5, got {}",
-                frame[0]
-            );
-        }
-    }
-
-    #[test]
-    fn test_combinator_multiple_outputs() {
-        let mut f = CombinatorFilter::new(1, 3);
-        f.push(const_block(4, 1.0), 0);
-        let out = f.transform();
-        assert_eq!(out.len(), 3, "Should have 3 output ports");
-        for port_out in &out {
-            for frame in port_out {
-                assert!((frame[0] - 1.0).abs() < 1e-5);
-            }
-        }
-    }
-}
-
-#[cfg(test)]
-mod duplicate_tests {
-    use super::*;
-    use rustic::core::filters::prelude::DuplicateFilter;
-
-    #[test]
-    fn test_duplicate_produces_two_identical_outputs() {
-        let mut f = DuplicateFilter::new();
-        f.push(const_block(4, 0.7), 0);
-        let out = f.transform();
-        assert_eq!(
-            out.len(),
-            2,
-            "DuplicateFilter should produce 2 output ports"
-        );
-        assert_eq!(out[0], out[1], "Both outputs should be identical");
-        for frame in &out[0] {
-            assert!((frame[0] - 0.7).abs() < 1e-5);
-        }
-    }
-}
 
 #[cfg(test)]
 mod moving_average_tests {

@@ -28,5 +28,8 @@ pub trait Source: std::fmt::Debug + DynClone + Send + Sync {
     fn is_active(&self) -> bool {
         false
     }
+
+    /// Set a named parameter on this source (e.g. frequency, attack, sustain).
+    fn set_parameter(&mut self, _name: &str, _value: f32) {}
 }
 dyn_clone::clone_trait_object!(Source);

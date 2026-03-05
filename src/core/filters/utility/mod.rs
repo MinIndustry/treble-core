@@ -1,7 +1,5 @@
-pub mod combinator;
 pub mod delay;
-pub mod structural;
+pub mod pan;
 
-pub use combinator::*;
 pub use delay::*;
-pub use structural::*;
+pub use pan::*;

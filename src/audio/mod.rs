@@ -11,15 +11,17 @@ pub mod error;
 pub mod events;
 mod handle;
 pub mod messages;
-pub mod render_thread;
+pub(crate) mod render_thread;
 pub mod shared_state;
 
 // Re-export commonly used types
 pub use callback::create_cpal_callback;
 pub use config::{AudioConfig, LogConfig};
 pub use error::{AudioError, CommandError};
-pub use events::BackendEvent;
+pub use events::{
+    AudioEvent, BackendEvent, DiagnosticsEvent, ErrorEvent, EventCategory, EventFilter, StatusEvent,
+};
+pub(crate) use events::EventSender;
 pub use handle::{AudioHandle, AudioMetrics};
 pub use messages::{AudioMessage, GraphAudioMessage, InstrumentAudioMessage};
-pub use render_thread::spawn_audio_render_thread;
 pub use shared_state::SharedAudioState;

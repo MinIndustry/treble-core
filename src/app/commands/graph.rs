@@ -30,6 +30,21 @@ pub enum GraphCommand {
         to: u64,
     },
 
+    // -- Parameter modulation (CV input) --
+    /// Connect a source's output as a modulator for a named parameter on another node.
+    /// The source's block mean will replace the parameter value each `run()` call.
+    Modulate {
+        from: u64,
+        to: u64,
+        param_name: String,
+    },
+    /// Disconnect a modulation wire.
+    Demodulate {
+        from: u64,
+        to: u64,
+        param_name: String,
+    },
+
     // -- Playback control (command-thread → render-thread) --
     StartNode {
         id: u64,
@@ -42,6 +57,10 @@ pub enum GraphCommand {
         param_name: String,
         value: f32,
     },
+
+    /// Recompile the current graph topology and hot-swap it into the render thread.
+    /// Useful after a series of edits to force a clean push.
+    Compile,
 }
 
 /// The kind of node in the audio graph

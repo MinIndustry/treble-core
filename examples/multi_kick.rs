@@ -1,13 +1,11 @@
-use rodio::buffer::SamplesBuffer;
-use rodio::{OutputStream, Sink};
-
 use simplelog::*;
 use std::fs::File;
+use std::{thread, time};
 
-use rustic::Note;
-use rustic::instruments::Instrument;
+use rustic::audio::{AudioEvent, BackendEvent, EventFilter, StatusEvent};
 use rustic::instruments::prelude::Kick;
-use rustic::prelude::App;
+use rustic::prelude::{App, AudioCommand, Command};
+use rustic::{NOTES, Note};
 
 #[cfg(feature = "plotting")]
 use rustic::plotting::plot_data;
@@ -28,44 +26,67 @@ fn main() {
     ])
     .unwrap();
 
-    let app = App::init();
+    let mut app = App::init();
 
-    let mut kick = Kick::new();
+    let kick = Kick::new();
+    app.add_instrument(Box::new(kick));
 
-    let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-    let sink = Sink::try_new(&stream_handle).unwrap();
+    log::info!("Starting rustic app");
+    let event_rx = match app.start(EventFilter::all()) {
+        Ok(er) => er,
+        Err(e) => {
+            log::error!("Unable to start rustic app: {e:?}");
+            return;
+        }
+    };
 
-    let mut values = vec![];
-    let mut complete_value_list = vec![];
-    for i in 0..20 {
-        values.clear();
+    let sample_rate = app.config.system.sample_rate;
 
-        if i % 4 == 1 {
+    // Collect audio chunks from the render thread for plotting
+    let capture_handle = std::thread::spawn(move || {
+        let mut samples: Vec<f32> = vec![];
+        while let Ok(event) = event_rx.recv() {
+            match event {
+                BackendEvent::Audio(AudioEvent::Chunk(chunk)) => {
+                    // Chunks are stereo-interleaved (L, R, L, R, …); take left channel only
+                    samples.extend(chunk.into_iter().step_by(2));
+                }
+                BackendEvent::Status(StatusEvent::AudioStopped) => break,
+                _ => {}
+            }
+        }
+        samples
+    });
+
+    thread::sleep(time::Duration::from_secs(1));
+
+    for i in 0..30 {
+        if i % 2 == 1 {
             println!("Starting kick at position {}", i);
-            kick.start_note(Note(rustic::core::utils::tones::NOTES::A, 0), 0.0);
+            let _ = app.send(Command::Audio(AudioCommand::NoteStart {
+                instrument_idx: 0,
+                note: Note::new(NOTES::A, 4),
+                velocity: 1.0,
+            }));
         }
 
-        for _ in 0..(app.config.system.sample_rate as usize / 4) {
-            kick.tick();
+        thread::sleep(time::Duration::from_millis(250));
 
-            let full = kick.get_output();
-
-            values.push(full); // Left
-            values.push(full); // Right
-
-            complete_value_list.push(full);
-            complete_value_list.push(full);
-        }
-
-        kick.stop_note(Note(rustic::core::utils::tones::NOTES::A, 0));
-
-        sink.append(SamplesBuffer::new(
-            2_u16,
-            app.config.system.sample_rate,
-            values.to_vec(),
-        ));
+        let _ = app.send(Command::Audio(AudioCommand::NoteStop {
+            instrument_idx: 0,
+            note: Note::new(NOTES::A, 4),
+        }));
     }
 
+    thread::sleep(time::Duration::from_secs(2));
+    let _ = app.stop();
+
+    let samples = capture_handle.join().unwrap_or_default();
+    log::info!(
+        "Captured {} mono samples ({:.2}s)",
+        samples.len(),
+        samples.len() as f32 / sample_rate as f32
+    );
     #[cfg(feature = "plotting")]
     {
         let left_ear: Vec<(f32, f32)> = complete_value_list
@@ -89,6 +110,4 @@ fn main() {
             log::error!("Error: {}", e.to_string());
         }
     }
-
-    sink.sleep_until_end();
 }

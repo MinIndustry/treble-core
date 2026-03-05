@@ -1,7 +1,7 @@
 //! Graph / System Unit Tests
 
 use rustic::core::audio::{Block, CHANNELS};
-use rustic::core::filters::prelude::{CombinatorFilter, DelayFilter, GainFilter};
+use rustic::core::filters::prelude::{DelayFilter, GainFilter};
 use rustic::core::graph::{SimpleSink, Source, System};
 
 /// A trivial source that emits a constant stereo block.
@@ -151,20 +151,21 @@ mod system_tests {
 
     #[test]
     fn test_system_cycle_broken_by_delay() {
-        // DelayFilter is postponable=true, so it breaks the cycle
+        // DelayFilter is postponable=true, so it breaks the cycle.
+        // Two signals arrive at port 0 of a GainFilter (source + delayed feedback).
         let mut system = System::new().with_block_size(8);
+        let mixer = system.add_filter(Box::new(GainFilter::new(1.0)));
         let gain = system.add_filter(Box::new(GainFilter::new(0.5)));
         let delay = system.add_filter(Box::new(DelayFilter::new(44100.0, 0.001)));
-        let combinator = system.add_filter(Box::new(CombinatorFilter::new(2, 1)));
 
         let src = system.add_source(Box::new(ConstantSource { value: 1.0 }));
         let snk = system.add_sink(Box::new(SimpleSink::new()));
 
-        // source → combinator → gain → delay → combinator (feedback loop)
-        system.connect_source(src, combinator, 0);
-        system.connect(combinator, gain, 0, 0);
+        // source → mixer (port 0); delayed feedback also → mixer (port 0)
+        system.connect_source(src, mixer, 0);
+        system.connect(mixer, gain, 0, 0);
         system.connect(gain, delay, 0, 0);
-        system.connect(delay, combinator, 0, 1);
+        system.connect(delay, mixer, 0, 0); // feedback on same port — DelayFilter breaks cycle
         system.connect_sink(gain, snk, 0);
 
         // Should succeed because DelayFilter is postponable
@@ -178,15 +179,16 @@ mod system_tests {
 
     #[test]
     fn test_system_two_sources_combined() {
+        // Two sources connect to port 0 of a GainFilter; the run loop sums them.
         let mut system = System::new().with_block_size(4);
-        let combinator = system.add_filter(Box::new(CombinatorFilter::new(2, 1)));
+        let mixer = system.add_filter(Box::new(GainFilter::new(1.0)));
         let src1 = system.add_source(Box::new(ConstantSource { value: 0.3 }));
         let src2 = system.add_source(Box::new(ConstantSource { value: 0.7 }));
         let snk = system.add_sink(Box::new(SimpleSink::new()));
 
-        system.connect_source(src1, combinator, 0);
-        system.connect_source(src2, combinator, 1);
-        system.connect_sink(combinator, snk, 0);
+        system.connect_source(src1, mixer, 0);
+        system.connect_source(src2, mixer, 0);
+        system.connect_sink(mixer, snk, 0);
         system.compute().unwrap();
         system.run();
 

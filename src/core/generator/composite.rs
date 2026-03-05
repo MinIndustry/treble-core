@@ -133,4 +133,8 @@ impl MultiToneGenerator {
     pub fn tone_count(&self) -> usize {
         self.tone_generators.len()
     }
+
+    pub fn set_global_amplitude_envelope(&mut self, envelope: Box<dyn Envelope>) {
+        self.global_amplitude_envelope = Some(envelope);
+    }
 }

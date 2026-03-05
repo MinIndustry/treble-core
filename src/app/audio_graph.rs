@@ -1,13 +1,13 @@
 //! AudioGraph — assembles all instruments into a single compiled `System`.
 //!
 //! `AudioGraph::compile()` calls `instrument.into_system()` for each slot,
-//! absorbs every sub-graph into one master graph, wires the outputs through a
-//! `CombinatorFilter` (one input per instrument), and returns the ready-to-run
-//! `System` for the render thread.
+//! absorbs every sub-graph into one master graph, wires all outputs through a
+//! single `GainFilter` node at port 0 (the run-loop mixes them via `MixMode::Sum`),
+//! and returns the ready-to-run `System` for the render thread.
 
 use std::collections::HashMap;
 
-use crate::core::filters::prelude::CombinatorFilter;
+use crate::core::filters::prelude::GainFilter;
 use crate::core::graph::{AudioGraphError, AudioOutputSink, System};
 use crate::instruments::Instrument;
 
@@ -92,18 +92,17 @@ impl AudioGraph {
             output_nodes.push(output_node);
         }
 
-        // Wire all instrument outputs into a mixer
-        let combinator = Box::new(CombinatorFilter::new(n, 1));
-        let combinator_node = main.add_filter(combinator);
-
-        for (port, &out_node) in output_nodes.iter().enumerate() {
-            main.connect(out_node, combinator_node, 0, port);
+        // Wire all instrument outputs into a passthrough gain node.
+        // All connect on the same port 0; run() accumulates and sums them automatically.
+        let mixer_node = main.add_filter(Box::new(GainFilter::new(1.0)));
+        for &out_node in output_nodes.iter() {
+            main.connect(out_node, mixer_node, 0, 0);
         }
 
         // Final sink
         let sink = Box::new(AudioOutputSink::new());
         let sink_idx = main.add_sink(sink);
-        main.connect_sink(combinator_node, sink_idx, 0);
+        main.connect_sink(mixer_node, sink_idx, 0);
 
         main.compute()?;
 

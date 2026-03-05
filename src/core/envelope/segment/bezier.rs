@@ -36,9 +36,31 @@ impl fmt::Display for BezierSegment {
 
 #[typetag::serde]
 impl super::Segment for BezierSegment {
+    /// Evaluates the bezier segment at normalized time `s` ∈ [0, 1].
+    ///
+    /// The control point `(cx, cy)` is in normalized space: `cx` ∈ [0, 1] is the
+    /// *horizontal* position of the control point along the segment, and `cy` is its
+    /// amplitude.  When `cx = 0.5` (the midpoint default) the mapping degenerates to
+    /// a simple quadratic bezier in the amplitude axis only.
+    ///
+    /// For `cx ≠ 0.5` the parametric t is found by inverting the quadratic bezier
+    /// x-component `X(t) = t²(1-2cx) + 2cx·t = s`, which yields:
+    ///   `t = (−cx + √(cx² + s·(1−2cx))) / (1−2cx)`
+    /// The discriminant is always ≥ 0 for `cx, s ∈ [0, 1]`.
     fn at(&self, time: f32) -> f32 {
-        (1.0 - time) * ((1.0 - time) * self.from + time * self.control.1)
-            + time * ((1.0 - time) * self.control.1 + time * self.to)
+        let s = time.clamp(0.0, 1.0);
+        let cx = self.control.0.clamp(0.0, 1.0);
+        let cy = self.control.1;
+
+        let t = if (cx - 0.5).abs() < 1e-6 {
+            s // linear parametric mapping when cx ≈ 0.5
+        } else {
+            let a = 1.0 - 2.0 * cx;
+            let disc = (cx * cx + s * a).max(0.0).sqrt();
+            ((-cx + disc) / a).clamp(0.0, 1.0)
+        };
+
+        (1.0 - t).powi(2) * self.from + 2.0 * (1.0 - t) * t * cy + t.powi(2) * self.to
     }
 
     fn get_duration(&self) -> f32 {

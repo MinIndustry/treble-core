@@ -69,6 +69,67 @@ pub mod prelude {
         Err(String), // Only used to inform of a conversion error
     }
 
+    impl Waveform {
+        /// All concrete (non-error) waveform variants that can be presented to the user.
+        pub fn all() -> Vec<Waveform> {
+            vec![
+                Waveform::Sine,
+                Waveform::Square,
+                Waveform::Sawtooth,
+                Waveform::Triangle,
+                Waveform::WhiteNoise,
+                Waveform::PinkNoise,
+                Waveform::Blank,
+            ]
+        }
+
+        /// Machine-readable identifier sent by the frontend when creating a source node.
+        pub fn type_id(&self) -> &'static str {
+            match self {
+                Waveform::Sine => "sine",
+                Waveform::Square => "square",
+                Waveform::Sawtooth => "saw",
+                Waveform::Triangle => "triangle",
+                Waveform::WhiteNoise => "whitenoise",
+                Waveform::PinkNoise => "pinknoise",
+                Waveform::Blank => "blank",
+                Waveform::Err(_) => "err",
+            }
+        }
+
+        /// Human-readable display name shown in the graph node palette.
+        pub fn display_name(&self) -> &'static str {
+            match self {
+                Waveform::Sine => "Sine Wave",
+                Waveform::Square => "Square Wave",
+                Waveform::Sawtooth => "Sawtooth",
+                Waveform::Triangle => "Triangle",
+                Waveform::WhiteNoise => "White Noise",
+                Waveform::PinkNoise => "Pink Noise",
+                Waveform::Blank => "Blank (DC)",
+                Waveform::Err(_) => "Unknown",
+            }
+        }
+
+        pub fn description(&self) -> &'static str {
+            match self {
+                Waveform::Sine => "Smooth periodic oscillation",
+                Waveform::Square => "Alternates between high and low states",
+                Waveform::Sawtooth => "Rises linearly then drops sharply",
+                Waveform::Triangle => "Rises and falls linearly",
+                Waveform::WhiteNoise => "Random signal, equal intensity per frequency",
+                Waveform::PinkNoise => "Random signal, equal energy per octave",
+                Waveform::Blank => "Constant DC output",
+                Waveform::Err(_) => "",
+            }
+        }
+
+        /// Whether this waveform has a meaningful frequency parameter.
+        pub fn has_frequency(&self) -> bool {
+            !matches!(self, Waveform::WhiteNoise | Waveform::PinkNoise | Waveform::Blank | Waveform::Err(_))
+        }
+    }
+
     impl From<&str> for Waveform {
         fn from(value: &str) -> Self {
             match value {

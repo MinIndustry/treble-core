@@ -12,7 +12,10 @@
 
 use rustic::Note;
 use rustic::audio::messages::InstrumentAudioMessage;
-use rustic::audio::{AudioMessage, BackendEvent, SharedAudioState};
+use rustic::audio::{
+    AudioEvent, AudioMessage, BackendEvent, DiagnosticsEvent, ErrorEvent, SharedAudioState,
+    StatusEvent,
+};
 use rustic::core::utils::NOTES;
 use std::sync::atomic::Ordering;
 
@@ -166,11 +169,10 @@ fn test_shared_audio_state_master_volume() {
 
 #[test]
 fn test_backend_event_audio_started() {
-    // Test creating AudioStarted event
-    let event = BackendEvent::AudioStarted { sample_rate: 48000 };
+    let event = BackendEvent::Status(StatusEvent::AudioStarted { sample_rate: 48000 });
 
     match event {
-        BackendEvent::AudioStarted { sample_rate } => {
+        BackendEvent::Status(StatusEvent::AudioStarted { sample_rate }) => {
             assert_eq!(sample_rate, 48000, "Sample rate should be 48000");
         }
         _ => panic!("Expected AudioStarted event"),
@@ -179,41 +181,36 @@ fn test_backend_event_audio_started() {
 
 #[test]
 fn test_backend_event_audio_stopped() {
-    // Test creating AudioStopped event
-    let event = BackendEvent::AudioStopped;
+    let event = BackendEvent::Status(StatusEvent::AudioStopped);
 
     match event {
-        BackendEvent::AudioStopped => {
-            // Expected
-        }
+        BackendEvent::Status(StatusEvent::AudioStopped) => {}
         _ => panic!("Expected AudioStopped event"),
     }
 }
 
 #[test]
 fn test_backend_event_command_error() {
-    // Test creating CommandError event
-    let event = BackendEvent::CommandError {
+    let event = BackendEvent::Error(ErrorEvent::CommandFailed {
         command: "NoteStart".to_string(),
-        error: "Invalid velocity".to_string(),
-    };
+        message: "Invalid velocity".to_string(),
+    });
 
     match event {
-        BackendEvent::CommandError { command, error } => {
+        BackendEvent::Error(ErrorEvent::CommandFailed { command, message }) => {
             assert_eq!(command, "NoteStart", "Command should be 'NoteStart'");
-            assert_eq!(error, "Invalid velocity", "Error should match");
+            assert_eq!(message, "Invalid velocity", "Error should match");
         }
-        _ => panic!("Expected CommandError event"),
+        _ => panic!("Expected CommandFailed event"),
     }
 }
 
 #[test]
 fn test_backend_event_buffer_underrun() {
-    // Test creating BufferUnderrun event
-    let event = BackendEvent::BufferUnderrun { count: 42 };
+    let event = BackendEvent::Diagnostics(DiagnosticsEvent::BufferUnderrun { count: 42 });
 
     match event {
-        BackendEvent::BufferUnderrun { count } => {
+        BackendEvent::Diagnostics(DiagnosticsEvent::BufferUnderrun { count }) => {
             assert_eq!(count, 42, "Underrun count should be 42");
         }
         _ => panic!("Expected BufferUnderrun event"),
@@ -222,17 +219,16 @@ fn test_backend_event_buffer_underrun() {
 
 #[test]
 fn test_backend_event_metrics() {
-    // Test creating Metrics event
-    let event = BackendEvent::Metrics {
+    let event = BackendEvent::Diagnostics(DiagnosticsEvent::Metrics {
         cpu_usage: 25.5,
         latency_ms: 12.3,
-    };
+    });
 
     match event {
-        BackendEvent::Metrics {
+        BackendEvent::Diagnostics(DiagnosticsEvent::Metrics {
             cpu_usage,
             latency_ms,
-        } => {
+        }) => {
             assert!((cpu_usage - 25.5).abs() < 0.0001, "CPU usage should match");
             assert!((latency_ms - 12.3).abs() < 0.0001, "Latency should match");
         }
@@ -242,14 +238,13 @@ fn test_backend_event_metrics() {
 
 #[test]
 fn test_backend_event_clone() {
-    // Test that BackendEvent can be cloned
-    let original = BackendEvent::AudioStarted { sample_rate: 44100 };
+    let original = BackendEvent::Status(StatusEvent::AudioStarted { sample_rate: 44100 });
     let cloned = original.clone();
 
     match (original, cloned) {
         (
-            BackendEvent::AudioStarted { sample_rate: rate1 },
-            BackendEvent::AudioStarted { sample_rate: rate2 },
+            BackendEvent::Status(StatusEvent::AudioStarted { sample_rate: rate1 }),
+            BackendEvent::Status(StatusEvent::AudioStarted { sample_rate: rate2 }),
         ) => {
             assert_eq!(rate1, rate2, "Cloned event should have same sample rate");
         }
@@ -258,9 +253,21 @@ fn test_backend_event_clone() {
 }
 
 #[test]
+fn test_backend_event_audio_chunk() {
+    let chunk = vec![0.1f32, -0.1, 0.2, -0.2];
+    let event = BackendEvent::Audio(AudioEvent::Chunk(chunk.clone()));
+
+    match event {
+        BackendEvent::Audio(AudioEvent::Chunk(data)) => {
+            assert_eq!(data, chunk, "Chunk data should match");
+        }
+        _ => panic!("Expected Audio Chunk event"),
+    }
+}
+
+#[test]
 fn test_backend_event_debug() {
-    // Test that BackendEvent can be formatted with Debug
-    let event = BackendEvent::AudioStarted { sample_rate: 48000 };
+    let event = BackendEvent::Status(StatusEvent::AudioStarted { sample_rate: 48000 });
     let debug_str = format!("{:?}", event);
 
     assert!(
