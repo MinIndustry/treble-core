@@ -54,15 +54,10 @@ impl fmt::Debug for DelayFilter {
 
 impl Filter for DelayFilter {
     fn transform(&mut self) -> Vec<Block> {
-        let output: Block = self
-            .source
-            .iter()
-            .map(|frame| {
-                self.buffer.push_back(*frame);
-                self.buffer.pop_front().unwrap_or([0.0; CHANNELS])
-            })
-            .collect();
-        vec![output]
+        self.buffer.extend(self.source.iter());
+        let output = self.buffer.drain(0..self.source.len());
+        self.source.clear();
+        vec![output.collect()]
     }
 
     fn postponable(&self) -> bool {

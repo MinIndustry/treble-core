@@ -3,6 +3,8 @@ use crate::core::graph::{Entry, Filter};
 use rustic_derive::FilterMetaData;
 use std::fmt;
 
+use rayon::prelude::*;
+
 /// A filter that returns the input value multiplied by a constant factor.
 /// Note: a factor < 1.0 will attenuate the input signal, while a factor > 1.0
 /// will amplify it.
@@ -40,7 +42,7 @@ impl Filter for GainFilter {
         let factor = self.factor;
         let output: Block = self
             .source
-            .iter()
+            .par_iter()
             .map(|frame| std::array::from_fn(|ch| frame[ch] * factor))
             .collect();
         vec![output]
