@@ -41,9 +41,6 @@ pub mod audio;
 /// graph building utilities.
 pub mod core;
 
-/// Input handling module for hardware devices
-pub mod inputs;
-
 /// Instruments are structures that implement the `Instrument` trait.
 pub mod instruments;
 
