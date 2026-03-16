@@ -16,7 +16,7 @@ fn test_silent_block() {
     const NUM_SAMPLES: usize = 25;
     let silent_block = silent_block(NUM_SAMPLES);
     assert_eq!(silent_block.len(), NUM_SAMPLES);
-    for i in 0..NUM_SAMPLES {
-        assert_eq!(silent_block[i], [0.0; CHANNELS]);
+    for block in silent_block.iter().take(NUM_SAMPLES) {
+        assert_eq!(*block, [0.0; CHANNELS]);
     }
 }

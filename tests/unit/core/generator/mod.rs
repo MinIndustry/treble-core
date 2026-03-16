@@ -36,8 +36,8 @@ mod composite_generator_tests {
         generator_2.start();
 
         let samples = generator_1.tick_block(NUM_SAMPLES, PERIOD);
-        for i in 0..NUM_SAMPLES {
-            assert_eq!(samples[i], generator_2.tick(PERIOD));
+        for sample in samples.iter().take(NUM_SAMPLES) {
+            assert_eq!(*sample, generator_2.tick(PERIOD));
         }
     }
 }

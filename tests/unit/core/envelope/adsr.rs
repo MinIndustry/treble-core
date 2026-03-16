@@ -82,13 +82,13 @@ mod tests {
     // - Test envelope timing and duration calculations
     #[test]
     fn test_envelope_timing() {
-        let envelope: ADSREnvelope = ADSREnvelopeBuilder::new()
+        let _envelope: ADSREnvelope = ADSREnvelopeBuilder::new()
             .attack(Box::new(LinearSegment::new(0.0, 1.0, 0.5)))
             .decay(Box::new(LinearSegment::new(1.0, 0.8, 1.0)))
             .release(Box::new(LinearSegment::new(0.8, 0.0, 1.5)))
             .build();
 
-        // envelope.
+        // TODO: finish the test
     }
 
     // - Test sustain level behavior
