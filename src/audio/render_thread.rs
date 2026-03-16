@@ -96,17 +96,12 @@ fn render_loop(
         // Run the graph for one block
         system.run();
         chunk_buffer.clear();
-        match system.get_sink(0) {
-            Ok(sink) => {
-                let frames = sink.consume();
-                log::trace!("[render] consumed {} frames from sink", frames.len());
-                for frame in &frames {
-                    chunk_buffer.push(frame[0]); // L
-                    chunk_buffer.push(frame[1]); // R
-                }
-            }
-            Err(e) => {
-                log::warn!("[render] get_sink(0) failed: {e}");
+        if let Ok(sink) = system.get_sink(0) {
+            let frames = sink.consume();
+            log::trace!("[render] consumed {} frames from sink", frames.len());
+            for frame in &frames {
+                chunk_buffer.push(frame[0]); // L
+                chunk_buffer.push(frame[1]); // R
             }
         }
 
