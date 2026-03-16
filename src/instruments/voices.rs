@@ -1,12 +1,13 @@
-//! # Voice module
-//! Defines the `Voice` capabilities of instruments. There are multiple possibilities
-//! for how an instrument can be played.
-//! ## Monophonic instruments
-//! One note at a time. The project implements two algorithms for voice allocation:
-//! - `DropCurrent`: When a note is started, the current note, if any, is dropped.
-//! - `KeepCurrent`: When a note is started, it does not replace the current note if playing.
-//!
-//! ## Polyphonic instruments
+//! Voice modes and allocation strategies for instruments.
+
+use serde::{Deserialize, Serialize};
+
+/// High-level voice mode used for instrument configuration / serialization.
+#[derive(Deserialize, Serialize)]
+pub enum VoiceMode {
+    Monophonic,
+    Polyphonic { max_voices: usize },
+}
 
 /// The monophonic voice trait. An instrument implementing this trait can play one note at a time.
 pub trait MonophonicVoice {

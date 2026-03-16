@@ -27,5 +27,5 @@ fn main() {
     ])
     .unwrap();
 
-    App::init().run();
+    let _app = App::init();
 }

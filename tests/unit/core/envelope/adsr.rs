@@ -8,7 +8,6 @@ mod tests {
         prelude::{ADSREnvelope, ADSREnvelopeBuilder, LinearSegment},
     };
 
-    // TODO: Add tests for ADSR envelope functionality
     #[test]
     fn test_adsr_phase_transition() {
         let adsr_envelope: ADSREnvelope = ADSREnvelopeBuilder::new()
@@ -28,8 +27,6 @@ mod tests {
             1.0,
             "Attack segment should last 1.0 seconds"
         );
-
-        // assert!(false, "ADSR Envelope: {}", adsr_envelope);
 
         let decay_mapping = adsr_envelope
             .decay
@@ -82,8 +79,18 @@ mod tests {
         );
     }
 
-    // - Test ADSR phase transitions (Attack -> Decay -> Sustain -> Release)
     // - Test envelope timing and duration calculations
+    #[test]
+    fn test_envelope_timing() {
+        let _envelope: ADSREnvelope = ADSREnvelopeBuilder::new()
+            .attack(Box::new(LinearSegment::new(0.0, 1.0, 0.5)))
+            .decay(Box::new(LinearSegment::new(1.0, 0.8, 1.0)))
+            .release(Box::new(LinearSegment::new(0.8, 0.0, 1.5)))
+            .build();
+
+        // TODO: finish the test
+    }
+
     // - Test sustain level behavior
     // - Test release after various hold durations
 }

@@ -2,10 +2,12 @@ use crate::Note;
 use crate::core::envelope::prelude::{
     ADSREnvelopeBuilder, BezierSegment, ConstantSegment, LinearSegment,
 };
+use crate::core::filters::prelude::GainFilter;
 use crate::core::generator::prelude::{
     FrequencyRelation, MixMode, MultiToneGenerator, Waveform,
     builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder},
 };
+use crate::core::graph::{MonophonicAllocationStrategy, MonophonicSource, SimpleSink, System};
 use crate::instruments::Instrument;
 
 /// A snare for the drum kit
@@ -14,6 +16,7 @@ pub struct Snare {
     generator: MultiToneGenerator,
     current_tick: u32,
     output: f32,
+    playing: bool,
 }
 
 impl Default for Snare {
@@ -60,20 +63,19 @@ impl Snare {
                 .build(),
             current_tick: 0,
             output: 0.0,
+            playing: false,
         }
     }
 }
 
 impl Instrument for Snare {
     fn start_note(&mut self, _note: Note, _velocity: f32) {
-        log::trace!("Starting snare");
         self.current_tick = 0;
+        self.playing = true;
         self.generator.start();
     }
 
-    fn stop_note(&mut self, _note: crate::Note) {
-        log::trace!("Stopping snare");
-        // The note will continue playing until completed
+    fn stop_note(&mut self, _note: Note) {
         self.generator.stop();
     }
 
@@ -82,8 +84,30 @@ impl Instrument for Snare {
     }
 
     fn tick(&mut self) {
+        if !self.playing {
+            self.output = 0.0;
+            return;
+        }
         self.current_tick += 1;
-
         self.output = self.generator.tick(1.0 / 44100.0);
+        if self.generator.completed() {
+            self.playing = false;
+        }
+    }
+
+    fn into_system(self: Box<Self>) -> System {
+        let source = MonophonicSource::new_percussive(
+            self.generator,
+            44100.0,
+            MonophonicAllocationStrategy::Replace,
+        );
+        let mut system = System::new();
+        let source_idx = system.add_source(Box::new(source));
+        let output = system.add_filter(Box::new(GainFilter::new(1.0)));
+        system.connect_source(source_idx, output, 0);
+        let sink_idx = system.add_sink(Box::new(SimpleSink::new()));
+        system.connect_sink(output, sink_idx, 0);
+        system.compute().expect("Snare system compute failed");
+        system
     }
 }

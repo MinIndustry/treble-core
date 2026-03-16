@@ -2,7 +2,7 @@
 //! Its purpose is to help organize the system and provide a way to interact with it.
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemConfig {
     pub sample_rate: u32,
     pub master_volume: f32,

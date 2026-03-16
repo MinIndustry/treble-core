@@ -2,10 +2,13 @@ use std::collections::HashMap;
 
 use crate::Note;
 use crate::core::envelope::prelude::{ADSREnvelope, ConstantSegment};
+use crate::core::filters::prelude::GainFilter;
 use crate::core::generator::prelude::{
     FrequencyRelation, MultiToneGenerator, Waveform,
     builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder},
 };
+use crate::core::graph::sources::{PolyphonicAllocationStrategy, PolyphonicSource};
+use crate::core::graph::{SimpleSink, System};
 use crate::core::utils::tones::TONES_FREQ;
 use crate::instruments::Instrument;
 use crate::instruments::voices::{PolyVoiceAllocator, PolyphonicVoice};
@@ -33,20 +36,26 @@ impl PolyphonicVoice for Keyboard {
 impl Keyboard {
     pub fn new(voices: usize, voice_allocator: PolyVoiceAllocator, envelope: ADSREnvelope) -> Self {
         let generators = std::iter::repeat_with(|| {
+            // Per-generator envelopes are static mix ratios only.
+            // The ADSR that controls note on/off lives on the MultiToneGenerator
+            // so that ALL generators (sine + noise) fade together on key release,
+            // and completed() can rely on a single authoritative envelope.
             let generator = MultiToneGeneratorBuilder::new()
                 .add_generator(
                     ToneGeneratorBuilder::new()
-                        .amplitude_envelope(Box::new(envelope.clone()))
+                        .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
                         .waveform(Waveform::Sine)
                         .frequency_relation(FrequencyRelation::Identity)
                         .build(),
                 )
                 .add_generator(
                     ToneGeneratorBuilder::new()
-                        .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
-                        .waveform(Waveform::WhiteNoise)
+                        .amplitude_envelope(Box::new(ConstantSegment::new(0.2, None)))
+                        .waveform(Waveform::Sawtooth)
+                        .frequency_relation(FrequencyRelation::Harmonic(1))
                         .build(),
                 )
+                .amplitude_envelope(Some(Box::new(envelope.clone())))
                 .build();
 
             (generator, false)
@@ -118,5 +127,31 @@ impl Instrument for Keyboard {
             })
             .sum::<f32>()
             / self.generators.len() as f32
+    }
+
+    fn into_system(self: Box<Self>) -> System {
+        let voice_count = self.generators.len();
+        let template = self
+            .generators
+            .into_iter()
+            .next()
+            .map(|(g, _)| g)
+            .unwrap_or_default();
+
+        let source = PolyphonicSource::new(
+            template,
+            voice_count.max(1),
+            44100.0,
+            PolyphonicAllocationStrategy::default(),
+        );
+
+        let mut system = System::new();
+        let source_idx = system.add_source(Box::new(source));
+        let output = system.add_filter(Box::new(GainFilter::new(1.0)));
+        system.connect_source(source_idx, output, 0);
+        let sink_idx = system.add_sink(Box::new(SimpleSink::new()));
+        system.connect_sink(output, sink_idx, 0);
+        system.compute().expect("Keyboard system compute failed");
+        system
     }
 }

@@ -1,14 +1,16 @@
-use rodio::buffer::SamplesBuffer;
-use rodio::{OutputStream, Sink};
-
+use core::time;
 use log::error;
 use simplelog::*;
 use std::fs::File;
+use std::thread;
 
-use rustic::Note;
-use rustic::instruments::Instrument;
+use rustic::audio::{AudioEvent, BackendEvent, EventFilter, StatusEvent};
 use rustic::instruments::prelude::{HiHat, Kick, Snare};
-use rustic::prelude::App;
+use rustic::prelude::{App, AudioCommand, Command};
+use rustic::{NOTES, Note};
+
+#[cfg(feature = "plotting")]
+use rustic::plotting::plot_data;
 
 fn main() {
     CombinedLogger::init(vec![
@@ -26,100 +28,121 @@ fn main() {
     ])
     .unwrap();
 
-    let app = App::init();
+    log::info!("Starting engine");
+    let mut app = App::init();
 
-    let mut hihat = match HiHat::new() {
+    let hihat = match HiHat::new() {
         Ok(h) => h,
         Err(e) => {
             error!("Unable to create hihat: {}", e);
             return;
         }
     };
+    let kick = Kick::new();
+    let snare = Snare::new();
 
-    let mut kick = Kick::new();
-    let mut snare = Snare::new();
+    app.add_instrument(Box::new(hihat));
+    app.add_instrument(Box::new(kick));
+    app.add_instrument(Box::new(snare));
 
-    let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-    let sink = Sink::try_new(&stream_handle).unwrap();
+    let event_rx = match app.start(EventFilter::all()) {
+        Ok(er) => er,
+        Err(e) => {
+            log::error!("Unable to start rustic app: {e:?}");
+            return;
+        }
+    };
 
-    let mut values = vec![];
-    let mut complete_value_list = vec![];
+    // Collect audio chunks from the render thread for plotting
+    let capture_handle = std::thread::spawn(move || {
+        let mut samples: Vec<f32> = vec![];
+        while let Ok(event) = event_rx.recv() {
+            match event {
+                BackendEvent::Audio(AudioEvent::Chunk(chunk)) => {
+                    // Chunks are stereo-interleaved (L, R, L, R, …); take left channel only
+                    samples.extend(chunk.into_iter().step_by(2));
+                }
+                BackendEvent::Status(StatusEvent::AudioStopped) => break,
+                _ => {}
+            }
+        }
+        samples
+    });
+
+    // Wait a bit for the audio to start
+    thread::sleep(time::Duration::from_millis(500));
+    let mut values: Vec<f32> = vec![];
+
     for i in 0..40 {
         values.clear();
 
         if i % 4 == 1 {
-            kick.start_note(Note(rustic::core::utils::tones::NOTES::A, 0), 0.0);
+            if let Err(e) = app.send(Command::Audio(AudioCommand::NoteStart {
+                instrument_idx: 1,
+                note: Note::new(NOTES::A, 4),
+                velocity: 1.0,
+            })) {
+                log::error!("Unable to start note: {}", e);
+            }
         } else if i % 4 == 3 {
-            snare.start_note(Note(rustic::core::utils::tones::NOTES::A, 0), 0.0);
+            let _ = app.send(Command::Audio(AudioCommand::NoteStart {
+                instrument_idx: 2,
+                note: Note::new(NOTES::A, 4),
+                velocity: 1.0,
+            }));
         } else if i < 39 {
-            hihat.start_note(Note(rustic::core::utils::tones::NOTES::A, 0), 0.0);
+            let _ = app.send(Command::Audio(AudioCommand::NoteStart {
+                instrument_idx: 0,
+                note: Note::new(NOTES::A, 4),
+                velocity: 1.0,
+            }));
         }
 
-        for _ in 0..(app.config.system.sample_rate as usize / 4) {
-            kick.tick();
-            hihat.tick();
-            snare.tick();
+        thread::sleep(time::Duration::from_millis(250));
 
-            let hihat_output = hihat.get_output();
-            let full = hihat_output + kick.get_output() + snare.get_output();
-
-            values.push(full); // Left
-            values.push(full); // Right
-
-            complete_value_list.push(full);
-            complete_value_list.push(full);
-        }
-
-        kick.stop_note(Note(rustic::core::utils::tones::NOTES::A, 0));
-        hihat.stop_note(Note(rustic::core::utils::tones::NOTES::A, 0));
-        snare.stop_note(Note(rustic::core::utils::tones::NOTES::A, 0));
-
-        sink.append(SamplesBuffer::new(
-            2_u16,
-            app.config.system.sample_rate,
-            values.to_vec(),
-        ));
+        let _ = app.send(Command::Audio(AudioCommand::NoteStop {
+            instrument_idx: 0,
+            note: Note::new(NOTES::A, 4),
+        }));
+        let _ = app.send(Command::Audio(AudioCommand::NoteStop {
+            instrument_idx: 1,
+            note: Note::new(NOTES::A, 4),
+        }));
+        let _ = app.send(Command::Audio(AudioCommand::NoteStop {
+            instrument_idx: 2,
+            note: Note::new(NOTES::A, 4),
+        }));
     }
+
+    thread::sleep(time::Duration::from_secs(3));
+    let _ = app.stop();
+
+    #[cfg(feature = "plotting")]
+    let samples = capture_handle.join().unwrap_or_default();
+    #[cfg(not(feature = "plotting"))]
+    drop(capture_handle);
 
     #[cfg(feature = "plotting")]
     {
-        use rustic::plotting::Plot;
-
-        let left_ear = complete_value_list
+        let left_ear: Vec<(f32, f32)> = samples
             .iter()
             .enumerate()
-            .filter_map(|(position, element)| {
-                if position % 2 == 0 {
-                    Some((
-                        (position as f32 / 2.0) / app.config.system.sample_rate,
-                        *element,
-                    ))
-                } else {
-                    None
-                }
+            .map(|(position, element)| {
+                (
+                    (position as f32 / 2.0) / app.config.system.sample_rate as f32,
+                    *element,
+                )
             })
             .collect();
 
-        let right_ear = complete_value_list
-            .iter()
-            .enumerate()
-            .filter_map(|(position, element)| {
-                if position % 2 == 1 {
-                    Some((
-                        (position as f32 / 2.0) / app.config.system.sample_rate,
-                        *element,
-                    ))
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        let mut plot = Plot::new("Simple Drum", (-0.1, 1.0), (-0.8, 0.8), "drum.png");
-        plot.plot(left_ear, "left ear", (255, 0, 0));
-        plot.plot(right_ear, "right_ear", (0, 255, 0));
-        plot.render();
+        if let Err(e) = plot_data(
+            left_ear,
+            "Drum machine Waveform",
+            (-0.1, 2.1),
+            (-1.1, 1.1),
+            "drum_machine.png",
+        ) {
+            log::error!("Error: {}", e.to_string());
+        }
     }
-
-    sink.sleep_until_end();
 }

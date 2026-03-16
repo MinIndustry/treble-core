@@ -6,14 +6,14 @@ use crate::core::{
     generator::{prelude::MixMode, tone::SingleToneGenerator},
 };
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 /// A generator that produces multiple tones. Each
 /// tone can have its own frequency relation, waveform,
 /// and envelopes.
 pub struct MultiToneGenerator {
     base_frequency: f32,
     tone_generators: Vec<SingleToneGenerator>,
-    mix_mode: super::prelude::MixMode,
+    mix_mode: MixMode,
     global_pitch_envelope: Option<Box<dyn Envelope>>,
     global_amplitude_envelope: Option<Box<dyn Envelope>>,
     time: f32,
@@ -23,8 +23,8 @@ pub struct MultiToneGenerator {
 impl MultiToneGenerator {
     pub fn new(
         base_frequency: f32,
-        mut tone_generators: Vec<super::tone::SingleToneGenerator>,
-        mix_mode: super::prelude::MixMode,
+        mut tone_generators: Vec<SingleToneGenerator>,
+        mix_mode: MixMode,
         global_pitch_envelope: Option<Box<dyn Envelope>>,
         global_amplitude_envelope: Option<Box<dyn Envelope>>,
     ) -> Self {
@@ -66,16 +66,24 @@ impl MultiToneGenerator {
     }
 
     pub fn completed(&self) -> bool {
-        // A composite generator is completed when all its tone generators are completed
-        // or when there's a note_off and sufficient time has passed for all envelopes to finish
         if self.tone_generators.is_empty() {
             return true;
         }
 
-        // Check if all tone generators have completed
+        // When a global amplitude envelope is present it is the sole authority on
+        // completion — individual tone generators may use infinite-duration segments
+        // as static mix-ratio controls and should not block completion.
+        if let Some(envelope) = &self.global_amplitude_envelope {
+            return self
+                .note_off
+                .map(|note_off| envelope.completed(self.time, note_off))
+                .unwrap_or(false);
+        }
+
         self.tone_generators.iter().all(|tg| tg.completed())
     }
 
+    /// Runs the generator for 1 sample
     pub fn tick(&mut self, time_elapsed: f32) -> f32 {
         let actual_elapsed = if let Some(envelope) = &self.global_pitch_envelope {
             time_elapsed * envelope.at(self.time, self.note_off.unwrap_or(0.0))
@@ -100,27 +108,18 @@ impl MultiToneGenerator {
         };
 
         if let Some(envelope) = &self.global_amplitude_envelope {
-            trace!(
-                "Composite Generator ticking: t:{} e:{} a:{} ae:{} ({}Hz)",
-                self.time,
-                envelope.at(self.time, self.note_off.unwrap_or(0.0)),
-                ampl,
-                ampl * envelope.at(self.time, self.note_off.unwrap_or(0.0)),
-                self.base_frequency
-            );
-
             ampl * envelope.at(self.time, self.note_off.unwrap_or(0.0))
         } else {
-            trace!(
-                "Composite Generator ticking: t:{} a:{} ({}Hz)",
-                self.time, ampl, self.base_frequency
-            );
-
             ampl
         }
     }
 
-    pub fn add_tone(&mut self, tone: super::tone::SingleToneGenerator) {
+    /// Runs the generator for `n` samples
+    pub fn tick_block(&mut self, n: usize, dt: f32) -> Vec<f32> {
+        (0..n).map(|_| self.tick(dt)).collect()
+    }
+
+    pub fn add_tone(&mut self, tone: SingleToneGenerator) {
         self.tone_generators.push(tone);
     }
 
@@ -133,5 +132,9 @@ impl MultiToneGenerator {
 
     pub fn tone_count(&self) -> usize {
         self.tone_generators.len()
+    }
+
+    pub fn set_global_amplitude_envelope(&mut self, envelope: Box<dyn Envelope>) {
+        self.global_amplitude_envelope = Some(envelope);
     }
 }

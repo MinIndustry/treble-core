@@ -11,7 +11,11 @@
 //! These tests focus on the data structures and their behavior.
 
 use rustic::Note;
-use rustic::audio::{AudioMessage, BackendEvent, SharedAudioState};
+use rustic::audio::messages::InstrumentAudioMessage;
+use rustic::audio::{
+    AudioEvent, AudioMessage, BackendEvent, DiagnosticsEvent, ErrorEvent, SharedAudioState,
+    StatusEvent,
+};
 use rustic::core::utils::NOTES;
 use std::sync::atomic::Ordering;
 
@@ -165,11 +169,10 @@ fn test_shared_audio_state_master_volume() {
 
 #[test]
 fn test_backend_event_audio_started() {
-    // Test creating AudioStarted event
-    let event = BackendEvent::AudioStarted { sample_rate: 48000 };
+    let event = BackendEvent::Status(StatusEvent::AudioStarted { sample_rate: 48000 });
 
     match event {
-        BackendEvent::AudioStarted { sample_rate } => {
+        BackendEvent::Status(StatusEvent::AudioStarted { sample_rate }) => {
             assert_eq!(sample_rate, 48000, "Sample rate should be 48000");
         }
         _ => panic!("Expected AudioStarted event"),
@@ -178,41 +181,36 @@ fn test_backend_event_audio_started() {
 
 #[test]
 fn test_backend_event_audio_stopped() {
-    // Test creating AudioStopped event
-    let event = BackendEvent::AudioStopped;
+    let event = BackendEvent::Status(StatusEvent::AudioStopped);
 
     match event {
-        BackendEvent::AudioStopped => {
-            // Expected
-        }
+        BackendEvent::Status(StatusEvent::AudioStopped) => {}
         _ => panic!("Expected AudioStopped event"),
     }
 }
 
 #[test]
 fn test_backend_event_command_error() {
-    // Test creating CommandError event
-    let event = BackendEvent::CommandError {
+    let event = BackendEvent::Error(ErrorEvent::CommandFailed {
         command: "NoteStart".to_string(),
-        error: "Invalid velocity".to_string(),
-    };
+        message: "Invalid velocity".to_string(),
+    });
 
     match event {
-        BackendEvent::CommandError { command, error } => {
+        BackendEvent::Error(ErrorEvent::CommandFailed { command, message }) => {
             assert_eq!(command, "NoteStart", "Command should be 'NoteStart'");
-            assert_eq!(error, "Invalid velocity", "Error should match");
+            assert_eq!(message, "Invalid velocity", "Error should match");
         }
-        _ => panic!("Expected CommandError event"),
+        _ => panic!("Expected CommandFailed event"),
     }
 }
 
 #[test]
 fn test_backend_event_buffer_underrun() {
-    // Test creating BufferUnderrun event
-    let event = BackendEvent::BufferUnderrun { count: 42 };
+    let event = BackendEvent::Diagnostics(DiagnosticsEvent::BufferUnderrun { count: 42 });
 
     match event {
-        BackendEvent::BufferUnderrun { count } => {
+        BackendEvent::Diagnostics(DiagnosticsEvent::BufferUnderrun { count }) => {
             assert_eq!(count, 42, "Underrun count should be 42");
         }
         _ => panic!("Expected BufferUnderrun event"),
@@ -221,17 +219,16 @@ fn test_backend_event_buffer_underrun() {
 
 #[test]
 fn test_backend_event_metrics() {
-    // Test creating Metrics event
-    let event = BackendEvent::Metrics {
+    let event = BackendEvent::Diagnostics(DiagnosticsEvent::Metrics {
         cpu_usage: 25.5,
         latency_ms: 12.3,
-    };
+    });
 
     match event {
-        BackendEvent::Metrics {
+        BackendEvent::Diagnostics(DiagnosticsEvent::Metrics {
             cpu_usage,
             latency_ms,
-        } => {
+        }) => {
             assert!((cpu_usage - 25.5).abs() < 0.0001, "CPU usage should match");
             assert!((latency_ms - 12.3).abs() < 0.0001, "Latency should match");
         }
@@ -241,14 +238,13 @@ fn test_backend_event_metrics() {
 
 #[test]
 fn test_backend_event_clone() {
-    // Test that BackendEvent can be cloned
-    let original = BackendEvent::AudioStarted { sample_rate: 44100 };
+    let original = BackendEvent::Status(StatusEvent::AudioStarted { sample_rate: 44100 });
     let cloned = original.clone();
 
     match (original, cloned) {
         (
-            BackendEvent::AudioStarted { sample_rate: rate1 },
-            BackendEvent::AudioStarted { sample_rate: rate2 },
+            BackendEvent::Status(StatusEvent::AudioStarted { sample_rate: rate1 }),
+            BackendEvent::Status(StatusEvent::AudioStarted { sample_rate: rate2 }),
         ) => {
             assert_eq!(rate1, rate2, "Cloned event should have same sample rate");
         }
@@ -257,9 +253,21 @@ fn test_backend_event_clone() {
 }
 
 #[test]
+fn test_backend_event_audio_chunk() {
+    let chunk = vec![0.1f32, -0.1, 0.2, -0.2];
+    let event = BackendEvent::Audio(AudioEvent::Chunk(chunk.clone()));
+
+    match event {
+        BackendEvent::Audio(AudioEvent::Chunk(data)) => {
+            assert_eq!(data, chunk, "Chunk data should match");
+        }
+        _ => panic!("Expected Audio Chunk event"),
+    }
+}
+
+#[test]
 fn test_backend_event_debug() {
-    // Test that BackendEvent can be formatted with Debug
-    let event = BackendEvent::AudioStarted { sample_rate: 48000 };
+    let event = BackendEvent::Status(StatusEvent::AudioStarted { sample_rate: 48000 });
     let debug_str = format!("{:?}", event);
 
     assert!(
@@ -279,19 +287,19 @@ fn test_backend_event_debug() {
 #[test]
 fn test_audiomessage_notestart() {
     // Test creating NoteStart message
-    let msg = AudioMessage::NoteStart {
-        instrument_idx: 0,
+    let msg = AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
+        source_index: 0,
         note: Note(NOTES::A, 4),
         velocity: 0.8,
-    };
+    });
 
     match msg {
-        AudioMessage::NoteStart {
-            instrument_idx,
+        AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
+            source_index,
             note,
             velocity,
-        } => {
-            assert_eq!(instrument_idx, 0, "Instrument index should be 0");
+        }) => {
+            assert_eq!(source_index, 0, "Source index should be 0");
             assert_eq!(note, Note(NOTES::A, 4), "Note should be A4");
             assert_eq!(velocity, 0.8, "Velocity should be 0.8");
         }
@@ -302,60 +310,17 @@ fn test_audiomessage_notestart() {
 #[test]
 fn test_audiomessage_notestop() {
     // Test creating NoteStop message
-    let msg = AudioMessage::NoteStop {
-        instrument_idx: 1,
+    let msg = AudioMessage::Instrument(InstrumentAudioMessage::NoteStop {
+        source_index: 1,
         note: Note(NOTES::C, 5),
-    };
+    });
 
     match msg {
-        AudioMessage::NoteStop {
-            instrument_idx,
-            note,
-        } => {
-            assert_eq!(instrument_idx, 1, "Instrument index should be 1");
+        AudioMessage::Instrument(InstrumentAudioMessage::NoteStop { source_index, note }) => {
+            assert_eq!(source_index, 1, "Source index should be 1");
             assert_eq!(note, Note(NOTES::C, 5), "Note should be C5");
         }
         _ => panic!("Expected NoteStop message"),
-    }
-}
-
-#[test]
-fn test_audiomessage_setoctave() {
-    // Test creating SetOctave message
-    let msg = AudioMessage::SetOctave { row: 0, octave: 6 };
-
-    match msg {
-        AudioMessage::SetOctave { row, octave } => {
-            assert_eq!(row, 0, "Row should be 0");
-            assert_eq!(octave, 6, "Octave should be 6");
-        }
-        _ => panic!("Expected SetOctave message"),
-    }
-}
-
-#[test]
-fn test_audiomessage_setmastervolume() {
-    // Test creating SetMasterVolume message
-    let msg = AudioMessage::SetMasterVolume { volume: 0.7 };
-
-    match msg {
-        AudioMessage::SetMasterVolume { volume } => {
-            assert_eq!(volume, 0.7, "Volume should be 0.7");
-        }
-        _ => panic!("Expected SetMasterVolume message"),
-    }
-}
-
-#[test]
-fn test_audiomessage_setsamplerate() {
-    // Test creating SetSampleRate message
-    let msg = AudioMessage::SetSampleRate { rate: 48000 };
-
-    match msg {
-        AudioMessage::SetSampleRate { rate } => {
-            assert_eq!(rate, 48000, "Rate should be 48000");
-        }
-        _ => panic!("Expected SetSampleRate message"),
     }
 }
 
@@ -375,27 +340,27 @@ fn test_audiomessage_shutdown() {
 #[test]
 fn test_audiomessage_clone() {
     // Test that AudioMessage can be cloned
-    let original = AudioMessage::NoteStart {
-        instrument_idx: 0,
+    let original = AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
+        source_index: 0,
         note: Note(NOTES::D, 3),
         velocity: 0.5,
-    };
+    });
     let cloned = original.clone();
 
     match (original, cloned) {
         (
-            AudioMessage::NoteStart {
-                instrument_idx: idx1,
+            AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
+                source_index: idx1,
                 note: note1,
                 velocity: vel1,
-            },
-            AudioMessage::NoteStart {
-                instrument_idx: idx2,
+            }),
+            AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
+                source_index: idx2,
                 note: note2,
                 velocity: vel2,
-            },
+            }),
         ) => {
-            assert_eq!(idx1, idx2, "Cloned instrument index should match");
+            assert_eq!(idx1, idx2, "Cloned source index should match");
             assert_eq!(note1, note2, "Cloned note should match");
             assert_eq!(vel1, vel2, "Cloned velocity should match");
         }
@@ -406,11 +371,11 @@ fn test_audiomessage_clone() {
 #[test]
 fn test_audiomessage_debug() {
     // Test that AudioMessage can be formatted with Debug
-    let msg = AudioMessage::NoteStart {
-        instrument_idx: 0,
+    let msg = AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
+        source_index: 0,
         note: Note(NOTES::E, 4),
         velocity: 0.9,
-    };
+    });
     let debug_str = format!("{:?}", msg);
 
     assert!(
@@ -422,19 +387,16 @@ fn test_audiomessage_debug() {
 #[test]
 fn test_audiomessage_all_variants() {
     // Test that all AudioMessage variants can be created
-    let messages = vec![
-        AudioMessage::NoteStart {
-            instrument_idx: 0,
+    let messages: Vec<AudioMessage> = vec![
+        AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
+            source_index: 0,
             note: Note(NOTES::C, 4),
             velocity: 0.8,
-        },
-        AudioMessage::NoteStop {
-            instrument_idx: 0,
+        }),
+        AudioMessage::Instrument(InstrumentAudioMessage::NoteStop {
+            source_index: 0,
             note: Note(NOTES::C, 4),
-        },
-        AudioMessage::SetOctave { row: 0, octave: 5 },
-        AudioMessage::SetMasterVolume { volume: 0.75 },
-        AudioMessage::SetSampleRate { rate: 44100 },
+        }),
         AudioMessage::Shutdown,
     ];
 
@@ -511,31 +473,27 @@ fn test_shared_state_concurrent_access_pattern() {
 fn test_message_queue_pattern() {
     // Demonstrate the pattern of queuing audio messages
     // (This doesn't test the actual queue, just the message types)
-    let messages = vec![
-        AudioMessage::NoteStart {
-            instrument_idx: 0,
+    let messages: Vec<AudioMessage> = vec![
+        AudioMessage::Instrument(InstrumentAudioMessage::NoteStart {
+            source_index: 0,
             note: Note(NOTES::C, 4),
             velocity: 0.8,
-        },
-        AudioMessage::SetOctave { row: 0, octave: 5 },
-        AudioMessage::NoteStop {
-            instrument_idx: 0,
+        }),
+        AudioMessage::Instrument(InstrumentAudioMessage::NoteStop {
+            source_index: 0,
             note: Note(NOTES::C, 4),
-        },
+        }),
     ];
 
     // Verify we can process them
-    assert_eq!(messages.len(), 3, "Should have 3 messages queued");
+    assert_eq!(messages.len(), 2, "Should have 2 messages queued");
 
     for msg in messages {
         match msg {
-            AudioMessage::NoteStart { .. } => {
+            AudioMessage::Instrument(InstrumentAudioMessage::NoteStart { .. }) => {
                 // Would trigger note start in real system
             }
-            AudioMessage::SetOctave { .. } => {
-                // Would update octave in real system
-            }
-            AudioMessage::NoteStop { .. } => {
+            AudioMessage::Instrument(InstrumentAudioMessage::NoteStop { .. }) => {
                 // Would trigger note stop in real system
             }
             _ => {}

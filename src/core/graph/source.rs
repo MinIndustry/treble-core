@@ -1,50 +1,35 @@
-use super::{AudioGraphElement, Source};
-use crate::core::generator::prelude::MultiToneGenerator;
+use crate::core::audio::Block;
+use crate::core::utils::Note;
+use dyn_clone::DynClone;
 
-#[derive(Debug)]
-pub struct SimpleSource {
-    generator: MultiToneGenerator,
-    sample_rate: f32,
-    index: usize,
-}
+/// The source trait defines node that can be used as source in the audio graph.
+pub trait Source: std::fmt::Debug + DynClone + Send + Sync {
+    /// Pull exactly one Block (block_size frames) of stereo audio.
+    /// The block_size is known to the source via the System that owns it.
+    fn pull(&mut self, block_size: usize) -> Block;
 
-impl SimpleSource {
-    pub fn new(generator: MultiToneGenerator, sample_rate: f32) -> Self {
-        Self {
-            generator,
-            sample_rate,
-            index: 0,
-        }
+    /// Soft start, envelope attack begins
+    fn start(&mut self) {}
+    /// Soft stop, let the release phase of the envelope finish
+    fn stop(&mut self) {}
+    /// Hard stop, don't care about the release phase
+    fn kill(&mut self) {}
+
+    /// Note-aware start (defaults to start()).
+    fn start_note(&mut self, _note: Note, _velocity: f32) {
+        self.start();
     }
-}
-
-impl AudioGraphElement for SimpleSource {
-    fn get_name(&self) -> &str {
-        "Simple Sine Source"
-    }
-
-    fn get_index(&self) -> usize {
-        self.index
+    /// Note-aware stop (defaults to stop()).
+    fn stop_note(&mut self, _note: Note) {
+        self.stop();
     }
 
-    fn set_index(&mut self, index: usize) {
-        self.index = index;
+    /// True while the source is producing non-silent output (or during release).
+    fn is_active(&self) -> bool {
+        false
     }
-}
 
-impl Source for SimpleSource {
-    fn pull(&mut self) -> f32 {
-        self.generator.tick(1.0 / self.sample_rate)
-    }
+    /// Set a named parameter on this source (e.g. frequency, attack, sustain).
+    fn set_parameter(&mut self, _name: &str, _value: f32) {}
 }
-
-/// Creates a simple source with a given generator and frequency
-pub fn simple_source(generator: MultiToneGenerator) -> Box<dyn Source> {
-    let source = SimpleSource {
-        generator,
-        sample_rate: 44100.0,
-        index: 0,
-    };
-
-    Box::new(source)
-}
+dyn_clone::clone_trait_object!(Source);

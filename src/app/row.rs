@@ -16,7 +16,7 @@ impl Default for Row {
 }
 
 impl Row {
-    pub fn get_note(&mut self, note: u8) -> Note {
+    pub fn get_note(&self, note: u8) -> Note {
         Note(NOTES::from(note), self.octave)
     }
 }

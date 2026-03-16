@@ -16,6 +16,8 @@
 //! Implementations should map `time` and `note_off` to the appropriate stage
 //! and return a normalized amplitude in `[0.0, 1.0]`.
 
+use dyn_clone::DynClone;
+
 mod adsr;
 mod adsr_builder;
 
@@ -25,7 +27,7 @@ mod segment;
 /// The base principle is simply to have a function with a varying value over time.
 /// This value can then be used to shape either the amplitude, frequency or any other parameter of a sound.
 #[typetag::serde]
-pub trait Envelope: std::fmt::Display + std::fmt::Debug + Send + Sync {
+pub trait Envelope: std::fmt::Display + std::fmt::Debug + Send + Sync + DynClone {
     /// Returns the envelope value at the given point in time. The timestamps
     /// is expected to be mapped to the envelope's duration, that is the
     /// minimum value is 0.0.
@@ -35,6 +37,7 @@ pub trait Envelope: std::fmt::Display + std::fmt::Debug + Send + Sync {
     /// current time & note_off timestamp
     fn completed(&self, time: f32, note_off: f32) -> bool;
 }
+dyn_clone::clone_trait_object!(Envelope);
 
 pub mod prelude {
     pub use super::adsr::*;
