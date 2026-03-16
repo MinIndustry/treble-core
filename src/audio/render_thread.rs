@@ -129,12 +129,17 @@ fn render_loop(
 
         block_count += 1;
         // Every ~1 second (86 blocks @ 512 frames / 44100 Hz), log a status line
-        if block_count % 86 == 0 {
+        if block_count.is_multiple_of(86) {
             let max_sample = chunk_buffer.iter().cloned().fold(0.0_f32, f32::max);
-            let active_sources = (0..system.sources_len()).filter(|&i| system.is_source_active(i)).count();
+            let active_sources = (0..system.sources_len())
+                .filter(|&i| system.is_source_active(i))
+                .count();
             log::info!(
                 "[render] block={block_count} queue={}/{} chunk={} samples max={:.4} active_sources={active_sources}/{}",
-                audio_queue.len(), target_samples, chunk_buffer.len(), max_sample,
+                audio_queue.len(),
+                target_samples,
+                chunk_buffer.len(),
+                max_sample,
                 system.sources_len()
             );
         }
@@ -168,9 +173,15 @@ fn process_graph_message(system: &mut System, cmd: GraphAudioMessage, event_tx: 
             *system = System::silent();
         }
         GraphAudioMessage::StartSource { source_index } => {
-            log::info!("[render] StartSource source_index={source_index} (system has {} sources)", system.sources_len());
+            log::info!(
+                "[render] StartSource source_index={source_index} (system has {} sources)",
+                system.sources_len()
+            );
             system.start_source(source_index);
-            log::info!("[render] source {source_index} is_active={}", system.is_source_active(source_index));
+            log::info!(
+                "[render] source {source_index} is_active={}",
+                system.is_source_active(source_index)
+            );
         }
         GraphAudioMessage::StopSource { source_index } => {
             log::info!("[render] StopSource source_index={source_index}");

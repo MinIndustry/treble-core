@@ -52,7 +52,8 @@ fn mix_blocks(blocks: Vec<Block>, mode: &MixMode, block_size: usize) -> Block {
                     }
                     if matches!(mode, MixMode::Average) {
                         let inv = 1.0 / count as f32;
-                        acc.iter_mut().for_each(|f| f.iter_mut().for_each(|s| *s *= inv));
+                        acc.iter_mut()
+                            .for_each(|f| f.iter_mut().for_each(|s| *s *= inv));
                     }
                     acc
                 }
@@ -200,7 +201,8 @@ impl System {
 
         log::trace!("Merging two graphs together");
         for (from, to) in mapping.iter() {
-            let (graph_b_source_descendant_index, graph_b_node_port) = other.sources[*to].1
+            let (graph_b_source_descendant_index, graph_b_node_port) = other.sources[*to]
+                .1
                 .first()
                 .copied()
                 .unwrap_or((NodeIndex::new(0), 0));
@@ -424,10 +426,10 @@ impl System {
                 if w.from_source > index {
                     w.from_source -= 1;
                 }
-                if let ModTarget::Source(ref mut t) = w.target {
-                    if *t > index {
-                        *t -= 1;
-                    }
+                if let ModTarget::Source(ref mut t) = w.target
+                    && *t > index
+                {
+                    *t -= 1;
                 }
             }
             Some(removed)
@@ -443,7 +445,11 @@ impl System {
         if !self.mod_wires.iter().any(|w| {
             w.from_source == from_source && w.target == target && w.param_name == param_name
         }) {
-            self.mod_wires.push(ModWire { from_source, target, param_name });
+            self.mod_wires.push(ModWire {
+                from_source,
+                target,
+                param_name,
+            });
         }
     }
 
@@ -550,10 +556,7 @@ impl System {
             .enumerate()
             .map(|(i, (source, connections))| {
                 let block = source.pull(block_size);
-                log::trace!(
-                    "[system::run] source[{i}] active={}",
-                    source.is_active()
-                );
+                log::trace!("[system::run] source[{i}] active={}", source.is_active());
                 (block, connections.clone())
             })
             .collect::<Vec<_>>()
@@ -636,7 +639,10 @@ impl System {
                         .collect();
                     for (out_port, in_port) in edges {
                         if let Some(block) = outputs.get(out_port) {
-                            pending.entry((neighbour, in_port)).or_default().push(block.clone());
+                            pending
+                                .entry((neighbour, in_port))
+                                .or_default()
+                                .push(block.clone());
                         }
                     }
                 }
@@ -646,25 +652,37 @@ impl System {
         }
 
         // Push cached filter outputs to filter-connected sinks (no double-transform)
-        self.sinks.iter_mut().enumerate().for_each(|(i, ((node, port), sink))| {
-            if let Some(outputs) = node_outputs.get(node) {
-                if let Some(val) = outputs.get(*port) {
-                    log::trace!("[system::run] sink[{i}] ← NodeIndex({}) port={port}", node.index());
-                    sink.push(val.clone(), 0);
+        self.sinks
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, ((node, port), sink))| {
+                if let Some(outputs) = node_outputs.get(node) {
+                    if let Some(val) = outputs.get(*port) {
+                        log::trace!(
+                            "[system::run] sink[{i}] ← NodeIndex({}) port={port}",
+                            node.index()
+                        );
+                        sink.push(val.clone(), 0);
+                    } else {
+                        log::trace!(
+                            "[system::run] sink[{i}] ← NodeIndex({}) port={port} NOT FOUND",
+                            node.index()
+                        );
+                    }
                 } else {
-                    log::trace!("[system::run] sink[{i}] ← NodeIndex({}) port={port} NOT FOUND", node.index());
+                    log::trace!(
+                        "[system::run] sink[{i}] ← NodeIndex({}) not in outputs",
+                        node.index()
+                    );
                 }
-            } else {
-                log::trace!("[system::run] sink[{i}] ← NodeIndex({}) not in outputs", node.index());
-            }
-        });
+            });
 
         // Push source blocks to directly-wired sinks
         for &(src_idx, sink_idx) in &self.source_sink_wires {
-            if let Some(block) = source_blocks.get(src_idx) {
-                if let Some((_, sink)) = self.sinks.get_mut(sink_idx) {
-                    sink.push(block.clone(), 0);
-                }
+            if let Some(block) = source_blocks.get(src_idx)
+                && let Some((_, sink)) = self.sinks.get_mut(sink_idx)
+            {
+                sink.push(block.clone(), 0);
             }
         }
     }
@@ -672,11 +690,20 @@ impl System {
     /// Starts a source by index (note-on)
     pub fn start_source(&mut self, index: usize) {
         if let Some((source, _)) = self.sources.get_mut(index) {
-            log::info!("[system] start_source({index}): was_active={}", source.is_active());
+            log::info!(
+                "[system] start_source({index}): was_active={}",
+                source.is_active()
+            );
             source.start();
-            log::info!("[system] start_source({index}): now_active={}", source.is_active());
+            log::info!(
+                "[system] start_source({index}): now_active={}",
+                source.is_active()
+            );
         } else {
-            log::warn!("[system] start_source({index}): index out of range (sources.len={})", self.sources.len());
+            log::warn!(
+                "[system] start_source({index}): index out of range (sources.len={})",
+                self.sources.len()
+            );
         }
     }
 

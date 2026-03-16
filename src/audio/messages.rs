@@ -8,6 +8,7 @@ use crate::core::graph::{ModTarget, System};
 
 /// Messages sent from App to the audio render thread.
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum AudioMessage {
     /// Instrument note control — routed by source index in the compiled System.
     Instrument(InstrumentAudioMessage),

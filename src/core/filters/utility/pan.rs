@@ -18,7 +18,7 @@ impl PanFilter {
     pub fn new(direction: f32) -> Self {
         Self {
             source: Vec::new(),
-            direction: direction,
+            direction,
         }
     }
 }

@@ -111,7 +111,9 @@ pub(crate) fn handle_graph_command(
                 // from_is_source && to_is_sink: direct wire, no filter in between
                 let src_idx = gs.source_map[&from];
                 let sink_idx = gs.sink_map[&to];
-                log::info!("[graph] Connect: source {from}(idx={src_idx}) → sink {to}(idx={sink_idx}) direct wire");
+                log::info!(
+                    "[graph] Connect: source {from}(idx={src_idx}) → sink {to}(idx={sink_idx}) direct wire"
+                );
                 gs.system.connect_source_to_sink(src_idx, sink_idx);
             }
             recompute_topology(gs)
@@ -131,12 +133,12 @@ pub(crate) fn handle_graph_command(
                 {
                     gs.system.disconnect_source(src_idx, filter_idx);
                 }
-            } else if !from_is_source && !to_is_sink {
-                if let (Some(&from_idx), Some(&to_idx)) =
+            } else if !from_is_source
+                && !to_is_sink
+                && let (Some(&from_idx), Some(&to_idx)) =
                     (gs.filter_map.get(&from), gs.filter_map.get(&to))
-                {
-                    let _ = gs.system.disconnect(from_idx, to_idx);
-                }
+            {
+                let _ = gs.system.disconnect(from_idx, to_idx);
             }
             // filter→sink: sinks track a single (from, port) connection; the new connection
             // from connect_sink() will overwrite it on the next Connect, so no explicit
@@ -144,7 +146,11 @@ pub(crate) fn handle_graph_command(
             recompute_topology(gs)
         }
 
-        GraphCommand::Modulate { from, to, param_name } => {
+        GraphCommand::Modulate {
+            from,
+            to,
+            param_name,
+        } => {
             if let Some(&src_idx) = gs.source_map.get(&from) {
                 let target = if let Some(&filter_idx) = gs.filter_map.get(&to) {
                     Some(ModTarget::Filter(filter_idx))
@@ -154,7 +160,8 @@ pub(crate) fn handle_graph_command(
                     None
                 };
                 if let Some(target) = target {
-                    gs.system.add_mod_wire(src_idx, target.clone(), param_name.clone());
+                    gs.system
+                        .add_mod_wire(src_idx, target.clone(), param_name.clone());
                     message_tx
                         .send(AudioMessage::Graph(GraphAudioMessage::AddModulation {
                             from_source: src_idx,
@@ -167,7 +174,11 @@ pub(crate) fn handle_graph_command(
             Ok(())
         }
 
-        GraphCommand::Demodulate { from, to, param_name } => {
+        GraphCommand::Demodulate {
+            from,
+            to,
+            param_name,
+        } => {
             if let Some(&src_idx) = gs.source_map.get(&from) {
                 let target = if let Some(&filter_idx) = gs.filter_map.get(&to) {
                     Some(ModTarget::Filter(filter_idx))
@@ -225,14 +236,19 @@ pub(crate) fn handle_graph_command(
 
         GraphCommand::StartNode { id } => {
             if let Some(&idx) = gs.source_map.get(&id) {
-                log::info!("[graph] StartNode id={id} → source_index={idx}, sending StartSource to render thread");
+                log::info!(
+                    "[graph] StartNode id={id} → source_index={idx}, sending StartSource to render thread"
+                );
                 message_tx
                     .send(AudioMessage::Graph(GraphAudioMessage::StartSource {
                         source_index: idx,
                     }))
                     .map_err(|_| AppError::ChannelClosed)
             } else {
-                log::warn!("[graph] StartNode id={id} → NOT found in source_map (known sources: {:?})", gs.source_map.keys().collect::<Vec<_>>());
+                log::warn!(
+                    "[graph] StartNode id={id} → NOT found in source_map (known sources: {:?})",
+                    gs.source_map.keys().collect::<Vec<_>>()
+                );
                 Ok(())
             }
         }
