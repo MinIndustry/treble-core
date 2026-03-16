@@ -31,4 +31,4 @@ pub use sources::{
 };
 
 /// The system module contains the implementation of the system element.
-pub use system::{System, ModTarget, ModWire};
+pub use system::{ModTarget, ModWire, System};

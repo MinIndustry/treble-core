@@ -18,10 +18,10 @@ pub mod shared_state;
 pub use callback::create_cpal_callback;
 pub use config::{AudioConfig, LogConfig};
 pub use error::{AudioError, CommandError};
+pub(crate) use events::EventSender;
 pub use events::{
     AudioEvent, BackendEvent, DiagnosticsEvent, ErrorEvent, EventCategory, EventFilter, StatusEvent,
 };
-pub(crate) use events::EventSender;
 pub use handle::{AudioHandle, AudioMetrics};
 pub use messages::{AudioMessage, GraphAudioMessage, InstrumentAudioMessage};
 pub use shared_state::SharedAudioState;

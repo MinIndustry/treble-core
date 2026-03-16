@@ -12,7 +12,10 @@
 use std::fmt;
 
 use crate::core::audio::{Block, CHANNELS, silent_block};
-use crate::core::envelope::{Envelope, prelude::{ADSREnvelope, ADSREnvelopeBuilder, BezierSegment, ConstantSegment}};
+use crate::core::envelope::{
+    Envelope,
+    prelude::{ADSREnvelope, ADSREnvelopeBuilder, BezierSegment, ConstantSegment},
+};
 use crate::core::graph::{Entry, Filter};
 use rustic_meta::{FilterInfo, FilterInput, MetaFilter, Parameter};
 
@@ -41,10 +44,10 @@ pub struct TriggerFilter {
     // Built envelope (rebuilt on every param change)
     envelope: ADSREnvelope,
     // Gate state
-    gate: f32,       // 1.0=playing, 0.0=releasing, <0=killed
-    active: bool,    // true when the envelope is running
-    time: f32,       // seconds since last trigger_attack
-    note_off: f32,   // absolute time of release (0.0 = not yet released)
+    gate: f32,     // 1.0=playing, 0.0=releasing, <0=killed
+    active: bool,  // true when the envelope is running
+    time: f32,     // seconds since last trigger_attack
+    note_off: f32, // absolute time of release (0.0 = not yet released)
 }
 
 impl Default for TriggerFilter {
@@ -80,18 +83,21 @@ impl TriggerFilter {
 
         let envelope = ADSREnvelopeBuilder::new()
             .attack(Box::new(BezierSegment::new(
-                0.0, 1.0,
+                0.0,
+                1.0,
                 self.attack.max(0.001),
                 (self.attack_cp_t, control_y(0.0, 1.0, self.attack_curve)),
             )))
             .decay(Box::new(BezierSegment::new(
-                1.0, s,
+                1.0,
+                s,
                 self.decay.max(0.001),
                 (self.decay_cp_t, control_y(1.0, s, self.decay_curve)),
             )))
             .sustain(Box::new(ConstantSegment::new(s, None)))
             .release(Box::new(BezierSegment::new(
-                s, 0.0,
+                s,
+                0.0,
                 self.release.max(0.001),
                 (self.release_cp_t, control_y(s, 0.0, self.release_curve)),
             )))
@@ -165,17 +171,49 @@ impl Filter for TriggerFilter {
 impl MetaFilter for TriggerFilter {
     fn set_parameter(&mut self, name: &str, value: f32) {
         match name {
-            "attack"        => { self.attack        = value.max(0.001);         self.rebuild_envelope(); }
-            "decay"         => { self.decay         = value.max(0.001);         self.rebuild_envelope(); }
-            "sustain"       => { self.sustain        = value.clamp(0.0, 1.0);  self.rebuild_envelope(); }
-            "release"       => { self.release       = value.max(0.001);         self.rebuild_envelope(); }
-            "attack_curve"  => { self.attack_curve  = value.clamp(-1.0, 1.0); self.rebuild_envelope(); }
-            "decay_curve"   => { self.decay_curve   = value.clamp(-1.0, 1.0); self.rebuild_envelope(); }
-            "release_curve" => { self.release_curve = value.clamp(-1.0, 1.0); self.rebuild_envelope(); }
-            "attack_cp_t"   => { self.attack_cp_t   = value.clamp(0.0, 1.0);  self.rebuild_envelope(); }
-            "decay_cp_t"    => { self.decay_cp_t    = value.clamp(0.0, 1.0);  self.rebuild_envelope(); }
-            "release_cp_t"  => { self.release_cp_t  = value.clamp(0.0, 1.0);  self.rebuild_envelope(); }
-            "sample_rate"   => { self.sample_rate = value.max(1.0); }
+            "attack" => {
+                self.attack = value.max(0.001);
+                self.rebuild_envelope();
+            }
+            "decay" => {
+                self.decay = value.max(0.001);
+                self.rebuild_envelope();
+            }
+            "sustain" => {
+                self.sustain = value.clamp(0.0, 1.0);
+                self.rebuild_envelope();
+            }
+            "release" => {
+                self.release = value.max(0.001);
+                self.rebuild_envelope();
+            }
+            "attack_curve" => {
+                self.attack_curve = value.clamp(-1.0, 1.0);
+                self.rebuild_envelope();
+            }
+            "decay_curve" => {
+                self.decay_curve = value.clamp(-1.0, 1.0);
+                self.rebuild_envelope();
+            }
+            "release_curve" => {
+                self.release_curve = value.clamp(-1.0, 1.0);
+                self.rebuild_envelope();
+            }
+            "attack_cp_t" => {
+                self.attack_cp_t = value.clamp(0.0, 1.0);
+                self.rebuild_envelope();
+            }
+            "decay_cp_t" => {
+                self.decay_cp_t = value.clamp(0.0, 1.0);
+                self.rebuild_envelope();
+            }
+            "release_cp_t" => {
+                self.release_cp_t = value.clamp(0.0, 1.0);
+                self.rebuild_envelope();
+            }
+            "sample_rate" => {
+                self.sample_rate = value.max(1.0);
+            }
             "gate" => {
                 self.gate = value;
                 if value >= 1.0 {
@@ -198,54 +236,148 @@ impl MetaFilter for TriggerFilter {
             name: "Trigger",
             description: "8-input summing bus with gate-driven ADSR envelope",
             inputs: vec![
-                FilterInput { label: Some("Input 1"), parameter: None },
-                FilterInput { label: Some("Input 2"), parameter: None },
-                FilterInput { label: Some("Input 3"), parameter: None },
-                FilterInput { label: Some("Input 4"), parameter: None },
-                FilterInput { label: Some("Input 5"), parameter: None },
-                FilterInput { label: Some("Input 6"), parameter: None },
-                FilterInput { label: Some("Input 7"), parameter: None },
-                FilterInput { label: Some("Input 8"), parameter: None },
-                FilterInput { label: None, parameter: Some(Parameter::Range {
-                    title: "Attack", field_name: "attack",
-                    min: 0.001, max: 5.0, default: 0.01, value: 0.01,
-                })},
-                FilterInput { label: None, parameter: Some(Parameter::Range {
-                    title: "Decay", field_name: "decay",
-                    min: 0.001, max: 5.0, default: 0.1, value: 0.1,
-                })},
-                FilterInput { label: None, parameter: Some(Parameter::Range {
-                    title: "Sustain", field_name: "sustain",
-                    min: 0.0, max: 1.0, default: 0.8, value: 0.8,
-                })},
-                FilterInput { label: None, parameter: Some(Parameter::Range {
-                    title: "Release", field_name: "release",
-                    min: 0.001, max: 5.0, default: 0.3, value: 0.3,
-                })},
-                FilterInput { label: None, parameter: Some(Parameter::Range {
-                    title: "Attack Curve", field_name: "attack_curve",
-                    min: -1.0, max: 1.0, default: 0.0, value: 0.0,
-                })},
-                FilterInput { label: None, parameter: Some(Parameter::Range {
-                    title: "Decay Curve", field_name: "decay_curve",
-                    min: -1.0, max: 1.0, default: 0.0, value: 0.0,
-                })},
-                FilterInput { label: None, parameter: Some(Parameter::Range {
-                    title: "Release Curve", field_name: "release_curve",
-                    min: -1.0, max: 1.0, default: 0.0, value: 0.0,
-                })},
-                FilterInput { label: None, parameter: Some(Parameter::Range {
-                    title: "Attack CP T", field_name: "attack_cp_t",
-                    min: 0.0, max: 1.0, default: 0.5, value: 0.5,
-                })},
-                FilterInput { label: None, parameter: Some(Parameter::Range {
-                    title: "Decay CP T", field_name: "decay_cp_t",
-                    min: 0.0, max: 1.0, default: 0.5, value: 0.5,
-                })},
-                FilterInput { label: None, parameter: Some(Parameter::Range {
-                    title: "Release CP T", field_name: "release_cp_t",
-                    min: 0.0, max: 1.0, default: 0.5, value: 0.5,
-                })},
+                FilterInput {
+                    label: Some("Input 1"),
+                    parameter: None,
+                },
+                FilterInput {
+                    label: Some("Input 2"),
+                    parameter: None,
+                },
+                FilterInput {
+                    label: Some("Input 3"),
+                    parameter: None,
+                },
+                FilterInput {
+                    label: Some("Input 4"),
+                    parameter: None,
+                },
+                FilterInput {
+                    label: Some("Input 5"),
+                    parameter: None,
+                },
+                FilterInput {
+                    label: Some("Input 6"),
+                    parameter: None,
+                },
+                FilterInput {
+                    label: Some("Input 7"),
+                    parameter: None,
+                },
+                FilterInput {
+                    label: Some("Input 8"),
+                    parameter: None,
+                },
+                FilterInput {
+                    label: None,
+                    parameter: Some(Parameter::Range {
+                        title: "Attack",
+                        field_name: "attack",
+                        min: 0.001,
+                        max: 5.0,
+                        default: 0.01,
+                        value: 0.01,
+                    }),
+                },
+                FilterInput {
+                    label: None,
+                    parameter: Some(Parameter::Range {
+                        title: "Decay",
+                        field_name: "decay",
+                        min: 0.001,
+                        max: 5.0,
+                        default: 0.1,
+                        value: 0.1,
+                    }),
+                },
+                FilterInput {
+                    label: None,
+                    parameter: Some(Parameter::Range {
+                        title: "Sustain",
+                        field_name: "sustain",
+                        min: 0.0,
+                        max: 1.0,
+                        default: 0.8,
+                        value: 0.8,
+                    }),
+                },
+                FilterInput {
+                    label: None,
+                    parameter: Some(Parameter::Range {
+                        title: "Release",
+                        field_name: "release",
+                        min: 0.001,
+                        max: 5.0,
+                        default: 0.3,
+                        value: 0.3,
+                    }),
+                },
+                FilterInput {
+                    label: None,
+                    parameter: Some(Parameter::Range {
+                        title: "Attack Curve",
+                        field_name: "attack_curve",
+                        min: -1.0,
+                        max: 1.0,
+                        default: 0.0,
+                        value: 0.0,
+                    }),
+                },
+                FilterInput {
+                    label: None,
+                    parameter: Some(Parameter::Range {
+                        title: "Decay Curve",
+                        field_name: "decay_curve",
+                        min: -1.0,
+                        max: 1.0,
+                        default: 0.0,
+                        value: 0.0,
+                    }),
+                },
+                FilterInput {
+                    label: None,
+                    parameter: Some(Parameter::Range {
+                        title: "Release Curve",
+                        field_name: "release_curve",
+                        min: -1.0,
+                        max: 1.0,
+                        default: 0.0,
+                        value: 0.0,
+                    }),
+                },
+                FilterInput {
+                    label: None,
+                    parameter: Some(Parameter::Range {
+                        title: "Attack CP T",
+                        field_name: "attack_cp_t",
+                        min: 0.0,
+                        max: 1.0,
+                        default: 0.5,
+                        value: 0.5,
+                    }),
+                },
+                FilterInput {
+                    label: None,
+                    parameter: Some(Parameter::Range {
+                        title: "Decay CP T",
+                        field_name: "decay_cp_t",
+                        min: 0.0,
+                        max: 1.0,
+                        default: 0.5,
+                        value: 0.5,
+                    }),
+                },
+                FilterInput {
+                    label: None,
+                    parameter: Some(Parameter::Range {
+                        title: "Release CP T",
+                        field_name: "release_cp_t",
+                        min: 0.0,
+                        max: 1.0,
+                        default: 0.5,
+                        value: 0.5,
+                    }),
+                },
             ],
             outputs: 1,
         }

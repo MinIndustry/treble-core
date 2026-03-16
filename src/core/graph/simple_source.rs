@@ -80,24 +80,28 @@ impl SimpleSource {
 
         let envelope = ADSREnvelopeBuilder::new()
             .attack(Box::new(BezierSegment::new(
-                0.0, a,
+                0.0,
+                a,
                 self.attack.max(0.001),
                 (self.attack_cp_t, control_y(0.0, a, self.attack_curve)),
             )))
             .decay(Box::new(BezierSegment::new(
-                a, s,
+                a,
+                s,
                 self.decay.max(0.001),
                 (self.decay_cp_t, control_y(a, s, self.decay_curve)),
             )))
             .sustain(Box::new(ConstantSegment::new(s, None)))
             .release(Box::new(BezierSegment::new(
-                s, 0.0,
+                s,
+                0.0,
                 self.release.max(0.001),
                 (self.release_cp_t, control_y(s, 0.0, self.release_curve)),
             )))
             .build();
 
-        self.generator.set_global_amplitude_envelope(Box::new(envelope));
+        self.generator
+            .set_global_amplitude_envelope(Box::new(envelope));
     }
 }
 
@@ -115,7 +119,9 @@ impl Source for SimpleSource {
         let dt = 1.0 / self.sample_rate;
         let samples = self.generator.tick_block(block_size, dt);
         let max = samples.iter().cloned().fold(0.0_f32, f32::max);
-        log::trace!("[SimpleSource] pull(block_size={block_size}) dt={dt:.6} → max_sample={max:.4}");
+        log::trace!(
+            "[SimpleSource] pull(block_size={block_size}) dt={dt:.6} → max_sample={max:.4}"
+        );
         if self.released && self.generator.completed() {
             self.active = false;
             self.released = false;
@@ -124,7 +130,10 @@ impl Source for SimpleSource {
     }
 
     fn start(&mut self) {
-        log::info!("[SimpleSource] start() sample_rate={} → active=true", self.sample_rate);
+        log::info!(
+            "[SimpleSource] start() sample_rate={} → active=true",
+            self.sample_rate
+        );
         self.active = true;
         self.released = false;
         self.generator.start();
@@ -146,18 +155,53 @@ impl Source for SimpleSource {
 
     fn set_parameter(&mut self, name: &str, value: f32) {
         match name {
-            "frequency"     => { self.generator.set_base_frequency(value); }
-            "amplitude"     => { self.amplitude     = value.max(0.0);          self.apply_envelope(); }
-            "attack"        => { self.attack        = value.max(0.001);         self.apply_envelope(); }
-            "decay"         => { self.decay         = value.max(0.001);         self.apply_envelope(); }
-            "sustain"       => { self.sustain       = value.clamp(0.0, 1.0);   self.apply_envelope(); }
-            "release"       => { self.release       = value.max(0.001);         self.apply_envelope(); }
-            "attack_curve"  => { self.attack_curve  = value.clamp(-1.0, 1.0);  self.apply_envelope(); }
-            "decay_curve"   => { self.decay_curve   = value.clamp(-1.0, 1.0);  self.apply_envelope(); }
-            "release_curve" => { self.release_curve = value.clamp(-1.0, 1.0);  self.apply_envelope(); }
-            "attack_cp_t"   => { self.attack_cp_t   = value.clamp(0.0, 1.0);   self.apply_envelope(); }
-            "decay_cp_t"    => { self.decay_cp_t    = value.clamp(0.0, 1.0);   self.apply_envelope(); }
-            "release_cp_t"  => { self.release_cp_t  = value.clamp(0.0, 1.0);   self.apply_envelope(); }
+            "frequency" => {
+                self.generator.set_base_frequency(value);
+            }
+            "amplitude" => {
+                self.amplitude = value.max(0.0);
+                self.apply_envelope();
+            }
+            "attack" => {
+                self.attack = value.max(0.001);
+                self.apply_envelope();
+            }
+            "decay" => {
+                self.decay = value.max(0.001);
+                self.apply_envelope();
+            }
+            "sustain" => {
+                self.sustain = value.clamp(0.0, 1.0);
+                self.apply_envelope();
+            }
+            "release" => {
+                self.release = value.max(0.001);
+                self.apply_envelope();
+            }
+            "attack_curve" => {
+                self.attack_curve = value.clamp(-1.0, 1.0);
+                self.apply_envelope();
+            }
+            "decay_curve" => {
+                self.decay_curve = value.clamp(-1.0, 1.0);
+                self.apply_envelope();
+            }
+            "release_curve" => {
+                self.release_curve = value.clamp(-1.0, 1.0);
+                self.apply_envelope();
+            }
+            "attack_cp_t" => {
+                self.attack_cp_t = value.clamp(0.0, 1.0);
+                self.apply_envelope();
+            }
+            "decay_cp_t" => {
+                self.decay_cp_t = value.clamp(0.0, 1.0);
+                self.apply_envelope();
+            }
+            "release_cp_t" => {
+                self.release_cp_t = value.clamp(0.0, 1.0);
+                self.apply_envelope();
+            }
             _ => {}
         }
     }

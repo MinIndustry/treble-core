@@ -126,7 +126,10 @@ pub mod prelude {
 
         /// Whether this waveform has a meaningful frequency parameter.
         pub fn has_frequency(&self) -> bool {
-            !matches!(self, Waveform::WhiteNoise | Waveform::PinkNoise | Waveform::Blank | Waveform::Err(_))
+            !matches!(
+                self,
+                Waveform::WhiteNoise | Waveform::PinkNoise | Waveform::Blank | Waveform::Err(_)
+            )
         }
     }
 

@@ -275,7 +275,6 @@ mod tremolo_tests {
     }
 }
 
-
 #[cfg(test)]
 mod moving_average_tests {
     use super::*;

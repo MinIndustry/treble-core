@@ -17,11 +17,11 @@ use super::state::AppState;
 use super::{AppMode, config::AppConfig};
 use crate::app::audio_graph::AudioGraph;
 use crate::app::error::AppError;
+use crate::audio::EventSender;
 use crate::audio::{
     AudioError, AudioHandle, AudioMessage, BackendEvent, EventFilter, GraphAudioMessage,
     InstrumentAudioMessage, StatusEvent,
 };
-use crate::audio::EventSender;
 use crate::core::utils::Note;
 use crate::instruments::Instrument;
 
@@ -192,7 +192,9 @@ impl App {
             .play()
             .map_err(|e| AudioError::StreamError(e.to_string()))?;
 
-        event_tx.send(BackendEvent::Status(StatusEvent::AudioStarted { sample_rate }));
+        event_tx.send(BackendEvent::Status(StatusEvent::AudioStarted {
+            sample_rate,
+        }));
 
         self.handle = Some(AudioHandle::new(render_thread, stream, shared_state));
         self.message_tx = Some(message_tx);
