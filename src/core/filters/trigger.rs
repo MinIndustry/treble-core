@@ -234,6 +234,7 @@ impl MetaFilter for TriggerFilter {
     fn metadata() -> FilterInfo {
         FilterInfo {
             name: "Trigger",
+            type_id: "Trigger",
             description: "8-input summing bus with gate-driven ADSR envelope",
             inputs: vec![
                 FilterInput {

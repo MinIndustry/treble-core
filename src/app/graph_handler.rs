@@ -329,7 +329,7 @@ fn create_source(node_type: &str, sample_rate: f32) -> Result<Box<dyn Source>, S
 fn create_filter(node_type: &str, sample_rate: f32) -> Result<Box<dyn Filter>, String> {
     for entry in inventory::iter::<crate::meta::FilterRegistration>() {
         let info = (entry.info)();
-        if info.name == node_type {
+        if info.type_id == node_type {
             let mut filter = (entry.create)();
             // Apply sample_rate to any filter that exposes it as a parameter.
             // Filters without a "sample_rate" field will silently ignore this (logged at debug).
