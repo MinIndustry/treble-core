@@ -31,6 +31,11 @@ rayon = "1.11.0"
 
 [dev-dependencies]
 pretty_assertions = "1.1.0"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "graph"
+harness = false
 
 [features]
 plotting = ["plotters", "plotters-backend"]
