@@ -1,13 +1,16 @@
-use crate::core::Block;
-use crate::core::graph::{Entry, Filter};
+use std::fmt;
+use std::sync::Arc;
+
 use rayon::prelude::*;
 use rustic_derive::FilterMetaData;
-use std::fmt;
+
+use crate::core::Block;
+use crate::core::graph::{Entry, Filter};
 
 #[derive(FilterMetaData, Debug, Clone, Default)]
 pub struct Clipper {
     #[filter_source]
-    source: Block,
+    source: Arc<Block>,
     #[filter_parameter(range, 0.0, 1.0, 0.5)]
     pub max_ampl: f32,
 }
@@ -15,7 +18,7 @@ pub struct Clipper {
 impl Clipper {
     pub fn new(max: f32) -> Self {
         Self {
-            source: Vec::new(),
+            source: Arc::new(Vec::new()),
             max_ampl: max,
         }
     }
@@ -28,7 +31,7 @@ impl fmt::Display for Clipper {
 }
 
 impl Entry for Clipper {
-    fn push(&mut self, block: Block, _port: usize) {
+    fn push(&mut self, block: Arc<Block>, _port: usize) {
         self.source = block;
     }
 }

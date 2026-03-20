@@ -1,13 +1,16 @@
+use std::sync::Arc;
+use std::{collections::VecDeque, fmt};
+
+use rustic_derive::FilterMetaData;
+
 use crate::core::graph::{Entry, Filter};
 use crate::core::{Block, CHANNELS, Frame};
-use rustic_derive::FilterMetaData;
-use std::{collections::VecDeque, fmt};
 
 /// Delays its input by a fixed number of seconds.
 #[derive(FilterMetaData, Clone)]
 pub struct DelayFilter {
     #[filter_source]
-    source: Block,
+    source: Arc<Block>,
     #[filter_parameter(range, 0.0, 20.0, 0.5)]
     delay_for: f32,
     buffer: VecDeque<Frame>,
@@ -20,7 +23,7 @@ impl DelayFilter {
     pub fn new(sample_rate: f32, delay: f32) -> Self {
         let n_frames = (delay * sample_rate) as usize;
         Self {
-            source: Vec::new(),
+            source: Arc::new(Vec::new()),
             delay_for: delay,
             buffer: VecDeque::from(vec![[0.0; CHANNELS]; n_frames]),
             sample_rate,
@@ -35,7 +38,7 @@ impl Default for DelayFilter {
 }
 
 impl Entry for DelayFilter {
-    fn push(&mut self, block: Block, _port: usize) {
+    fn push(&mut self, block: Arc<Block>, _port: usize) {
         self.source = block;
     }
 }
@@ -56,7 +59,7 @@ impl Filter for DelayFilter {
     fn transform(&mut self) -> Vec<Block> {
         self.buffer.extend(self.source.iter());
         let output = self.buffer.drain(0..self.source.len());
-        self.source.clear();
+        self.source = Arc::new(Vec::new());
         vec![output.collect()]
     }
 

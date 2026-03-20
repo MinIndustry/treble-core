@@ -1,13 +1,16 @@
+use std::fmt;
+use std::sync::Arc;
+
+use rustic_derive::FilterMetaData;
+
 use crate::core::graph::{Entry, Filter};
 use crate::core::{Block, CHANNELS};
-use rustic_derive::FilterMetaData;
-use std::fmt;
 
 #[derive(FilterMetaData, Clone, Debug, Default)]
 /// High-pass filter using a first-order IIR filter
 pub struct HighPassFilter {
     #[filter_source]
-    source: Block,
+    source: Arc<Block>,
     #[filter_parameter(range, 0.0, 20000.0, 1000.0)]
     cutoff_frequency: f32,
     #[filter_parameter(range, 0.0, 192000.0, 44100.0)]
@@ -19,7 +22,7 @@ pub struct HighPassFilter {
 impl HighPassFilter {
     pub fn new(cutoff_frequency: f32, sample_rate: f32) -> Self {
         Self {
-            source: Vec::new(),
+            source: Arc::new(Vec::new()),
             cutoff_frequency,
             sample_rate,
             previous_output: [0.0; CHANNELS],
@@ -29,7 +32,7 @@ impl HighPassFilter {
 }
 
 impl Entry for HighPassFilter {
-    fn push(&mut self, block: Block, _port: usize) {
+    fn push(&mut self, block: Arc<Block>, _port: usize) {
         self.source = block;
     }
 }

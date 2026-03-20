@@ -1,14 +1,16 @@
+use std::fmt;
+use std::sync::Arc;
+
+use rustic_derive::FilterMetaData;
+
 use crate::core::graph::{Entry, Filter};
 use crate::core::{Block, CHANNELS};
-use rustic_derive::FilterMetaData;
-use std::fmt;
-
 /// A dynamics compressor that reduces the dynamic range of audio signals.
 /// When the input exceeds the threshold, the output is compressed by the given ratio.
 #[derive(FilterMetaData, Clone, Debug)]
 pub struct Compressor {
     #[filter_source]
-    source: Block,
+    source: Arc<Block>,
     /// Threshold in linear amplitude (0.0-1.0)
     #[filter_parameter(range, 0.0, 1.0, 0.5)]
     threshold: f32,
@@ -30,7 +32,7 @@ pub struct Compressor {
 impl Default for Compressor {
     fn default() -> Self {
         Self {
-            source: Vec::new(),
+            source: Arc::new(Vec::new()),
             threshold: 0.5,
             ratio: 4.0,
             attack: 0.01,
@@ -42,7 +44,7 @@ impl Default for Compressor {
 }
 
 impl Entry for Compressor {
-    fn push(&mut self, block: Block, _port: usize) {
+    fn push(&mut self, block: Arc<Block>, _port: usize) {
         self.source = block;
     }
 }

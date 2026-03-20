@@ -14,13 +14,11 @@
 pub mod dynamics;
 pub mod frequency;
 pub mod modulation;
-pub mod trigger;
 pub mod utility;
 
 pub mod prelude {
     pub use super::dynamics::*;
     pub use super::frequency::*;
     pub use super::modulation::*;
-    pub use super::trigger::TriggerFilter;
     pub use super::utility::*;
 }

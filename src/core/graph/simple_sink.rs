@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::core::graph::{Entry, Sink};
 use crate::core::{Block, Frame};
 
@@ -15,8 +17,8 @@ impl SimpleSink {
 }
 
 impl Entry for SimpleSink {
-    fn push(&mut self, block: Block, _port: usize) {
-        self.values.extend(block);
+    fn push(&mut self, block: Arc<Block>, _port: usize) {
+        self.values.extend(block.iter().map(|f| [f[0], f[1]]));
     }
 }
 

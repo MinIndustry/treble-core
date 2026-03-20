@@ -1,14 +1,17 @@
+use std::fmt;
+use std::sync::Arc;
+
+use rustic_derive::FilterMetaData;
+
 use crate::core::Block;
 use crate::core::graph::{Entry, Filter};
-use rustic_derive::FilterMetaData;
-use std::fmt;
 
 /// A Tremolo filter, that changes sound amplitude on a sinusoid
 /// basis.
 #[derive(FilterMetaData, Debug, Clone, Default)]
 pub struct Tremolo {
     #[filter_source]
-    source: Block,
+    source: Arc<Block>,
     phase: f32,
     #[filter_parameter(range, 0.0, 20.0, 1.0)]
     pub frequency: f32,
@@ -21,7 +24,7 @@ pub struct Tremolo {
 impl Tremolo {
     pub fn new(frequency: f32, depth: f32, sample_rate: f32) -> Self {
         Self {
-            source: Vec::new(),
+            source: Arc::new(Vec::new()),
             phase: 0.0,
             frequency,
             depth,
@@ -37,7 +40,7 @@ impl fmt::Display for Tremolo {
 }
 
 impl Entry for Tremolo {
-    fn push(&mut self, block: Block, _port: usize) {
+    fn push(&mut self, block: Arc<Block>, _port: usize) {
         self.source = block;
     }
 }

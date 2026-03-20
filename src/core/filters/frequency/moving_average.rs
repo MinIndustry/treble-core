@@ -1,7 +1,10 @@
+use std::sync::Arc;
+use std::{collections::VecDeque, fmt};
+
+use rustic_derive::FilterMetaData;
+
 use crate::core::graph::{Entry, Filter};
 use crate::core::{Block, CHANNELS};
-use rustic_derive::FilterMetaData;
-use std::{collections::VecDeque, fmt};
 
 /// A moving average filter implementation.
 /// Based only on the previous samples
@@ -12,7 +15,7 @@ pub struct MovingAverage {
     /// Per-channel circular buffers
     buffers: [VecDeque<f32>; CHANNELS],
     #[filter_source]
-    source: Block,
+    source: Arc<Block>,
 }
 
 impl Default for MovingAverage {
@@ -32,13 +35,13 @@ impl MovingAverage {
         Self {
             size,
             buffers: std::array::from_fn(|_| VecDeque::from(vec![0.0f32; size])),
-            source: Vec::new(),
+            source: Arc::new(Vec::new()),
         }
     }
 }
 
 impl Entry for MovingAverage {
-    fn push(&mut self, block: Block, _port: usize) {
+    fn push(&mut self, block: Arc<Block>, _port: usize) {
         self.source = block;
     }
 }
