@@ -5,7 +5,6 @@ use std::sync::atomic::Ordering;
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Mutex};
 
-use clap::Parser;
 use cpal::SampleRate;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use log::info;
@@ -68,8 +67,8 @@ impl App {
 
     /// Initializes the application from CLI arguments.
     pub fn init() -> App {
-        let args = Cli::parse();
-        let app = if let Some(path) = args.config {
+        let args: Option<&Path> = None;
+        let app = if let Some(path) = args {
             App::from_file(&path)
                 .map_err(|e| {
                     println!("Unable to load config: {}", e);
@@ -79,14 +78,6 @@ impl App {
         } else {
             App::default()
         };
-
-        if args.dump_config {
-            match toml::to_string(&app.config) {
-                Ok(s) => println!("{}", s),
-                Err(e) => println!("Unable to dump config: {e}"),
-            }
-            std::process::exit(0);
-        }
 
         app
     }

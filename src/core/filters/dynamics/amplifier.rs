@@ -1,9 +1,11 @@
-use crate::core::Block;
-use crate::core::graph::{Entry, Filter};
-use rustic_derive::FilterMetaData;
 use std::fmt;
+use std::sync::Arc;
 
 use rayon::prelude::*;
+use rustic_derive::FilterMetaData;
+
+use crate::core::Block;
+use crate::core::graph::{Entry, Filter};
 
 /// A filter that returns the input value multiplied by a constant factor.
 /// Note: a factor < 1.0 will attenuate the input signal, while a factor > 1.0
@@ -11,7 +13,7 @@ use rayon::prelude::*;
 #[derive(FilterMetaData, Clone, Debug, Default)]
 pub struct GainFilter {
     #[filter_source]
-    source: Block,
+    source: Arc<Block>,
     #[filter_parameter(float, 1.0)]
     factor: f32,
 }
@@ -19,14 +21,14 @@ pub struct GainFilter {
 impl GainFilter {
     pub fn new(factor: f32) -> Self {
         Self {
-            source: Vec::new(),
+            source: Arc::new(Vec::new()),
             factor,
         }
     }
 }
 
 impl Entry for GainFilter {
-    fn push(&mut self, block: Block, _port: usize) {
+    fn push(&mut self, block: Arc<Block>, _port: usize) {
         self.source = block;
     }
 }

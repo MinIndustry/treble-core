@@ -1,5 +1,6 @@
 use rayon::prelude::*;
 use std::fmt;
+use std::sync::Arc;
 
 use crate::core::Block;
 use crate::core::graph::{Entry, Filter};
@@ -9,7 +10,7 @@ use rustic_derive::FilterMetaData;
 #[derive(FilterMetaData, Clone, Default)]
 pub struct PanFilter {
     #[filter_source]
-    source: Block,
+    source: Arc<Block>,
     #[filter_parameter(range, -1.0, 1.0, 0.01)]
     direction: f32,
 }
@@ -17,14 +18,14 @@ pub struct PanFilter {
 impl PanFilter {
     pub fn new(direction: f32) -> Self {
         Self {
-            source: Vec::new(),
+            source: Arc::new(Vec::new()),
             direction,
         }
     }
 }
 
 impl Entry for PanFilter {
-    fn push(&mut self, block: Block, _port: usize) {
+    fn push(&mut self, block: Arc<Block>, _port: usize) {
         self.source = block;
     }
 }

@@ -2,6 +2,7 @@
 //! They serve as metastructures for filters.
 //! Graphs can be used to create complex audio effects and processing chains.
 
+mod audio_node;
 mod audio_sink;
 mod entry;
 pub mod error;
