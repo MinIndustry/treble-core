@@ -4,10 +4,6 @@ description = "Rustic; a UNIX Symphony Tool Implemented in Code"
 version = "0.1.0"
 edition = "2024"
 
-[[bin]]
-name = "rustic"
-path = "./src/main.rs"
-
 [dependencies]
 atomic_float = "0.1"
 chrono = "0.4.38"
