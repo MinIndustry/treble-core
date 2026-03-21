@@ -68,8 +68,8 @@ impl App {
     /// Initializes the application from CLI arguments.
     pub fn init() -> App {
         let args: Option<&Path> = None;
-        let app = if let Some(path) = args {
-            App::from_file(&path)
+        if let Some(path) = args {
+            App::from_file(path)
                 .map_err(|e| {
                     println!("Unable to load config: {}", e);
                     std::process::exit(1);
@@ -77,9 +77,7 @@ impl App {
                 .unwrap()
         } else {
             App::default()
-        };
-
-        app
+        }
     }
 
     /// Add an instrument and return its slot index (for use with `note_on`/`note_off`).

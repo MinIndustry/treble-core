@@ -554,24 +554,24 @@ impl System {
                         .map(|e| *e.weight())
                         .collect();
                     for (out_port, in_port) in edges {
-                        if let Some(block) = outputs.get(out_port) {
-                            if let Some(node) = self.graph.node_weight_mut(neighbour) {
-                                node.push(Arc::clone(block), in_port);
-                            }
+                        if let Some(block) = outputs.get(out_port)
+                            && let Some(node) = self.graph.node_weight_mut(neighbour)
+                        {
+                            node.push(Arc::clone(block), in_port);
                         }
                     }
                 }
 
                 // Push outputs to connected sinks inline (no second pass needed).
                 for ((sink_node, sink_port), sink) in &mut self.sinks {
-                    if *sink_node == node_idx {
-                        if let Some(block) = outputs.get(*sink_port) {
-                            log::trace!(
-                                "[system::run] sink ← NodeIndex({}) port={sink_port}",
-                                node_idx.index()
-                            );
-                            sink.push(Arc::clone(block), 0);
-                        }
+                    if *sink_node == node_idx
+                        && let Some(block) = outputs.get(*sink_port)
+                    {
+                        log::trace!(
+                            "[system::run] sink ← NodeIndex({}) port={sink_port}",
+                            node_idx.index()
+                        );
+                        sink.push(Arc::clone(block), 0);
                     }
                 }
             }
