@@ -1,9 +1,11 @@
-use crate::core::Block;
-use crate::core::graph::{Entry, Filter};
-use rustic_derive::FilterMetaData;
 use std::fmt;
+use std::sync::Arc;
+
+use rustic_derive::FilterMetaData;
 
 use super::{HighPassFilter, LowPassFilter};
+use crate::core::Block;
+use crate::core::graph::{Entry, Filter};
 
 #[derive(FilterMetaData, Debug, Clone, Default)]
 /// Bandpass filter using a high-pass and low-pass filter
@@ -16,7 +18,7 @@ pub struct BandPass {
     pub sample_rate: f32,
     pub filters: (HighPassFilter, LowPassFilter),
     #[filter_source]
-    pub source: Block,
+    pub source: Arc<Block>,
 }
 
 impl BandPass {
@@ -29,7 +31,7 @@ impl BandPass {
                 HighPassFilter::new(low, sample_rate),
                 LowPassFilter::new(high, sample_rate),
             ),
-            source: Vec::new(),
+            source: Arc::new(Vec::new()),
         }
     }
 }
@@ -41,18 +43,19 @@ impl fmt::Display for BandPass {
 }
 
 impl Entry for BandPass {
-    fn push(&mut self, block: Block, _port: usize) {
+    fn push(&mut self, block: Arc<Block>, _port: usize) {
         self.source = block;
     }
 }
 
 impl Filter for BandPass {
     fn transform(&mut self) -> Vec<Block> {
-        self.filters.0.push(self.source.clone(), 0);
+        self.filters.0.push(Arc::clone(&self.source), 0);
         let hp_output = self.filters.0.transform();
-        self.filters
-            .1
-            .push(hp_output.into_iter().next().unwrap_or_default(), 0);
+        self.filters.1.push(
+            Arc::new(hp_output.into_iter().next().unwrap_or_default()),
+            0,
+        );
         self.filters.1.transform()
     }
 

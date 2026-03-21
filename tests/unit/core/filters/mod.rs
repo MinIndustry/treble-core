@@ -3,10 +3,11 @@
 
 use rustic::core::audio::{Block, CHANNELS, silent_block};
 use rustic::core::graph::{Entry, Filter};
+use std::sync::Arc;
 
 /// Create a constant stereo block: every frame has value [v, v]
-fn const_block(n: usize, v: f32) -> Block {
-    vec![[v; CHANNELS]; n]
+fn const_block(n: usize, v: f32) -> Arc<Block> {
+    Arc::new(vec![[v; CHANNELS]; n])
 }
 
 #[cfg(test)]
@@ -74,7 +75,7 @@ mod clipper_tests {
     #[test]
     fn test_clipping_negative() {
         let mut f = Clipper::new(0.5);
-        let block: Block = vec![[-1.0; CHANNELS]; 4];
+        let block = Arc::new(vec![[-1.0_f32; CHANNELS]; 4]);
         f.push(block, 0);
         let out = f.transform();
         for frame in &out[0] {
@@ -147,7 +148,7 @@ mod delay_tests {
         let mut f = DelayFilter::new(sample_rate, delay);
 
         // Push 10 frames of silence (to fill the delay buffer)
-        f.push(silent_block(10), 0);
+        f.push(Arc::new(silent_block(10)), 0);
         let _ = f.transform();
 
         // Push signal
@@ -284,7 +285,7 @@ mod moving_average_tests {
     fn test_moving_average_smooths_step() {
         let mut f = MovingAverage::new(3);
         // Push silence first to initialize buffer
-        f.push(silent_block(10), 0);
+        f.push(Arc::new(silent_block(10)), 0);
         f.transform();
         // Now push 1.0 signal
         f.push(const_block(10, 1.0), 0);

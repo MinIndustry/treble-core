@@ -1,7 +1,10 @@
+use std::sync::Arc;
+use std::{f64::consts::PI, fmt};
+
+use rustic_derive::FilterMetaData;
+
 use crate::core::graph::{Entry, Filter};
 use crate::core::{Block, CHANNELS};
-use rustic_derive::FilterMetaData;
-use std::{f64::consts::PI, fmt};
 
 /// Applies a bandpass filter to the input signal
 /// source: <https://en.wikipedia.org/wiki/Digital_biquad_filter>
@@ -9,7 +12,7 @@ use std::{f64::consts::PI, fmt};
 #[derive(FilterMetaData, Clone, Debug, Default)]
 pub struct ResonantBandpassFilter {
     #[filter_source]
-    source: Block,
+    source: Arc<Block>,
     b: [f64; 3], // b0, b1, b2
     a: [f64; 3], // a0, a1, a2
     /// Per-channel biquad delay elements: zs[ch][0..1]
@@ -40,7 +43,7 @@ impl ResonantBandpassFilter {
         ];
 
         Self {
-            source: Vec::new(),
+            source: Arc::new(Vec::new()),
             b,
             a,
             zs: [[0.0; 2]; CHANNELS],
@@ -66,12 +69,12 @@ impl ResonantBandpassFilter {
     /// This is critical for percussive sounds where each hit should start with clean filter state.
     pub fn reset(&mut self) {
         self.zs = [[0.0; 2]; CHANNELS];
-        self.source.clear();
+        self.source = Arc::new(Vec::new());
     }
 }
 
 impl Entry for ResonantBandpassFilter {
-    fn push(&mut self, block: Block, _port: usize) {
+    fn push(&mut self, block: Arc<Block>, _port: usize) {
         self.source = block;
     }
 }

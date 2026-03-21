@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
+use std::sync::Arc;
 
 use petgraph::Graph;
 use petgraph::dot::Dot;
@@ -9,8 +10,9 @@ use petgraph::prelude::NodeIndex;
 use petgraph::{Direction, algo::toposort};
 use rustic_meta::MixMode;
 
+use super::audio_node::AudioNode;
 use super::{Filter, Sink, Source};
-use crate::core::audio::{Block, CHANNELS, silent_block};
+use crate::core::audio::Block;
 use crate::core::graph::error::AudioGraphError;
 
 /// Target of a modulation wire.
@@ -31,65 +33,6 @@ pub struct ModWire {
     pub target: ModTarget,
     /// The parameter name forwarded to `set_parameter`.
     pub param_name: String,
-}
-
-/// Reduce a collection of blocks arriving at the same port using the given mix strategy.
-fn mix_blocks(blocks: Vec<Block>, mode: &MixMode, block_size: usize) -> Block {
-    match blocks.len() {
-        0 => silent_block(block_size),
-        1 => blocks.into_iter().next().unwrap(),
-        _ => {
-            let count = blocks.len();
-            match mode {
-                MixMode::Sum | MixMode::Average => {
-                    let mut acc = silent_block(block_size);
-                    for block in blocks {
-                        for (af, bf) in acc.iter_mut().zip(block.iter()) {
-                            for ch in 0..CHANNELS {
-                                af[ch] += bf[ch];
-                            }
-                        }
-                    }
-                    if matches!(mode, MixMode::Average) {
-                        let inv = 1.0 / count as f32;
-                        acc.iter_mut()
-                            .for_each(|f| f.iter_mut().for_each(|s| *s *= inv));
-                    }
-                    acc
-                }
-                MixMode::Max => blocks
-                    .into_iter()
-                    .reduce(|a, b| {
-                        a.iter()
-                            .zip(b.iter())
-                            .map(|(fa, fb)| {
-                                let mut f = *fa;
-                                for ch in 0..CHANNELS {
-                                    f[ch] = fa[ch].max(fb[ch]);
-                                }
-                                f
-                            })
-                            .collect()
-                    })
-                    .unwrap(),
-                MixMode::Min => blocks
-                    .into_iter()
-                    .reduce(|a, b| {
-                        a.iter()
-                            .zip(b.iter())
-                            .map(|(fa, fb)| {
-                                let mut f = *fa;
-                                for ch in 0..CHANNELS {
-                                    f[ch] = fa[ch].min(fb[ch]);
-                                }
-                                f
-                            })
-                            .collect()
-                    })
-                    .unwrap(),
-            }
-        }
-    }
 }
 
 /// ## A Pipe & Filter system
@@ -117,7 +60,7 @@ fn mix_blocks(blocks: Vec<Block>, mode: &MixMode, block_size: usize) -> Block {
 pub struct System {
     // The actual filter graph, from which the execution order is derived
     // Each weight represents the port into which the filter is connected
-    graph: Graph<Box<dyn Filter>, (usize, usize)>,
+    graph: Graph<AudioNode, (usize, usize)>,
     // Each layer represents filters that can be run concurrently.
     layers: Vec<Vec<usize>>,
     // The sources of the system and the filters they are connected to.
@@ -130,9 +73,6 @@ pub struct System {
     /// Direct source→sink wires that bypass the filter graph entirely.
     /// Each entry is (source_index, sink_index).
     source_sink_wires: Vec<(usize, usize)>,
-    /// Per-node mix strategy: how to combine multiple blocks arriving at the same input port.
-    /// Defaults to `MixMode::Sum` for nodes not present in this map.
-    mix_modes: HashMap<NodeIndex<u32>, MixMode>,
     /// Live modulation wires: a source's block-mean drives a named parameter.
     mod_wires: Vec<ModWire>,
     /// Number of frames to produce per `run()` call
@@ -141,34 +81,37 @@ pub struct System {
 
 impl Default for System {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl System {
-    /// Creates a new system with a default block size of 512 frames.
-    #[allow(clippy::type_complexity)]
-    pub fn new() -> Self {
         System {
             graph: Graph::new(),
             layers: Vec::new(),
             sources: Vec::new(),
             sinks: Vec::new(),
             source_sink_wires: Vec::new(),
-            mix_modes: HashMap::new(),
             mod_wires: Vec::new(),
             block_size: 512,
         }
     }
+}
+
+impl System {
+    /// Creates a new system with a default block size of 512 frames.
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     /// Sets the mix strategy for a filter node. Changes take effect on the next `run()` call.
     pub fn set_mix_mode(&mut self, node: NodeIndex<u32>, mode: MixMode) {
-        self.mix_modes.insert(node, mode);
+        if let Some(n) = self.graph.node_weight_mut(node) {
+            n.set_mix_mode(mode);
+        }
     }
 
     /// Returns the mix strategy for a filter node, defaulting to `Sum`.
     pub fn get_mix_mode(&self, node: NodeIndex<u32>) -> MixMode {
-        self.mix_modes.get(&node).cloned().unwrap_or_default()
+        self.graph
+            .node_weight(node)
+            .map(|n| n.mix_mode())
+            .unwrap_or_default()
     }
 
     /// Builder-style setter for the block size.
@@ -206,8 +149,7 @@ impl System {
                 .first()
                 .copied()
                 .unwrap_or((NodeIndex::new(0), 0));
-            let source_descendant =
-                dyn_clone::clone_box(&*other.graph[graph_b_source_descendant_index]);
+            let source_descendant = other.graph[graph_b_source_descendant_index].clone();
 
             // Save the new index of the source descendant
             let new_index = if let std::collections::hash_map::Entry::Vacant(e) =
@@ -253,7 +195,7 @@ impl System {
                 continue;
             }
 
-            let node = dyn_clone::clone_box(&*other.graph[node_index]);
+            let node = other.graph[node_index].clone();
             let new_index = self.graph.add_node(node);
             new_edge_map.insert(node_index, new_index);
         }
@@ -290,7 +232,6 @@ impl System {
             sources: self.sources,
             sinks: new_sinks,
             source_sink_wires: Vec::new(),
-            mix_modes: self.mix_modes,
             mod_wires: Vec::new(),
             block_size: self.block_size,
         };
@@ -301,7 +242,8 @@ impl System {
     // Adds a filter to the system. Further references to this filter should be done using the returned uuid
     pub fn add_filter(&mut self, filter: Box<dyn Filter>) -> NodeIndex<u32> {
         log::trace!("[Graph] Adding filter {:?}", filter);
-        self.graph.add_node(filter)
+        self.graph
+            .add_node(AudioNode::new(filter, MixMode::default()))
     }
 
     // Connects two filters together. This method connects the filter in the topology graph as well.
@@ -486,7 +428,7 @@ impl System {
 
     /// Removes a filter from the graph
     pub fn remove_filter(&mut self, index: NodeIndex<u32>) -> Option<Box<dyn Filter>> {
-        self.graph.remove_node(index)
+        self.graph.remove_node(index).map(|n| n.filter)
     }
 
     /// Disconnects two filters
@@ -525,46 +467,38 @@ impl System {
             },
         );
 
-        if let Ok(topo) = toposort(&acyclic_graph, None) {
-            for node in topo {
-                // TODO: Add same-layer ability (to run some filters in parallel)
-                self.layers.push(vec![node.index()])
-            }
-
-            Ok(())
-        } else {
-            Err(AudioGraphError::CycleDetected)
+        let topo = toposort(&acyclic_graph, None).map_err(|_| AudioGraphError::CycleDetected)?;
+        for node in topo {
+            // TODO: Add same-layer ability (to run some filters in parallel)
+            self.layers.push(vec![node.index()])
         }
+
+        Ok(())
     }
 
-    // Performs one full run of the system, running every filter once in an order such that data that entered the system this
-    // run, can exit it this run as well.
-    //
-    // Multiple connections to the same input port are accumulated and mixed using each filter's
-    // configured `MixMode` before the filter's `transform()` is called.
+    // Performs one full run of the system, running every filter once in an order such that data
+    // that entered the system this run can exit it this run as well.
     pub fn run(&mut self) {
         let block_size = self.block_size;
 
-        // Accumulator: blocks pending delivery to (destination_filter, destination_port).
-        // All blocks for a port are collected here first, then mixed in one step.
-        let mut pending: HashMap<(NodeIndex<u32>, usize), Vec<Block>> = HashMap::new();
-
-        // Pull from all sources; enqueue blocks for all connected filters (fan-out)
-        let source_blocks: Vec<Block> = self
+        // Pull from all sources; push directly to connected AudioNodes (fan-out).
+        // Two-step collect releases the borrow on self.sources before we touch self.graph.
+        let source_blocks: Vec<Arc<Block>> = self
             .sources
             .iter_mut()
             .enumerate()
             .map(|(i, (source, connections))| {
                 let block = source.pull(block_size);
                 log::trace!("[system::run] source[{i}] active={}", source.is_active());
-                (block, connections.clone())
+                (block, connections)
             })
             .collect::<Vec<_>>()
             .into_iter()
             .map(|(block, connections)| {
+                let block = Arc::from(block);
                 for (desc, port) in connections {
-                    if self.graph.node_weight(desc).is_some() {
-                        pending.entry((desc, port)).or_default().push(block.clone());
+                    if let Some(node) = self.graph.node_weight_mut(*desc) {
+                        node.push(Arc::clone(&block), *port);
                     }
                 }
                 block
@@ -572,7 +506,6 @@ impl System {
             .collect();
 
         // Apply live modulation: drive target parameters from source block means.
-        // We collect the wires first to avoid borrowing self twice.
         let mod_actions: Vec<(ModTarget, String, f32)> = self
             .mod_wires
             .iter()
@@ -594,39 +527,22 @@ impl System {
                     }
                 }
                 ModTarget::Filter(node_idx) => {
-                    if let Some(filter) = self.graph.node_weight_mut(node_idx) {
-                        filter.set_parameter(&param_name, value);
+                    if let Some(node) = self.graph.node_weight_mut(node_idx) {
+                        node.filter_mut().set_parameter(&param_name, value);
                     }
                 }
             }
         }
 
-        // Process filters layer by layer; accumulate outputs for the next layer
-        let mut node_outputs: HashMap<NodeIndex<u32>, Vec<Block>> = HashMap::new();
+        // Process filters layer by layer.
         for layer in self.layers.iter() {
             for &f in layer.iter() {
                 let node_idx = NodeIndex::new(f);
-                let mix_mode = self.get_mix_mode(node_idx);
 
-                // Collect all ports that have pending blocks for this node
-                let ports: Vec<usize> = pending
-                    .keys()
-                    .filter(|(n, _)| *n == node_idx)
-                    .map(|(_, p)| *p)
-                    .collect();
+                // Process: mix accumulated inputs, run transform, get Arc-wrapped outputs.
+                let outputs = self.graph[node_idx].process(block_size);
 
-                // Mix and push each port's accumulated blocks
-                let filter = &mut self.graph[node_idx];
-                for port in ports {
-                    let blocks = pending.remove(&(node_idx, port)).unwrap_or_default();
-                    filter.push(mix_blocks(blocks, &mix_mode, block_size), port);
-                }
-
-                // Transform
-                let outputs = filter.transform();
-                // (filter borrow ends here; self.graph is available again)
-
-                // Enqueue outputs for downstream filters
+                // Push outputs to downstream nodes.
                 let neighbours: Vec<NodeIndex> = self
                     .graph
                     .neighbors_directed(node_idx, Direction::Outgoing)
@@ -638,51 +554,35 @@ impl System {
                         .map(|e| *e.weight())
                         .collect();
                     for (out_port, in_port) in edges {
-                        if let Some(block) = outputs.get(out_port) {
-                            pending
-                                .entry((neighbour, in_port))
-                                .or_default()
-                                .push(block.clone());
+                        if let Some(block) = outputs.get(out_port)
+                            && let Some(node) = self.graph.node_weight_mut(neighbour)
+                        {
+                            node.push(Arc::clone(block), in_port);
                         }
                     }
                 }
 
-                node_outputs.insert(node_idx, outputs);
+                // Push outputs to connected sinks inline (no second pass needed).
+                for ((sink_node, sink_port), sink) in &mut self.sinks {
+                    if *sink_node == node_idx
+                        && let Some(block) = outputs.get(*sink_port)
+                    {
+                        log::trace!(
+                            "[system::run] sink ← NodeIndex({}) port={sink_port}",
+                            node_idx.index()
+                        );
+                        sink.push(Arc::clone(block), 0);
+                    }
+                }
             }
         }
 
-        // Push cached filter outputs to filter-connected sinks (no double-transform)
-        self.sinks
-            .iter_mut()
-            .enumerate()
-            .for_each(|(i, ((node, port), sink))| {
-                if let Some(outputs) = node_outputs.get(node) {
-                    if let Some(val) = outputs.get(*port) {
-                        log::trace!(
-                            "[system::run] sink[{i}] ← NodeIndex({}) port={port}",
-                            node.index()
-                        );
-                        sink.push(val.clone(), 0);
-                    } else {
-                        log::trace!(
-                            "[system::run] sink[{i}] ← NodeIndex({}) port={port} NOT FOUND",
-                            node.index()
-                        );
-                    }
-                } else {
-                    log::trace!(
-                        "[system::run] sink[{i}] ← NodeIndex({}) not in outputs",
-                        node.index()
-                    );
-                }
-            });
-
-        // Push source blocks to directly-wired sinks
+        // Push source blocks to directly-wired sinks.
         for &(src_idx, sink_idx) in &self.source_sink_wires {
             if let Some(block) = source_blocks.get(src_idx)
                 && let Some((_, sink)) = self.sinks.get_mut(sink_idx)
             {
-                sink.push(block.clone(), 0);
+                sink.push(Arc::clone(block), 0);
             }
         }
     }
@@ -755,7 +655,7 @@ impl System {
     /// This allows direct access to filter-specific methods (like reset()) that aren't
     /// part of the Filter trait.
     pub fn get_filter_mut(&mut self, index: NodeIndex<u32>) -> Option<&mut Box<dyn Filter>> {
-        self.graph.node_weight_mut(index)
+        self.graph.node_weight_mut(index).map(|n| n.filter_mut())
     }
 
     pub fn save_to_file(&self, path: &Path) -> Result<(), String> {
@@ -797,7 +697,7 @@ impl System {
         // Import all filter nodes, building old-index → new-index mapping
         let mut remap: HashMap<NodeIndex<u32>, NodeIndex<u32>> = HashMap::new();
         for old_idx in other.graph.node_indices() {
-            let node = dyn_clone::clone_box(&*other.graph[old_idx]);
+            let node = other.graph[old_idx].clone();
             let new_idx = self.graph.add_node(node);
             remap.insert(old_idx, new_idx);
         }

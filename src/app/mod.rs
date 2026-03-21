@@ -1,7 +1,6 @@
 #[allow(clippy::module_inception)]
 mod app;
 pub mod audio_graph;
-mod cli;
 pub mod commands;
 pub(crate) mod graph_handler;
 
@@ -30,7 +29,6 @@ pub mod prelude {
     pub use super::AppMode;
     pub use super::app::App;
     pub use super::audio_graph::{AudioGraph, InstrumentSlot};
-    pub use super::cli::Cli;
     pub use super::commands::{AppCommand, AudioCommand, Command};
     pub use super::filesystem::FSConfig;
     pub use super::state::AppState;
