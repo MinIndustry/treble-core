@@ -17,6 +17,7 @@ pub struct SingleToneGenerator {
     note_off: Option<f32>, // Time when the note turned off (stop was called)
     time: f32,
     current_frequency: f32,
+    pink_b: [f32; 7], // IIR filter state for pink noise (Paul Kellet algorithm)
 }
 
 impl SingleToneGenerator {
@@ -36,12 +37,14 @@ impl SingleToneGenerator {
             time: 0.0,
             note_off: None,
             current_frequency: frequency,
+            pink_b: [0.0; 7],
         }
     }
 
     pub fn start(&mut self) {
         self.time = 0.0;
         self.note_off = None;
+        self.pink_b = [0.0; 7];
         // Note: We intentionally do NOT reset phase here to avoid phase discontinuities.
         // Each oscillator maintains its phase across note boundaries, which prevents clicks
         // and allows for smooth retriggering. For most musical contexts, this is desirable.
@@ -70,11 +73,23 @@ impl SingleToneGenerator {
         self.time += time_elapsed;
 
         // 2 * pi * [[ (t - t0) / T ]]
-        self.phase = (self.phase + TAU * actual_elapsed * self.current_frequency) % TAU;
+        if self.waveform.has_frequency() {
+            self.phase = (self.phase + TAU * actual_elapsed * self.current_frequency) % TAU;
+        }
 
         let tone_value = match self.waveform {
             Waveform::Blank | Waveform::Err(_) => 1.0, // Returns 1.0 that will be mapped to the amplitude envelope
-            Waveform::PinkNoise => 1.0,                // TODO impl pink noise
+            Waveform::PinkNoise => {
+                let white = rand::thread_rng().gen_range(-1.0_f32..1.0);
+                self.pink_b[0] = 0.99886 * self.pink_b[0] + white * 0.0555179;
+                self.pink_b[1] = 0.99332 * self.pink_b[1] + white * 0.0750759;
+                self.pink_b[2] = 0.96900 * self.pink_b[2] + white * 0.1538520;
+                self.pink_b[3] = 0.86650 * self.pink_b[3] + white * 0.3104856;
+                self.pink_b[4] = 0.55000 * self.pink_b[4] + white * 0.5329522;
+                self.pink_b[5] = -0.7616 * self.pink_b[5] - white * 0.0168980;
+                self.pink_b[6] = white * 0.115926;
+                (self.pink_b.iter().sum::<f32>() + white * 0.5362) * 0.11
+            }
             Waveform::Sawtooth => (self.phase * f32::consts::FRAC_1_PI) - 1.0,
             Waveform::Sine => f32::sin(self.phase),
             Waveform::Square => {
