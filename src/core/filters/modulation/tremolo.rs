@@ -17,7 +17,6 @@ pub struct Tremolo {
     pub frequency: f32,
     #[filter_parameter(range, 0.0, 1.0, 0.5)]
     pub depth: f32,
-    #[filter_parameter(range, 0.0, 192000.0, 44100.0)]
     pub sample_rate: f32,
 }
 
