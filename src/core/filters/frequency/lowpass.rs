@@ -11,9 +11,8 @@ use crate::core::{Block, CHANNELS};
 pub struct LowPassFilter {
     #[filter_source]
     source: Arc<Block>,
-    #[filter_parameter(range, 0.0, 20000.0, 1000.0)]
+    #[filter_parameter(range, 1.0, 20000.0, 1000.0)]
     cutoff_frequency: f32,
-    #[filter_parameter(range, 0.0, 192000.0, 44100.0)]
     sample_rate: f32,
     previous_output: [f32; CHANNELS],
 }

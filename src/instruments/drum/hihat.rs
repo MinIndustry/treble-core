@@ -68,7 +68,7 @@ impl HiHat {
                     0.5,
                     (0.0, 0.0),
                 ))))
-                .mix_mode(MixMode::Average)
+                .mix_mode(MixMode::Sum)
                 .build(),
             44100.0,
         )
