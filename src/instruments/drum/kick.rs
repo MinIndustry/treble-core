@@ -91,10 +91,10 @@ impl Instrument for Kick {
         }
     }
 
-    fn into_system(self: Box<Self>) -> System {
+    fn into_system(self: Box<Self>, sample_rate: f32) -> System {
         let source = MonophonicSource::new_percussive(
             self.generator,
-            44100.0,
+            sample_rate,
             MonophonicAllocationStrategy::Replace,
         );
         let mut system = System::new();

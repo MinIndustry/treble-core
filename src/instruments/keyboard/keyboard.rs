@@ -129,7 +129,7 @@ impl Instrument for Keyboard {
             / self.generators.len() as f32
     }
 
-    fn into_system(self: Box<Self>) -> System {
+    fn into_system(self: Box<Self>, sample_rate: f32) -> System {
         let voice_count = self.generators.len();
         let template = self
             .generators
@@ -141,7 +141,7 @@ impl Instrument for Keyboard {
         let source = PolyphonicSource::new(
             template,
             voice_count.max(1),
-            44100.0,
+            sample_rate,
             PolyphonicAllocationStrategy::default(),
         );
 

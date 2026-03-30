@@ -26,7 +26,7 @@ fn main() {
     ])
     .unwrap();
 
-    let mut app = App::init();
+    let mut app = App::init().unwrap();
 
     let hihat = match HiHat::new() {
         Ok(h) => h,

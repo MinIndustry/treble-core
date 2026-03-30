@@ -95,13 +95,14 @@ fn render_loop(
 
         // Run the graph for one block
         system.run();
+        let master_volume = shared_state.master_volume.load(Ordering::Relaxed);
         chunk_buffer.clear();
         if let Ok(sink) = system.get_sink(0) {
             let frames = sink.consume();
             log::trace!("[render] consumed {} frames from sink", frames.len());
             for frame in &frames {
-                chunk_buffer.push(frame[0]); // L
-                chunk_buffer.push(frame[1]); // R
+                chunk_buffer.push(frame[0] * master_volume); // L
+                chunk_buffer.push(frame[1] * master_volume); // R
             }
         }
 

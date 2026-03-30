@@ -2,5 +2,5 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SystemCommand {
-    Reset,
+    SetMasterVolume(f32),
 }

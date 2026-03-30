@@ -1,3 +1,5 @@
+//! Application level error definition
+
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -25,4 +27,7 @@ pub enum AppError {
 
     #[error("Audio error: {0}")]
     AudioError(String),
+
+    #[error("Config parse error: {0}")]
+    ConfigParseError(String),
 }

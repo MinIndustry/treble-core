@@ -26,7 +26,7 @@ fn main() {
     ])
     .unwrap();
 
-    let mut app = App::init();
+    let mut app = App::init().unwrap();
 
     let kick = Kick::new();
     app.add_instrument(Box::new(kick));

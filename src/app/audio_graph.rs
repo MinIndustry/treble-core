@@ -64,7 +64,7 @@ impl AudioGraph {
     ///
     /// The `instruments` vec is emptied by this call; re-add instruments if
     /// you need to compile again.
-    pub fn compile(&mut self) -> Result<System, AudioGraphError> {
+    pub fn compile(&mut self, sample_rate: f32) -> Result<System, AudioGraphError> {
         if self.instruments.is_empty() {
             return Ok(System::silent());
         }
@@ -80,7 +80,7 @@ impl AudioGraph {
         for (slot_idx, slot) in slots.into_iter().enumerate() {
             let source_start = main.sources_len();
 
-            let inst_system = slot.instrument.into_system();
+            let inst_system = slot.instrument.into_system(sample_rate);
             let output_node = main.absorb(inst_system)?;
 
             // Every absorbed source up to source_start is this instrument's

@@ -3,7 +3,7 @@ use rustic::core::envelope::prelude::{ADSREnvelopeBuilder, BezierSegment};
 use rustic::prelude::App;
 
 fn main() {
-    let app = App::init();
+    let app = App::init().unwrap();
     let scale = app.config.system.master_volume;
     let sample_rate = app.config.system.sample_rate;
 

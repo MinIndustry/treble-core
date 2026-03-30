@@ -26,7 +26,7 @@ fn main() {
     ])
     .unwrap();
 
-    let mut app = App::init();
+    let mut app = App::init().unwrap();
 
     let snare = Snare::new();
     app.add_instrument(Box::new(snare));

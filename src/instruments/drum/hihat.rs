@@ -125,8 +125,71 @@ impl Instrument for HiHat {
         // Percussive: let the decay envelope finish naturally — no hard cut.
     }
 
-    fn into_system(self: Box<Self>) -> System {
-        self.graph
+    fn into_system(self: Box<Self>, sample_rate: f32) -> System {
+        // Rebuild with the actual runtime sample rate (self.graph was pre-built
+        // with a 44100 default for the legacy tick path).
+        let source = SimpleSource::new(
+            MultiToneGeneratorBuilder::new()
+                .add_generator(
+                    ToneGeneratorBuilder::new()
+                        .waveform(Waveform::Square)
+                        .frequency(123.0)
+                        .build(),
+                )
+                .add_generator(
+                    ToneGeneratorBuilder::new()
+                        .waveform(Waveform::Square)
+                        .frequency(150.0)
+                        .build(),
+                )
+                .add_generator(
+                    ToneGeneratorBuilder::new()
+                        .waveform(Waveform::Square)
+                        .frequency(180.0)
+                        .build(),
+                )
+                .add_generator(
+                    ToneGeneratorBuilder::new()
+                        .waveform(Waveform::Square)
+                        .frequency(219.0)
+                        .build(),
+                )
+                .add_generator(
+                    ToneGeneratorBuilder::new()
+                        .waveform(Waveform::Square)
+                        .frequency(240.0)
+                        .build(),
+                )
+                .add_generator(
+                    ToneGeneratorBuilder::new()
+                        .waveform(Waveform::Square)
+                        .frequency(261.0)
+                        .build(),
+                )
+                .amplitude_envelope(Some(Box::new(BezierSegment::new(
+                    1.0,
+                    0.0,
+                    0.5,
+                    (0.0, 0.0),
+                ))))
+                .mix_mode(MixMode::Sum)
+                .build(),
+            sample_rate,
+        )
+        .boxed();
+
+        let mut system = System::new().with_block_size(1);
+        let source_id = system.add_source(source);
+        let bandpass = system.add_filter(Box::from(ResonantBandpassFilter::new(
+            (10.0e3 + 400.0) / 2.0,
+            20.0,
+            sample_rate,
+        )));
+        system.connect_source(source_id, bandpass, 0);
+        let sink_id = system.add_sink(Box::from(SimpleSink::new()));
+        system.connect_sink(bandpass, sink_id, 0);
+        system.compute().expect("HiHat system compute failed");
+        system
     }
 
     fn get_output(&mut self) -> f32 {

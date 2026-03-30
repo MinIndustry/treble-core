@@ -41,6 +41,11 @@ impl AudioHandle {
         Ok(())
     }
 
+    /// Access the shared audio state (e.g. to update master_volume).
+    pub fn shared_state(&self) -> &Arc<SharedAudioState> {
+        &self.shared_state
+    }
+
     /// Get audio metrics.
     pub fn get_metrics(&self) -> AudioMetrics {
         use std::sync::atomic::Ordering;

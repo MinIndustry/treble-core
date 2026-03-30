@@ -23,14 +23,32 @@
 //! generator.start();
 //! let _sample = generator.tick(1.0 / 44100.0);
 //! ```
+//! # Working with sound
+//!
+//! To work with sound it is recommended to create an instance of the rustic app:
+//!
+//! ```rust
+//! use rustic::prelude::*;
+//!
+//! let mut app = App::new();
+//!
+//! // Then start the app
+//! let event_rx = match app.start(EventFilter::default()) {
+//!     Ok(rx) => rx,
+//!     Err(e) => panic!("Unable to start the rustic engine: {e}");
+//! };
+//! ```
+//!
+//! This event_rx is a std::sync::mspc::Receiver channel sending `BackendEvent`
+//! Events sent through this channel are filtered with the EventFilter given as parameter
+//! in the start function
+//!
+//! Adding instruments at runtime requires a call to [`recompile()`](crate::prelude::App::recompile)
 //!
 //! # Features
 //! - `plotting`: utilities to render and inspect signal plots
-//! - `meta`: filter/instrument metadata used by GUI frontends
-//!
-//! # Audio I/O
-//! See `App::start()` for an example that uses `cpal` for audio output and a
-//! real-time safe three-thread audio pipeline.
+//! - `ts`: enables transpilation of the metadata structures for generators and filters to
+//! TypeScript
 
 pub mod app;
 
