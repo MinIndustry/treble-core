@@ -130,7 +130,7 @@ fn render_loop(
             let active_sources = (0..system.sources_len())
                 .filter(|&i| system.is_source_active(i))
                 .count();
-            log::info!(
+            log::trace!(
                 "[render] block={block_count} queue={}/{} chunk={} samples max={:.4} active_sources={active_sources}/{}",
                 audio_queue.len(),
                 target_samples,
