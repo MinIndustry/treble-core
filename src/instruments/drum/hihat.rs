@@ -1,15 +1,13 @@
 use petgraph::prelude::NodeIndex;
 
 use crate::Note;
-use crate::core::envelope::prelude::BezierSegment;
+use crate::core::envelope::prelude::{ADSREnvelopeBuilder, BezierSegment, ConstantSegment};
 use crate::core::filters::prelude::ResonantBandpassFilter;
 use crate::core::generator::prelude::{
     MixMode, Waveform,
     builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder},
 };
-use crate::core::graph::SimpleSink;
-use crate::core::graph::SimpleSource;
-use crate::core::graph::System;
+use crate::core::graph::{SimpleSink, SimpleSource, Source, System};
 use crate::instruments::Instrument;
 
 /// A HiHat instrument.
@@ -23,8 +21,8 @@ pub struct HiHat {
 }
 
 impl HiHat {
-    pub fn new() -> Result<Self, String> {
-        let source = SimpleSource::new(
+    fn _build_source(sample_rate: f32) -> Box<dyn Source> {
+        SimpleSource::new(
             MultiToneGeneratorBuilder::new()
                 .add_generator(
                     ToneGeneratorBuilder::new()
@@ -62,17 +60,23 @@ impl HiHat {
                         .frequency(261.0)
                         .build(),
                 )
-                .amplitude_envelope(Some(Box::new(BezierSegment::new(
-                    1.0,
-                    0.0,
-                    0.5,
-                    (0.0, 0.0),
-                ))))
+                .amplitude_envelope(Some(Box::new(
+                    ADSREnvelopeBuilder::new()
+                        .attack(Box::new(BezierSegment::new(0.0, 1.0, 0.1, (0.1, 0.0))))
+                        .decay(Box::new(BezierSegment::new(1.0, 0.0, 0.1, (0.0, 0.0))))
+                        .sustain(Box::new(ConstantSegment::new(0.0, None)))
+                        .release(Box::new(ConstantSegment::new(0.0, None)))
+                        .build(),
+                )))
                 .mix_mode(MixMode::Sum)
                 .build(),
-            44100.0,
+            sample_rate,
         )
-        .boxed();
+        .boxed()
+    }
+
+    pub fn new() -> Result<Self, String> {
+        let source = Self::_build_source(44100.0);
 
         let mut system = System::new().with_block_size(1);
         let source_id = system.add_source(source);
@@ -128,55 +132,7 @@ impl Instrument for HiHat {
     fn into_system(self: Box<Self>, sample_rate: f32) -> System {
         // Rebuild with the actual runtime sample rate (self.graph was pre-built
         // with a 44100 default for the legacy tick path).
-        let source = SimpleSource::new(
-            MultiToneGeneratorBuilder::new()
-                .add_generator(
-                    ToneGeneratorBuilder::new()
-                        .waveform(Waveform::Square)
-                        .frequency(123.0)
-                        .build(),
-                )
-                .add_generator(
-                    ToneGeneratorBuilder::new()
-                        .waveform(Waveform::Square)
-                        .frequency(150.0)
-                        .build(),
-                )
-                .add_generator(
-                    ToneGeneratorBuilder::new()
-                        .waveform(Waveform::Square)
-                        .frequency(180.0)
-                        .build(),
-                )
-                .add_generator(
-                    ToneGeneratorBuilder::new()
-                        .waveform(Waveform::Square)
-                        .frequency(219.0)
-                        .build(),
-                )
-                .add_generator(
-                    ToneGeneratorBuilder::new()
-                        .waveform(Waveform::Square)
-                        .frequency(240.0)
-                        .build(),
-                )
-                .add_generator(
-                    ToneGeneratorBuilder::new()
-                        .waveform(Waveform::Square)
-                        .frequency(261.0)
-                        .build(),
-                )
-                .amplitude_envelope(Some(Box::new(BezierSegment::new(
-                    1.0,
-                    0.0,
-                    0.5,
-                    (0.0, 0.0),
-                ))))
-                .mix_mode(MixMode::Sum)
-                .build(),
-            sample_rate,
-        )
-        .boxed();
+        let source = Self::_build_source(sample_rate);
 
         let mut system = System::new().with_block_size(1);
         let source_id = system.add_source(source);
