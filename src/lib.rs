@@ -29,13 +29,16 @@
 //!
 //! ```rust
 //! use rustic::prelude::*;
+//! use rustic::audio::EventFilter;
 //!
 //! let mut app = App::new();
 //!
 //! // Then start the app
 //! let event_rx = match app.start(EventFilter::default()) {
 //!     Ok(rx) => rx,
-//!     Err(e) => panic!("Unable to start the rustic engine: {e}");
+//!     Err(e) => {
+//!         panic!("Unable to start the rustic engine: {e}");
+//!     }
 //! };
 //! ```
 //!

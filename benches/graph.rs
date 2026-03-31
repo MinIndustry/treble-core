@@ -57,9 +57,7 @@ fn build_simple_system() -> System {
 /// Complex graph: 4 active sources, 12+ filter nodes, 1 feedback delay loop.
 ///
 /// Layout:
-///   src1 (sine  440) → LowPass → sum_node → Delay(0.2s) → att(0.4) ─┐
-///                                  ↑                                  │ (feedback)
-///                                  └──────────────────────────────────┘
+///   src1 (sine  440) → LowPass → sum_node → Delay(0.2s) → att(0.4) (Feedback to sum node)
 ///                       sum_node → master
 ///   src2 (square 880) → HighPass → Tremolo → master
 ///   src3 (saw   220)  → LowPass → LowPass  → master

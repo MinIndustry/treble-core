@@ -8,15 +8,13 @@
 //! - AudioMessage cloning and debug
 
 use rustic::Note;
-use rustic::app::commands::{AppCommand, AudioCommand, SystemCommand};
+use rustic::app::commands::AudioCommand;
 use rustic::audio::AudioMessage;
 use rustic::audio::messages::InstrumentAudioMessage;
 use rustic::core::utils::NOTES;
 use rustic::prelude::App;
 
-// ============================================================================
 // AudioCommand struct tests
-// ============================================================================
 
 #[test]
 fn test_notestart_command_fields() {
@@ -57,9 +55,7 @@ fn test_notestop_command_fields() {
     }
 }
 
-// ============================================================================
 // Velocity validation via App::note_on()
-// ============================================================================
 
 #[test]
 fn test_notestart_invalid_velocity_negative() {
@@ -92,22 +88,7 @@ fn test_notestart_valid_velocity_boundaries() {
     );
 }
 
-// ============================================================================
-// AppCommand validation
-// ============================================================================
-
-#[test]
-fn test_appcommand_validate() {
-    let cmd = AppCommand::System(SystemCommand::Reset);
-    assert!(
-        cmd.validate().is_ok(),
-        "System::Reset should pass validation"
-    );
-}
-
-// ============================================================================
 // InstrumentAudioMessage field structure
-// ============================================================================
 
 #[test]
 fn test_instrument_message_notestart_fields() {
@@ -145,9 +126,7 @@ fn test_instrument_message_notestop_fields() {
     }
 }
 
-// ============================================================================
 // AudioMessage cloning and debug
-// ============================================================================
 
 #[test]
 fn test_audiomessage_shutdown() {

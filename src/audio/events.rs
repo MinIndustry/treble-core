@@ -6,7 +6,7 @@ use std::sync::mpsc::Sender;
 
 use serde::{Deserialize, Serialize};
 
-// ─── Categories ───────────────────────────────────────────────────────────────
+// Categories
 
 /// Broad category of a [`BackendEvent`]. Used to opt in or out of event streams.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -33,7 +33,7 @@ impl EventCategory {
     }
 }
 
-// ─── Filter ───────────────────────────────────────────────────────────────────
+// Filter
 
 /// Controls which [`EventCategory`]s are forwarded to the caller.
 ///
@@ -92,7 +92,7 @@ impl Default for EventFilter {
     }
 }
 
-// ─── Event leaf types ─────────────────────────────────────────────────────────
+// Event leaf types
 
 /// Lifecycle events emitted by the engine.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -135,7 +135,7 @@ pub enum ErrorEvent {
     ThreadPanic { thread: String, message: String },
 }
 
-// ─── Top-level envelope ───────────────────────────────────────────────────────
+// Top-level envelope
 
 /// Top-level backend event, categorised for filtering.
 ///
@@ -161,7 +161,7 @@ impl BackendEvent {
     }
 }
 
-// ─── Filtered sender ──────────────────────────────────────────────────────────
+// Filtered sender
 
 /// Wraps `mpsc::Sender<BackendEvent>` with a live-updateable category filter.
 ///
