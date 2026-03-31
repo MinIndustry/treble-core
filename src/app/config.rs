@@ -40,8 +40,8 @@ impl AppConfig {
         }
 
         let contents = std::fs::read_to_string(&config_file)?;
-        let config = toml::from_str(&contents)
-            .map_err(|e| AppError::ConfigParseError(e.to_string()))?;
+        let config =
+            toml::from_str(&contents).map_err(|e| AppError::ConfigParseError(e.to_string()))?;
 
         Ok(config)
     }

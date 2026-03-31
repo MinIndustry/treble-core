@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 
-use crate::core::filters::prelude::GainFilter;
+use crate::core::filters::prelude::{GainFilter, Limiter};
 use crate::core::graph::{AudioGraphError, AudioOutputSink, System};
 use crate::instruments::Instrument;
 
@@ -99,10 +99,14 @@ impl AudioGraph {
             main.connect(out_node, mixer_node, 0, 0);
         }
 
+        // Limiter prevents hard clipping when instruments sum above 1.0.
+        let limiter_node = main.add_filter(Box::new(Limiter::default()));
+        main.connect(mixer_node, limiter_node, 0, 0);
+
         // Final sink
         let sink = Box::new(AudioOutputSink::new());
         let sink_idx = main.add_sink(sink);
-        main.connect_sink(mixer_node, sink_idx, 0);
+        main.connect_sink(limiter_node, sink_idx, 0);
 
         main.compute()?;
 
