@@ -468,9 +468,26 @@ impl System {
         );
 
         let topo = toposort(&acyclic_graph, None).map_err(|_| AudioGraphError::CycleDetected)?;
-        for node in topo {
-            // TODO: Add same-layer ability (to run some filters in parallel)
-            self.layers.push(vec![node.index()])
+
+        // Assign each node its topological depth (longest path from any root).
+        // Iterating in topological order guarantees all predecessors are visited
+        // before the current node, so their depths are already in the map.
+        let mut depth: HashMap<NodeIndex, usize> = HashMap::with_capacity(topo.len());
+        for &node in &topo {
+            let d = acyclic_graph
+                .neighbors_directed(node, Direction::Incoming)
+                .map(|pred| depth.get(&pred).copied().unwrap_or(0) + 1)
+                .max()
+                .unwrap_or(0);
+            depth.insert(node, d);
+        }
+
+        // Group nodes into layers by depth. All nodes sharing a depth have no
+        // intra-layer data dependency and may execute concurrently.
+        let max_depth = depth.values().max().copied().unwrap_or(0);
+        self.layers = vec![Vec::new(); max_depth + 1];
+        for &node in &topo {
+            self.layers[depth[&node]].push(node.index());
         }
 
         Ok(())
@@ -536,13 +553,26 @@ impl System {
 
         // Process filters layer by layer.
         for layer in self.layers.iter() {
-            for &f in layer.iter() {
-                let node_idx = NodeIndex::new(f);
+            // ── Phase 1: process each node ────────────────────────────────────
+            // All nodes in a layer share the same topological depth and have no
+            // intra-layer data dependency (by construction in compute()).
+            // TODO: parallelize with rayon::par_iter — requires either adding a
+            //       `Filter: Send` supertrait bound + extract-process-reinsert
+            //       pattern, or an unsafe split-borrow of the petgraph node vec.
+            let layer_outputs: Vec<(NodeIndex, Vec<Arc<Block>>)> = layer
+                .iter()
+                .map(|&f| {
+                    let node_idx = NodeIndex::new(f);
+                    let outputs = self.graph[node_idx].process(block_size);
+                    (node_idx, outputs)
+                })
+                .collect();
 
-                // Process: mix accumulated inputs, run transform, get Arc-wrapped outputs.
-                let outputs = self.graph[node_idx].process(block_size);
-
-                // Push outputs to downstream nodes.
+            // ── Phase 2: distribute outputs to downstream nodes and sinks ─────
+            for (node_idx, outputs) in layer_outputs {
+                // TODO: precomputed dispatch table — neighbour + edge lookups
+                //       allocate on the hot path; cache Vec<(neighbour, out_port,
+                //       in_port)> per node in compute() and invalidate on mutation.
                 let neighbours: Vec<NodeIndex> = self
                     .graph
                     .neighbors_directed(node_idx, Direction::Outgoing)
@@ -554,6 +584,9 @@ impl System {
                         .map(|e| *e.weight())
                         .collect();
                     for (out_port, in_port) in edges {
+                        // TODO: block pool — Arc::new per output block allocates on
+                        //       the hot path; a fixed-size pool of recycled Blocks
+                        //       would eliminate per-block heap pressure.
                         if let Some(block) = outputs.get(out_port)
                             && let Some(node) = self.graph.node_weight_mut(neighbour)
                         {
@@ -562,7 +595,6 @@ impl System {
                     }
                 }
 
-                // Push outputs to connected sinks inline (no second pass needed).
                 for ((sink_node, sink_port), sink) in &mut self.sinks {
                     if *sink_node == node_idx
                         && let Some(block) = outputs.get(*sink_port)
