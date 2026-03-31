@@ -93,16 +93,24 @@ fn render_loop(
             continue;
         }
 
+        // Sync master volume to the sink each block (cheap atomic read).
+        // The sink applies it before limiting, so the limiter always acts as
+        // a hard ceiling regardless of the volume setting.
+        system.set_sink_parameter(
+            0,
+            "master_volume",
+            shared_state.master_volume.load(Ordering::Relaxed),
+        );
+
         // Run the graph for one block
         system.run();
-        let master_volume = shared_state.master_volume.load(Ordering::Relaxed);
         chunk_buffer.clear();
         if let Ok(sink) = system.get_sink(0) {
             let frames = sink.consume();
             log::trace!("[render] consumed {} frames from sink", frames.len());
             for frame in &frames {
-                chunk_buffer.push(frame[0] * master_volume); // L
-                chunk_buffer.push(frame[1] * master_volume); // R
+                chunk_buffer.push(frame[0]); // L — master volume + limiting applied inside sink
+                chunk_buffer.push(frame[1]); // R
             }
         }
 

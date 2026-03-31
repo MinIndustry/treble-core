@@ -1,7 +1,11 @@
 use std::collections::HashMap;
 
 use crate::Note;
-use crate::core::envelope::prelude::{ADSREnvelope, ConstantSegment};
+use crate::core::envelope::prelude::{ADSREnvelopeBuilder, BezierSegment, LinearSegment};
+use crate::core::envelope::{
+    Envelope,
+    prelude::{ADSREnvelope, ConstantSegment},
+};
 use crate::core::filters::prelude::GainFilter;
 use crate::core::generator::prelude::{
     FrequencyRelation, MultiToneGenerator, Waveform,
@@ -34,6 +38,17 @@ impl PolyphonicVoice for Keyboard {
 }
 
 impl Keyboard {
+    fn piano_envelope(duration: f32) -> Box<dyn Envelope> {
+        Box::new(
+            ADSREnvelopeBuilder::new()
+                .attack(Box::new(BezierSegment::new(0.0, 1.0, 0.1, (0.0, 1.0))))
+                .decay(Box::new(BezierSegment::new(1.0, 0.0, duration, (0.0, 0.0))))
+                .sustain(Box::new(ConstantSegment::new(0.0, None)))
+                .release(Box::new(LinearSegment::new(0.2, 0.0, 0.3)))
+                .build(),
+        )
+    }
+
     pub fn new(voices: usize, voice_allocator: PolyVoiceAllocator, envelope: ADSREnvelope) -> Self {
         let generators = std::iter::repeat_with(|| {
             // Per-generator envelopes are static mix ratios only.
@@ -43,16 +58,30 @@ impl Keyboard {
             let generator = MultiToneGeneratorBuilder::new()
                 .add_generator(
                     ToneGeneratorBuilder::new()
-                        .amplitude_envelope(Box::new(ConstantSegment::new(1.0, None)))
+                        .amplitude_envelope(Self::piano_envelope(5.0))
                         .waveform(Waveform::Sine)
                         .frequency_relation(FrequencyRelation::Identity)
                         .build(),
                 )
                 .add_generator(
                     ToneGeneratorBuilder::new()
-                        .amplitude_envelope(Box::new(ConstantSegment::new(0.2, None)))
-                        .waveform(Waveform::Sawtooth)
+                        .amplitude_envelope(Self::piano_envelope(4.0))
+                        .waveform(Waveform::Sine)
                         .frequency_relation(FrequencyRelation::Harmonic(1))
+                        .build(),
+                )
+                .add_generator(
+                    ToneGeneratorBuilder::new()
+                        .amplitude_envelope(Self::piano_envelope(2.0))
+                        .waveform(Waveform::Sine)
+                        .frequency_relation(FrequencyRelation::Harmonic(2))
+                        .build(),
+                )
+                .add_generator(
+                    ToneGeneratorBuilder::new()
+                        .amplitude_envelope(Self::piano_envelope(1.0))
+                        .waveform(Waveform::Sine)
+                        .frequency_relation(FrequencyRelation::Harmonic(3))
                         .build(),
                 )
                 .amplitude_envelope(Some(Box::new(envelope.clone())))

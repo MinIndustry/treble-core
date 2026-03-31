@@ -73,10 +73,12 @@ fn main() {
     thread::sleep(time::Duration::from_millis(500));
     let mut values: Vec<f32> = vec![];
 
-    for i in 0..40 {
+    let length = 160;
+
+    for i in 0..length {
         values.clear();
 
-        if i % 4 == 1 {
+        if i % 8 == 2 {
             if let Err(e) = app.send(Command::Audio(AudioCommand::NoteStart {
                 instrument_idx: 1,
                 note: Note::new(NOTES::A, 4),
@@ -84,13 +86,13 @@ fn main() {
             })) {
                 log::error!("Unable to start note: {}", e);
             }
-        } else if i % 4 == 3 {
+        } else if i % 8 == 6 || i % 16 == 0 || i % 17 == 0 {
             let _ = app.send(Command::Audio(AudioCommand::NoteStart {
                 instrument_idx: 2,
                 note: Note::new(NOTES::A, 4),
                 velocity: 1.0,
             }));
-        } else if i < 39 {
+        } else if i < length - 1 && i % 2 == 0 {
             let _ = app.send(Command::Audio(AudioCommand::NoteStart {
                 instrument_idx: 0,
                 note: Note::new(NOTES::A, 4),
@@ -98,7 +100,7 @@ fn main() {
             }));
         }
 
-        thread::sleep(time::Duration::from_millis(250));
+        thread::sleep(time::Duration::from_millis(125));
 
         let _ = app.send(Command::Audio(AudioCommand::NoteStop {
             instrument_idx: 0,

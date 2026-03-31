@@ -54,6 +54,19 @@ impl ADSREnvelope {
     pub fn sustain(&self) -> f32 {
         self.decay.at(1.0)
     }
+
+    /// Returns the amplitude at the given time, ignoring note_off (i.e. as if the note is held).
+    /// Used to compute the actual level at the moment of note_off.
+    fn level_before_release(&self, time: f32) -> f32 {
+        if self.attack.get_duration() >= time {
+            self.attack.at(self.attack.map_time(0.0, time))
+        } else if self.decay.get_duration() >= (time - self.attack.get_duration()) {
+            self.decay
+                .at(self.decay.map_time(self.attack.get_duration(), time))
+        } else {
+            self.decay.at(1.0)
+        }
+    }
 }
 
 impl fmt::Display for ADSREnvelope {
@@ -81,7 +94,14 @@ impl Envelope for ADSREnvelope {
             // In release phase
             if self.release.get_duration() > (time - note_off) {
                 // In release
-                self.release.at(self.release.map_time(note_off, time))
+                let release_val = self.release.at(self.release.map_time(note_off, time));
+                let release_from = self.release.at(0.0);
+                let level_at_note_off = self.level_before_release(note_off);
+                if release_from > 0.0 && level_at_note_off < release_from {
+                    release_val * (level_at_note_off / release_from)
+                } else {
+                    release_val
+                }
             } else {
                 0.0
             }

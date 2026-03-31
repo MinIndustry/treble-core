@@ -67,9 +67,9 @@ pub struct System {
     // Each source may fan out to multiple (filter, port) pairs.
     sources: Vec<(Box<dyn Source>, Vec<(NodeIndex<u32>, usize)>)>,
     // The sinks of the system.
-    // The node index is the index of the filter that the sink is connected to
-    // The second usize is the port of the filter that the sink is connected to
-    sinks: Vec<((NodeIndex<u32>, usize), Box<dyn Sink>)>,
+    // Each sink may receive output from multiple filter nodes (sources).
+    // Each source is identified by (NodeIndex, output_port).
+    sinks: Vec<(Vec<(NodeIndex<u32>, usize)>, Box<dyn Sink>)>,
     /// Direct source→sink wires that bypass the filter graph entirely.
     /// Each entry is (source_index, sink_index).
     source_sink_wires: Vec<(usize, usize)>,
@@ -170,22 +170,23 @@ impl System {
                 }
             };
 
-            // Connect the sink's predecessors to the source's successors
-            let (sink_predecessor_id, sink_predecessor_port) = self.sinks[*from].0;
-            log::trace!(
-                "\tNode {} -> Sink {} & Source {} -> Node {} => Node {} -> Node {}",
-                sink_predecessor_id.index(),
-                from,
-                to,
-                graph_b_source_descendant_index.index(),
-                sink_predecessor_id.index(),
-                new_index.index()
-            );
-            self.graph.add_edge(
-                sink_predecessor_id,
-                new_index,
-                (sink_predecessor_port, graph_b_node_port),
-            );
+            // Connect each of the sink's predecessor nodes to the source's successors
+            for &(sink_predecessor_id, sink_predecessor_port) in self.sinks[*from].0.iter() {
+                log::trace!(
+                    "\tNode {} -> Sink {} & Source {} -> Node {} => Node {} -> Node {}",
+                    sink_predecessor_id.index(),
+                    from,
+                    to,
+                    graph_b_source_descendant_index.index(),
+                    sink_predecessor_id.index(),
+                    new_index.index()
+                );
+                self.graph.add_edge(
+                    sink_predecessor_id,
+                    new_index,
+                    (sink_predecessor_port, graph_b_node_port),
+                );
+            }
         }
 
         // Go through all nodes in the other graph and add them to the new graph
@@ -218,11 +219,12 @@ impl System {
         let new_sinks: Vec<_> = other
             .sinks
             .iter()
-            .map(|sink| {
-                (
-                    (new_edge_map[&sink.0.0], sink.0.1),
-                    dyn_clone::clone_box(&*sink.1),
-                )
+            .map(|(sources, sink)| {
+                let remapped = sources
+                    .iter()
+                    .map(|&(node_idx, port)| (new_edge_map[&node_idx], port))
+                    .collect();
+                (remapped, dyn_clone::clone_box(&**sink))
             })
             .collect();
 
@@ -290,17 +292,18 @@ impl System {
         }
     }
 
-    /// Connects a filter from the graph to a sink
+    /// Connects a filter node's output to a sink.
+    /// Multiple calls add multiple source connections to the same sink.
     pub fn connect_sink(&mut self, from: NodeIndex<u32>, sink: usize, out_port: usize) {
         log::info!("Node {} (p: {}) -> Sink {}", from.index(), out_port, sink);
-        self.sinks[sink].0 = (from, out_port);
+        self.sinks[sink].0.push((from, out_port));
     }
 
-    /// Sets the sink at index `index` to be the given sink object
+    /// Sets the sink at index `index` to be the given sink object (preserves existing sources).
     pub fn set_sink(&mut self, index: usize, sink: Box<dyn Sink>) -> Result<(), AudioGraphError> {
         if index < self.sinks.len() {
             log::trace!("[Graph] Setting Node {:?} as sink {}", sink, index);
-            self.sinks[index] = ((NodeIndex::new(0), 0), sink);
+            self.sinks[index].1 = sink;
             Ok(())
         } else {
             Err(AudioGraphError::InvalidNode)
@@ -337,6 +340,13 @@ impl System {
     /// Returns the number of sinks currently registered in this system.
     pub fn sinks_len(&self) -> usize {
         self.sinks.len()
+    }
+
+    /// Set a named parameter on a sink by index.
+    pub fn set_sink_parameter(&mut self, sink_idx: usize, name: &str, value: f32) {
+        if let Some((_, sink)) = self.sinks.get_mut(sink_idx) {
+            sink.set_parameter(name, value);
+        }
     }
 
     /// Returns the number of computed layers (0 means graph not yet compiled).
@@ -405,7 +415,7 @@ impl System {
     /// Adds a sink and returns its index
     pub fn add_sink(&mut self, sink: Box<dyn Sink>) -> usize {
         let idx = self.sinks.len();
-        self.sinks.push(((NodeIndex::new(0), 0), sink));
+        self.sinks.push((vec![], sink));
         idx
     }
 
@@ -552,24 +562,23 @@ impl System {
         }
 
         // Process filters layer by layer.
+        // Hoisted outside the loop so the Vec is allocated once and reused each layer.
+        // TODO: parallelize Phase 1 with rayon::par_iter — requires either adding a
+        //       `Filter: Send` supertrait bound + extract-process-reinsert pattern,
+        //       or an unsafe split-borrow of the petgraph node vec.
+        let mut layer_outputs: Vec<(NodeIndex, Vec<Arc<Block>>)> = Vec::new();
         for layer in self.layers.iter() {
-            // ── Phase 1: process each node ────────────────────────────────────
-            // All nodes in a layer share the same topological depth and have no
-            // intra-layer data dependency (by construction in compute()).
-            // TODO: parallelize with rayon::par_iter — requires either adding a
-            //       `Filter: Send` supertrait bound + extract-process-reinsert
-            //       pattern, or an unsafe split-borrow of the petgraph node vec.
-            let layer_outputs: Vec<(NodeIndex, Vec<Arc<Block>>)> = layer
-                .iter()
-                .map(|&f| {
-                    let node_idx = NodeIndex::new(f);
-                    let outputs = self.graph[node_idx].process(block_size);
-                    (node_idx, outputs)
-                })
-                .collect();
+            // Phase 1: process each node
+            layer_outputs.clear();
+            for &f in layer.iter() {
+                let node_idx = NodeIndex::new(f);
+                let outputs = self.graph[node_idx].process(block_size);
+                layer_outputs.push((node_idx, outputs));
+            }
 
-            // ── Phase 2: distribute outputs to downstream nodes and sinks ─────
-            for (node_idx, outputs) in layer_outputs {
+            // Phase 2: distribute outputs to downstream nodes and sinks
+            for (node_idx, outputs) in &layer_outputs {
+                let node_idx = *node_idx;
                 // TODO: precomputed dispatch table — neighbour + edge lookups
                 //       allocate on the hot path; cache Vec<(neighbour, out_port,
                 //       in_port)> per node in compute() and invalidate on mutation.
@@ -595,15 +604,17 @@ impl System {
                     }
                 }
 
-                for ((sink_node, sink_port), sink) in &mut self.sinks {
-                    if *sink_node == node_idx
-                        && let Some(block) = outputs.get(*sink_port)
-                    {
-                        log::trace!(
-                            "[system::run] sink ← NodeIndex({}) port={sink_port}",
-                            node_idx.index()
-                        );
-                        sink.push(Arc::clone(block), 0);
+                for (sources, sink) in &mut self.sinks {
+                    for &(sink_node, sink_port) in sources.iter() {
+                        if sink_node == node_idx
+                            && let Some(block) = outputs.get(sink_port)
+                        {
+                            log::trace!(
+                                "[system::run] sink ← NodeIndex({}) port={sink_port}",
+                                node_idx.index()
+                            );
+                            sink.push(Arc::clone(block), 0);
+                        }
                     }
                 }
             }
@@ -724,7 +735,10 @@ impl System {
         }
 
         // Record which filter node fed other's first sink before we consume other
-        let (other_output_node, _) = other.sinks[0].0;
+        let &(other_output_node, _) = other.sinks[0]
+            .0
+            .first()
+            .ok_or(AudioGraphError::InvalidMerging)?;
 
         // Import all filter nodes, building old-index → new-index mapping
         let mut remap: HashMap<NodeIndex<u32>, NodeIndex<u32>> = HashMap::new();

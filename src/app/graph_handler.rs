@@ -54,7 +54,7 @@ pub(crate) fn handle_graph_command(
                 }
                 NodeKind::Sink => {
                     log::info!("Adding sink to graph system");
-                    let sink = Box::new(AudioOutputSink::new());
+                    let sink = Box::new(AudioOutputSink::new(sample_rate));
                     let idx = gs.system.add_sink(sink);
                     gs.sink_map.insert(id, idx);
                 }
