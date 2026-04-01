@@ -27,7 +27,7 @@
 //!
 //! To work with sound it is recommended to create an instance of the rustic app:
 //!
-//! ```rust
+//! ```rust,no_run
 //! use rustic::prelude::*;
 //! use rustic::audio::EventFilter;
 //!
@@ -51,7 +51,7 @@
 //! # Features
 //! - `plotting`: utilities to render and inspect signal plots
 //! - `ts`: enables transpilation of the metadata structures for generators and filters to
-//! TypeScript
+//!   TypeScript
 
 pub mod app;
 

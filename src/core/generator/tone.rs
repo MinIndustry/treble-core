@@ -83,7 +83,7 @@ impl SingleToneGenerator {
                 let white = rand::thread_rng().gen_range(-1.0_f32..1.0);
                 self.pink_b[0] = 0.99886 * self.pink_b[0] + white * 0.0555179;
                 self.pink_b[1] = 0.99332 * self.pink_b[1] + white * 0.0750759;
-                self.pink_b[2] = 0.96900 * self.pink_b[2] + white * 0.1538520;
+                self.pink_b[2] = 0.96900 * self.pink_b[2] + white * 0.153852;
                 self.pink_b[3] = 0.86650 * self.pink_b[3] + white * 0.3104856;
                 self.pink_b[4] = 0.55000 * self.pink_b[4] + white * 0.5329522;
                 self.pink_b[5] = -0.7616 * self.pink_b[5] - white * 0.0168980;
