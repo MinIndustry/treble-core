@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 /// # Examples
 ///
 /// ```
-/// use rustic::core::utils::{Note, NOTES};
+/// use treble::core::utils::{Note, NOTES};
 ///
 /// let middle_c = Note(NOTES::C, 4);
 /// let a440 = Note(NOTES::A, 4);

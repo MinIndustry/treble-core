@@ -1,8 +1,8 @@
 //! Filter Unit Tests
 //! Tests for audio filters including pass filters, effects, and structural filters
 
-use rustic::core::audio::{Block, CHANNELS, silent_block};
-use rustic::core::graph::{Entry, Filter};
+use treble::core::audio::{Block, CHANNELS, silent_block};
+use treble::core::graph::{Entry, Filter};
 use std::sync::Arc;
 
 /// Create a constant stereo block: every frame has value [v, v]
@@ -13,7 +13,7 @@ fn const_block(n: usize, v: f32) -> Arc<Block> {
 #[cfg(test)]
 mod amplifier_tests {
     use super::*;
-    use rustic::core::filters::prelude::GainFilter;
+    use treble::core::filters::prelude::GainFilter;
 
     #[test]
     fn test_gain_multiplies_signal() {
@@ -50,7 +50,7 @@ mod amplifier_tests {
 #[cfg(test)]
 mod clipper_tests {
     use super::*;
-    use rustic::core::filters::prelude::Clipper;
+    use treble::core::filters::prelude::Clipper;
 
     #[test]
     fn test_clipping_above_threshold() {
@@ -87,7 +87,7 @@ mod clipper_tests {
 #[cfg(test)]
 mod compressor_tests {
     use super::*;
-    use rustic::core::filters::prelude::Compressor;
+    use treble::core::filters::prelude::Compressor;
 
     #[test]
     fn test_compressor_below_threshold_passes_through() {
@@ -126,7 +126,7 @@ mod compressor_tests {
 #[cfg(test)]
 mod delay_tests {
     use super::*;
-    use rustic::core::filters::prelude::DelayFilter;
+    use treble::core::filters::prelude::DelayFilter;
 
     #[test]
     fn test_delay_outputs_silence_initially() {
@@ -165,7 +165,7 @@ mod delay_tests {
 #[cfg(test)]
 mod lowpass_tests {
     use super::*;
-    use rustic::core::filters::prelude::LowPassFilter;
+    use treble::core::filters::prelude::LowPassFilter;
 
     #[test]
     fn test_lowpass_converges_toward_dc() {
@@ -205,7 +205,7 @@ mod lowpass_tests {
 #[cfg(test)]
 mod highpass_tests {
     use super::*;
-    use rustic::core::filters::prelude::HighPassFilter;
+    use treble::core::filters::prelude::HighPassFilter;
 
     #[test]
     fn test_highpass_attenuates_dc() {
@@ -230,7 +230,7 @@ mod highpass_tests {
 #[cfg(test)]
 mod bandpass_tests {
     use super::*;
-    use rustic::core::filters::prelude::BandPass;
+    use treble::core::filters::prelude::BandPass;
 
     #[test]
     fn test_bandpass_produces_output() {
@@ -245,7 +245,7 @@ mod bandpass_tests {
 #[cfg(test)]
 mod tremolo_tests {
     use super::*;
-    use rustic::core::filters::prelude::Tremolo;
+    use treble::core::filters::prelude::Tremolo;
 
     #[test]
     fn test_tremolo_modulates_amplitude() {
@@ -279,7 +279,7 @@ mod tremolo_tests {
 #[cfg(test)]
 mod moving_average_tests {
     use super::*;
-    use rustic::core::filters::prelude::MovingAverage;
+    use treble::core::filters::prelude::MovingAverage;
 
     #[test]
     fn test_moving_average_smooths_step() {

@@ -1,9 +1,11 @@
 mod hihat;
 mod kick;
+mod percussion;
 mod snare;
 
 pub use hihat::HiHat;
 pub use kick::Kick;
+pub use percussion::{Clap, Rim, Tom};
 pub use snare::Snare;
 
 pub struct DrumKit {

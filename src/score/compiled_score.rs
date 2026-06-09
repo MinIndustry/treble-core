@@ -47,9 +47,9 @@ fn play_chord(instrument: &mut Box<dyn crate::instruments::Instrument>, chord: &
 ///
 /// # Example
 /// ```
-/// use rustic::prelude::{Score, TimeSignature};
-/// use rustic::instruments::prelude::HiHat;
-/// use rustic::score::compiled_score::CompiledScore;
+/// use treble::prelude::{Score, TimeSignature};
+/// use treble::instruments::prelude::HiHat;
+/// use treble::score::compiled_score::CompiledScore;
 ///
 /// let mut score = Score::new("Test Score", TimeSignature(4, 4), 120, Vec::new(), Vec::new());
 /// score.add_instrument(Box::new(HiHat::new().unwrap()));
@@ -84,9 +84,9 @@ impl CompiledScore {
     ///
     /// # Example
     /// ```
-    /// use rustic::prelude::{Score, TimeSignature};
-    /// use rustic::instruments::prelude::HiHat;
-    /// use rustic::score::compiled_score::CompiledScore;
+    /// use treble::prelude::{Score, TimeSignature};
+    /// use treble::instruments::prelude::HiHat;
+    /// use treble::score::compiled_score::CompiledScore;
     ///
     /// let mut score = Score::new("Test Score", TimeSignature(4, 4), 120, Vec::new(), Vec::new());
     /// score.add_instrument(Box::new(HiHat::new().unwrap()));
@@ -137,9 +137,9 @@ impl CompiledScore {
     ///
     /// # Example
     /// ```
-    /// # use rustic::prelude::{Score, TimeSignature};
-    /// # use rustic::instruments::prelude::HiHat;
-    /// # use rustic::score::compiled_score::CompiledScore;
+    /// # use treble::prelude::{Score, TimeSignature};
+    /// # use treble::instruments::prelude::HiHat;
+    /// # use treble::score::compiled_score::CompiledScore;
     /// #
     /// # let mut score = Score::new("Test Score", TimeSignature(4, 4), 120, Vec::new(), Vec::new());
     /// # score.add_instrument(Box::new(HiHat::new().unwrap()));
@@ -168,9 +168,9 @@ impl CompiledScore {
     ///
     /// # Example
     /// ```
-    /// # use rustic::prelude::{Score, TimeSignature};
-    /// # use rustic::instruments::prelude::HiHat;
-    /// # use rustic::score::compiled_score::CompiledScore;
+    /// # use treble::prelude::{Score, TimeSignature};
+    /// # use treble::instruments::prelude::HiHat;
+    /// # use treble::score::compiled_score::CompiledScore;
     /// #
     /// # let mut score = Score::new("Test Score", TimeSignature(4, 4), 120, Vec::new(), Vec::new());
     /// # score.add_instrument(Box::new(HiHat::new().unwrap()));

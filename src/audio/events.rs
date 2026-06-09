@@ -44,7 +44,7 @@ impl EventCategory {
 ///
 /// # Example
 /// ```
-/// use rustic::audio::{EventFilter, EventCategory};
+/// use treble::audio::{EventFilter, EventCategory};
 ///
 /// let filter = EventFilter::default()
 ///     .with(EventCategory::Audio)         // enable waveform chunks

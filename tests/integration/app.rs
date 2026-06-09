@@ -4,7 +4,7 @@
 //! - App initialization with default and custom configs
 //! - Configuration loading from files
 
-use rustic::prelude::App;
+use treble::prelude::App;
 use std::io::Write;
 
 // ============================================================================

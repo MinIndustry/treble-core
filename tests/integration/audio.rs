@@ -10,13 +10,13 @@
 //! spawning actual audio threads, which is complex for unit testing.
 //! These tests focus on the data structures and their behavior.
 
-use rustic::Note;
-use rustic::audio::messages::InstrumentAudioMessage;
-use rustic::audio::{
+use treble::Note;
+use treble::audio::messages::InstrumentAudioMessage;
+use treble::audio::{
     AudioEvent, AudioMessage, BackendEvent, DiagnosticsEvent, ErrorEvent, SharedAudioState,
     StatusEvent,
 };
-use rustic::core::utils::NOTES;
+use treble::core::utils::NOTES;
 use std::sync::atomic::Ordering;
 
 // ============================================================================

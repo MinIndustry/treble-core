@@ -1,7 +1,7 @@
 # Filters Review -- DSP Correctness Analysis
 
 This document provides a comprehensive technical review of every filter implementation
-in `rustic/src/core/filters/`. Each filter is analyzed for mathematical correctness,
+in `treble/src/core/filters/`. Each filter is analyzed for mathematical correctness,
 numerical stability, and adherence to established DSP references (primarily Robert
 Bristow-Johnson's Audio EQ Cookbook and Julius O. Smith's online DSP resources).
 

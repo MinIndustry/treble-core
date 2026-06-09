@@ -1,4 +1,4 @@
-use rustic::core::{
+use treble::core::{
     CHANNELS, Frame,
     audio::{mono_to_frame, silent_block},
 };

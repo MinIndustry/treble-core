@@ -2,13 +2,13 @@ use simplelog::*;
 use std::fs::File;
 use std::{thread, time};
 
-use rustic::audio::{AudioEvent, BackendEvent, EventFilter, StatusEvent};
-use rustic::instruments::prelude::Kick;
-use rustic::prelude::{App, AudioCommand, Command};
-use rustic::{NOTES, Note};
+use treble::audio::{AudioEvent, BackendEvent, EventFilter, StatusEvent};
+use treble::instruments::prelude::Kick;
+use treble::prelude::{App, AudioCommand, Command};
+use treble::{NOTES, Note};
 
 #[cfg(feature = "plotting")]
-use rustic::plotting::plot_data;
+use treble::plotting::plot_data;
 
 fn main() {
     CombinedLogger::init(vec![
@@ -31,11 +31,11 @@ fn main() {
     let kick = Kick::new();
     app.add_instrument(Box::new(kick));
 
-    log::info!("Starting rustic app");
+    log::info!("Starting treble app");
     let event_rx = match app.start(EventFilter::all()) {
         Ok(er) => er,
         Err(e) => {
-            log::error!("Unable to start rustic app: {e:?}");
+            log::error!("Unable to start treble app: {e:?}");
             return;
         }
     };

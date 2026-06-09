@@ -16,7 +16,7 @@ fn main() -> Result<(), ()> {
 
 #[cfg(feature = "plotting")]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    use rustic::plotting::PlotBuilder;
+    use treble::plotting::PlotBuilder;
     use std::f32::consts::PI;
 
     println!("Generating advanced plot with multiple series and annotations...");
@@ -88,7 +88,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a third example showing minimal configuration
     println!("\nGenerating simple plot with defaults...");
 
-    use rustic::plotting::plot_data;
+    use treble::plotting::plot_data;
 
     let simple_data: Vec<(f32, f32)> = (0..50)
         .map(|i| {

@@ -8,7 +8,7 @@ use petgraph::Graph;
 use petgraph::dot::Dot;
 use petgraph::prelude::NodeIndex;
 use petgraph::{Direction, algo::toposort};
-use rustic_meta::MixMode;
+use treble_meta::MixMode;
 
 use super::audio_node::AudioNode;
 use super::{Filter, Sink, Source};
@@ -45,8 +45,8 @@ pub struct ModWire {
 /// to break the cycle.
 ///
 /// ```rust
-/// use rustic::core::graph::System;
-/// use rustic::core::filters::prelude::Tremolo;
+/// use treble::core::graph::System;
+/// use treble::core::filters::prelude::Tremolo;
 ///
 /// // A simple system with one input and one output
 /// let mut system = System::new();

@@ -1,7 +1,7 @@
-//! Rustic — Core synthesis library
+//! Treble — Core synthesis library
 //!
 //! # Overview
-//! Rustic is the workspace's core crate providing the DSP building blocks used by
+//! Treble is the workspace's core crate providing the DSP building blocks used by
 //! frontends and examples. It exposes composable primitives for sound generation
 //! (oscillators, noise), envelopes (ADSR, segments), filters (LP/HP, band-pass,
 //! tremolo, delays), and signal graph utilities. The crate is intentionally
@@ -17,7 +17,7 @@
 //!
 //! # Quick example
 //! ```rust
-//! use rustic::core::generator::prelude::*;
+//! use treble::core::generator::prelude::*;
 //! // Build a simple sine tone generator (see `core::generator` docs for details)
 //! let mut generator = builder::ToneGeneratorBuilder::new().build();
 //! generator.start();
@@ -25,11 +25,11 @@
 //! ```
 //! # Working with sound
 //!
-//! To work with sound it is recommended to create an instance of the rustic app:
+//! To work with sound it is recommended to create an instance of the treble app:
 //!
 //! ```rust,no_run
-//! use rustic::prelude::*;
-//! use rustic::audio::EventFilter;
+//! use treble::prelude::*;
+//! use treble::audio::EventFilter;
 //!
 //! let mut app = App::new();
 //!
@@ -37,7 +37,7 @@
 //! let event_rx = match app.start(EventFilter::default()) {
 //!     Ok(rx) => rx,
 //!     Err(e) => {
-//!         panic!("Unable to start the rustic engine: {e}");
+//!         panic!("Unable to start the treble engine: {e}");
 //!     }
 //! };
 //! ```
@@ -58,7 +58,7 @@ pub mod app;
 /// Audio subsystem with three-thread architecture for real-time safe audio
 pub mod audio;
 
-/// The core module of rustic. Contains the envelopes, filters, generators and the
+/// The core module of Treble. Contains the envelopes, filters, generators and the
 /// graph building utilities.
 pub mod core;
 
@@ -99,7 +99,7 @@ pub mod prelude {
 #[cfg(feature = "plotting")]
 pub mod plotting;
 
-pub const APP_ID: (&str, &str, &str) = ("rustic", "minigrim0", "xyz");
+pub const APP_ID: (&str, &str, &str) = ("treble", "minigrim0", "xyz");
 
 // Re-export Note from core utils
 pub use core::{NOTES, Note};

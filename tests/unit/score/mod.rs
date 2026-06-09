@@ -1,7 +1,7 @@
 //! Score Module Unit Tests
 //! Tests for musical score representation including notes, chords, measures, and staves
 
-use rustic::prelude::*;
+use treble::prelude::*;
 
 #[test]
 pub fn test_chord_duration() {

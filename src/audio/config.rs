@@ -99,7 +99,7 @@ fn default_log_level() -> String {
     "info".to_string()
 }
 fn default_log_file() -> String {
-    "rustic.log".to_string()
+    "treble.log".to_string()
 }
 fn default_log_to_stdout() -> bool {
     true

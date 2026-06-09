@@ -1,8 +1,8 @@
-# Rustic
+# Treble
 
 ## Project Overview
 
-Rustic is a frontend-agnostic core library for audio synthesis. It provides composable DSP primitives — generators, envelopes, filters, and a node graph — behind a lock-free, real-time-safe audio pipeline. The same engine can be embedded in GUI applications, CLI tools, or test harnesses without modification.
+Treble is a frontend-agnostic core library for audio synthesis. It provides composable DSP primitives — generators, envelopes, filters, and a node graph — behind a lock-free, real-time-safe audio pipeline. The same engine can be embedded in GUI applications, CLI tools, or test harnesses without modification.
 
 ## Architecture
 
@@ -71,7 +71,7 @@ To swap a new graph at runtime, send `AudioMessage::Graph(GraphAudioMessage::Swa
 The render thread sends `BackendEvent`s back to the caller via an `mpsc::channel`:
 
 | Variant | Description |
-|---|---|
+| --- | --- |
 | `AudioStarted { sample_rate }` | Engine is ready |
 | `AudioStopped` | Shutdown complete |
 | `AudioChunk(Vec<f32>)` | Stereo-interleaved samples from the last block — use `.step_by(2)` to extract L or R. Useful for offline analysis and waveform capture. |
@@ -87,6 +87,7 @@ The render thread sends `BackendEvent`s back to the caller via an `mpsc::channel
 ### Generators
 
 A `SingleToneGenerator` produces one oscillator voice:
+
 - **Waveform** — `Sine`, `Square`, `Sawtooth`, `Triangle`, `WhiteNoise`
 - **FrequencyRelation** — `Ratio`, `Harmonic`, `Semitones`, `Constant`, `Offset` relative to a base frequency
 - **Amplitude envelope** — any `dyn Envelope`

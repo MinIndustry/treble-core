@@ -1,6 +1,6 @@
 [package]
-name = "rustic"
-description = "Rustic; a UNIX Symphony Tool Implemented in Code"
+name = "treble"
+description = "Treble — modular real-time audio synthesis in Rust"
 version = "0.2.0"
 edition = "2024"
 
@@ -21,8 +21,8 @@ thiserror = "2.0.12"
 toml = "0.8.22"
 typetag = "0.2.21"
 inventory = "0.3"
-rustic-derive = { path = "../rustic-derive" }
-rustic-meta = { path = "../rustic-meta" }
+treble-derive = { git = "https://github.com/MinIndustry/treble-derive.git" }
+treble-meta = { git = "https://github.com/MinIndustry/treble-meta.git" }
 evdev = { version = "0.12.2", optional = true }
 plotters = { version = "0.3.7", optional = true }
 rayon = "1.11.0"
@@ -37,7 +37,7 @@ harness = false
 
 [features]
 plotting = ["plotters", ]
-ts = ["rustic-meta/ts"]
+ts = ["treble-meta/ts"]
 input = ["evdev"]
 
 # Testing

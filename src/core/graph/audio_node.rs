@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use rustic_meta::MixMode;
+use treble_meta::MixMode;
 
 use crate::core::audio::{Block, CHANNELS, silent_block};
 use crate::core::graph::Filter;

@@ -9,24 +9,24 @@
 //! For simple single-series plots, use the `plot_data` function:
 //!
 //! ```
-//! use rustic::plotting::plot_data;
+//! use treble::plotting::plot_data;
 //!
 //! let data = vec![(0.0, 0.0), (1.0, 1.0), (2.0, 4.0)];
 //! plot_data(data, "My Plot", (0.0, 2.0), (0.0, 5.0), "output.png")?;
-//! # Ok::<(), rustic::plotting::PlotError>(())
+//! # Ok::<(), treble::plotting::PlotError>(())
 //! ```
 //!
 //! For multiple series, use `plot_multi`:
 //!
 //! ```
-//! use rustic::plotting::plot_multi;
+//! use treble::plotting::plot_multi;
 //!
 //! let series = vec![
 //!     (vec![(0.0, 0.0), (1.0, 1.0)], "Series 1"),
 //!     (vec![(0.0, 1.0), (1.0, 0.0)], "Series 2"),
 //! ];
 //! plot_multi(series, "Multi Plot", (0.0, 1.0), (0.0, 1.0), "output.png")?;
-//! # Ok::<(), rustic::plotting::PlotError>(())
+//! # Ok::<(), treble::plotting::PlotError>(())
 //! ```
 //!
 //! # Advanced Usage
@@ -34,7 +34,7 @@
 //! For full customization, use [`PlotBuilder`]:
 //!
 //! ```
-//! use rustic::plotting::PlotBuilder;
+//! use treble::plotting::PlotBuilder;
 //!
 //! let data = vec![(0.0, 0.0), (1.0, 1.0), (2.0, 4.0)];
 //!
@@ -49,7 +49,7 @@
 //!     .resolution(1280, 720)
 //!     .show_legend(true)
 //!     .save("advanced.png")?;
-//! # Ok::<(), rustic::plotting::PlotError>(())
+//! # Ok::<(), treble::plotting::PlotError>(())
 //! ```
 
 // Internal modules
@@ -76,7 +76,7 @@ use types::{LineConfig, LineType, SeriesConfig};
 pub mod prelude {
     //! Convenient imports for plotting
     //!
-    //! Use `use rustic::plotting::prelude::*;` to import commonly used types.
+    //! Use `use treble::plotting::prelude::*;` to import commonly used types.
     pub use super::{PlotBuilder, PlotError, plot_data, plot_multi};
 }
 
@@ -96,7 +96,7 @@ pub mod prelude {
 ///
 /// # Example
 /// ```
-/// use rustic::plotting::plot_data;
+/// use treble::plotting::plot_data;
 ///
 /// let data: Vec<(f32, f32)> = (0..100)
 ///     .map(|i| {
@@ -106,7 +106,7 @@ pub mod prelude {
 ///     .collect();
 ///
 /// plot_data(data, "Sine Wave", (0.0, 1.0), (-1.0, 1.0), "sine.png")?;
-/// # Ok::<(), rustic::plotting::PlotError>(())
+/// # Ok::<(), treble::plotting::PlotError>(())
 /// ```
 ///
 /// # Errors
@@ -146,7 +146,7 @@ pub fn plot_data(
 ///
 /// # Example
 /// ```
-/// use rustic::plotting::plot_multi;
+/// use treble::plotting::plot_multi;
 ///
 /// let sine: Vec<(f32, f32)> = (0..100)
 ///     .map(|i| {
@@ -169,7 +169,7 @@ pub fn plot_data(
 ///     (-1.0, 1.0),
 ///     "trig.png"
 /// )?;
-/// # Ok::<(), rustic::plotting::PlotError>(())
+/// # Ok::<(), treble::plotting::PlotError>(())
 /// ```
 ///
 /// # Errors

@@ -1,6 +1,6 @@
-use rustic::core::envelope::prelude::{ADSREnvelopeBuilder, BezierSegment};
+use treble::core::envelope::prelude::{ADSREnvelopeBuilder, BezierSegment};
 
-use rustic::prelude::App;
+use treble::prelude::App;
 
 fn main() {
     let app = App::init().unwrap();

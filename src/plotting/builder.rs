@@ -13,7 +13,7 @@ use std::path::Path;
 ///
 /// # Example
 /// ```
-/// use rustic::plotting::PlotBuilder;
+/// use treble::plotting::PlotBuilder;
 ///
 /// let data = vec![(0.0, 0.0), (1.0, 1.0), (2.0, 4.0)];
 ///
@@ -25,7 +25,7 @@ use std::path::Path;
 ///     .add_horizontal_line(2.0, None)
 ///     .resolution(1280, 720)
 ///     .save("output.png")?;
-/// # Ok::<(), rustic::plotting::PlotError>(())
+/// # Ok::<(), treble::plotting::PlotError>(())
 /// ```
 #[derive(Debug, Clone)]
 pub struct PlotBuilder {
@@ -130,7 +130,7 @@ impl PlotBuilder {
     ///
     /// # Example
     /// ```
-    /// # use rustic::plotting::PlotBuilder;
+    /// # use treble::plotting::PlotBuilder;
     /// let data = vec![(0.0, 0.0), (1.0, 1.0)];
     ///
     /// PlotBuilder::new()

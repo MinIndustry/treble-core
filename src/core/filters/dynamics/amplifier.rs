@@ -2,7 +2,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use rayon::prelude::*;
-use rustic_derive::FilterMetaData;
+use treble_derive::FilterMetaData;
 
 use crate::core::Block;
 use crate::core::graph::{Entry, Filter};

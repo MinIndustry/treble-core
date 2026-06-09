@@ -1,5 +1,5 @@
 use crate::core::graph::Filter;
-use rustic_meta::Parameter;
+use treble_meta::Parameter;
 
 pub trait FilterFactory: Send + Sync {
     fn create_instance(&self) -> Box<dyn Filter>;

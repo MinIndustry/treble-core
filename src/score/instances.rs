@@ -11,9 +11,9 @@ use std::collections::VecDeque;
 ///
 /// # Example
 /// ```
-/// use rustic::prelude::{Staff, TimeSignature};
-/// use rustic::instruments::prelude::HiHat;
-/// use rustic::score::instances::StaffInstance;
+/// use treble::prelude::{Staff, TimeSignature};
+/// use treble::instruments::prelude::HiHat;
+/// use treble::score::instances::StaffInstance;
 ///
 /// let staff = Staff::new(&TimeSignature(4, 4));
 /// let instance = StaffInstance::new(Box::new(HiHat::new().unwrap()), staff);
@@ -39,9 +39,9 @@ impl StaffInstance {
     ///
     /// # Example
     /// ```
-    /// use rustic::prelude::{Staff, TimeSignature};
-    /// use rustic::instruments::prelude::HiHat;
-    /// use rustic::score::instances::StaffInstance;
+    /// use treble::prelude::{Staff, TimeSignature};
+    /// use treble::instruments::prelude::HiHat;
+    /// use treble::score::instances::StaffInstance;
     ///
     /// let staff = Staff::new(&TimeSignature(4, 4));
     /// let instance = StaffInstance::new(Box::new(HiHat::new().unwrap()), staff);
@@ -66,9 +66,9 @@ impl StaffInstance {
     ///
     /// # Example
     /// ```
-    /// # use rustic::prelude::{Staff, TimeSignature};
-    /// # use rustic::instruments::prelude::HiHat;
-    /// # use rustic::score::instances::StaffInstance;
+    /// # use treble::prelude::{Staff, TimeSignature};
+    /// # use treble::instruments::prelude::HiHat;
+    /// # use treble::score::instances::StaffInstance;
     /// #
     /// # let staff = Staff::new(&TimeSignature(4, 4));
     /// # let mut instance = StaffInstance::new(Box::new(HiHat::new().unwrap()), staff);
@@ -97,9 +97,9 @@ impl StaffInstance {
     ///
     /// # Example
     /// ```
-    /// # use rustic::prelude::{Staff, TimeSignature};
-    /// # use rustic::instruments::prelude::HiHat;
-    /// # use rustic::score::instances::StaffInstance;
+    /// # use treble::prelude::{Staff, TimeSignature};
+    /// # use treble::instruments::prelude::HiHat;
+    /// # use treble::score::instances::StaffInstance;
     /// #
     /// # let staff = Staff::new(&TimeSignature(4, 4));
     /// # let instance = StaffInstance::new(Box::new(HiHat::new().unwrap()), staff);
@@ -122,9 +122,9 @@ impl StaffInstance {
     ///
     /// # Example
     /// ```
-    /// # use rustic::prelude::{Staff, TimeSignature};
-    /// # use rustic::instruments::prelude::HiHat;
-    /// # use rustic::score::instances::StaffInstance;
+    /// # use treble::prelude::{Staff, TimeSignature};
+    /// # use treble::instruments::prelude::HiHat;
+    /// # use treble::score::instances::StaffInstance;
     /// #
     /// # let staff = Staff::new(&TimeSignature(4, 4));
     /// # let mut instance = StaffInstance::new(Box::new(HiHat::new().unwrap()), staff);
@@ -145,9 +145,9 @@ impl StaffInstance {
     ///
     /// # Example
     /// ```
-    /// # use rustic::prelude::{Staff, TimeSignature};
-    /// # use rustic::instruments::prelude::HiHat;
-    /// # use rustic::score::instances::StaffInstance;
+    /// # use treble::prelude::{Staff, TimeSignature};
+    /// # use treble::instruments::prelude::HiHat;
+    /// # use treble::score::instances::StaffInstance;
     /// #
     /// # let staff = Staff::new(&TimeSignature(4, 4));
     /// # let instance = StaffInstance::new(Box::new(HiHat::new().unwrap()), staff);
@@ -171,9 +171,9 @@ impl StaffInstance {
     ///
     /// # Example
     /// ```
-    /// # use rustic::prelude::{Staff, TimeSignature};
-    /// # use rustic::instruments::prelude::HiHat;
-    /// # use rustic::score::instances::StaffInstance;
+    /// # use treble::prelude::{Staff, TimeSignature};
+    /// # use treble::instruments::prelude::HiHat;
+    /// # use treble::score::instances::StaffInstance;
     /// #
     /// # let staff = Staff::new(&TimeSignature(4, 4));
     /// # let instance = StaffInstance::new(Box::new(HiHat::new().unwrap()), staff);
@@ -193,9 +193,9 @@ impl StaffInstance {
     ///
     /// # Example
     /// ```
-    /// # use rustic::prelude::{Staff, TimeSignature};
-    /// # use rustic::instruments::prelude::HiHat;
-    /// # use rustic::score::instances::StaffInstance;
+    /// # use treble::prelude::{Staff, TimeSignature};
+    /// # use treble::instruments::prelude::HiHat;
+    /// # use treble::score::instances::StaffInstance;
     /// #
     /// # let staff = Staff::new(&TimeSignature(4, 4));
     /// # let instance = StaffInstance::new(Box::new(HiHat::new().unwrap()), staff);

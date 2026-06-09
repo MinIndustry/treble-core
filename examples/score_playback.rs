@@ -1,9 +1,9 @@
 use clap::Parser;
 use std::path::PathBuf;
 
-use rustic::prelude::{Score, TimeSignature};
+use treble::prelude::{Score, TimeSignature};
 
-use rustic::instruments::prelude::{HiHat, Kick, Snare};
+use treble::instruments::prelude::{HiHat, Kick, Snare};
 
 #[derive(Parser, Debug)]
 struct Cli {

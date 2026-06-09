@@ -1,6 +1,6 @@
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
-use rustic::core::{
+use treble::core::{
     filters::prelude::*,
     generator::prelude::{
         FrequencyRelation, Waveform,

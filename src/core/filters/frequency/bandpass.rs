@@ -1,7 +1,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use rustic_derive::FilterMetaData;
+use treble_derive::FilterMetaData;
 
 use super::{HighPassFilter, LowPassFilter};
 use crate::core::Block;

@@ -1,6 +1,6 @@
 fn main() {
-    use rustic::core::filters::prelude::{HighPassFilter, LowPassFilter};
-    use rustic_meta::MetaFilter;
+    use treble::core::filters::prelude::{HighPassFilter, LowPassFilter};
+    use treble_meta::MetaFilter;
 
     let filter = LowPassFilter::metadata();
     let filter2 = HighPassFilter::metadata();

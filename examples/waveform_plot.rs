@@ -1,12 +1,12 @@
 use log::info;
 use std::time::Instant;
 
-use rustic::core::envelope::prelude::{ADSREnvelopeBuilder, BezierSegment};
-use rustic::core::generator::prelude::SingleToneGenerator;
-use rustic::core::generator::prelude::*;
+use treble::core::envelope::prelude::{ADSREnvelopeBuilder, BezierSegment};
+use treble::core::generator::prelude::SingleToneGenerator;
+use treble::core::generator::prelude::*;
 
 #[cfg(feature = "plotting")]
-use rustic::plotting::plot_data;
+use treble::plotting::plot_data;
 
 fn main() {
     // Tone Generator

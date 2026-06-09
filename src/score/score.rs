@@ -7,7 +7,7 @@ use crate::instruments::Instrument;
 
 /// A simple time signature denoted with its numerator and denominator.
 /// ```rust
-/// use rustic::prelude::TimeSignature;
+/// use treble::prelude::TimeSignature;
 ///
 /// // A simple 4/4 time signature
 /// let time_signature = TimeSignature(4, 4);
@@ -85,8 +85,8 @@ impl Score {
     /// The instrument's index is also added to the corresponding staff.
     /// If the number of staves is less than the number of instruments, a new staff is created.
     /// ```rust
-    /// use rustic::prelude::{Score, TimeSignature};
-    /// use rustic::instruments::prelude::{HiHat, Kick, Snare};
+    /// use treble::prelude::{Score, TimeSignature};
+    /// use treble::instruments::prelude::{HiHat, Kick, Snare};
     ///
     /// let mut score = Score::new("Test", TimeSignature(4, 4), 120, Vec::new(), Vec::new());
     /// let kick_index = score.add_instrument(Box::new(Kick::new()));
@@ -132,8 +132,8 @@ impl Score {
     ///
     /// # Example
     /// ```
-    /// use rustic::prelude::{Score, TimeSignature};
-    /// use rustic::instruments::prelude::HiHat;
+    /// use treble::prelude::{Score, TimeSignature};
+    /// use treble::instruments::prelude::HiHat;
     ///
     /// let mut score = Score::new("Demo", TimeSignature(4, 4), 120, Vec::new(), Vec::new());
     /// score.add_instrument(Box::new(HiHat::new().unwrap()));

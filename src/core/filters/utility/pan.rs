@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::core::Block;
 use crate::core::graph::{Entry, Filter};
-use rustic_derive::FilterMetaData;
+use treble_derive::FilterMetaData;
 
 /// Pans the output left or right
 #[derive(FilterMetaData, Clone, Default)]

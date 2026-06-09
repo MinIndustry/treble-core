@@ -1,9 +1,9 @@
 //! Envelope Segment Tests
 //! Tests for individual envelope segments (constant, linear, bezier, function)
 
-use rustic::core::envelope::prelude::ConstantSegment;
-use rustic::core::envelope::{Envelope, prelude::Segment};
-use rustic::core::generator::prelude::*;
+use treble::core::envelope::prelude::ConstantSegment;
+use treble::core::envelope::{Envelope, prelude::Segment};
+use treble::core::generator::prelude::*;
 
 #[test]
 pub fn test_constant_segment_boundaries() {
@@ -57,7 +57,7 @@ pub fn test_constant_generator() {
 
 #[cfg(test)]
 mod linear_segment_tests {
-    use rustic::core::envelope::prelude::{LinearSegment, Segment};
+    use treble::core::envelope::prelude::{LinearSegment, Segment};
 
     // - Test linear interpolation between start and end values
     #[test]

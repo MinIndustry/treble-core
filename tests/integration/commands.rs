@@ -7,12 +7,12 @@
 //! - InstrumentAudioMessage field structure
 //! - AudioMessage cloning and debug
 
-use rustic::Note;
-use rustic::app::commands::AudioCommand;
-use rustic::audio::AudioMessage;
-use rustic::audio::messages::InstrumentAudioMessage;
-use rustic::core::utils::NOTES;
-use rustic::prelude::App;
+use treble::Note;
+use treble::app::commands::AudioCommand;
+use treble::audio::AudioMessage;
+use treble::audio::messages::InstrumentAudioMessage;
+use treble::core::utils::NOTES;
+use treble::prelude::App;
 
 // AudioCommand struct tests
 

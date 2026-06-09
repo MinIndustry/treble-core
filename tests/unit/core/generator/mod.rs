@@ -22,7 +22,7 @@ mod waveform_tests {
 
 #[cfg(test)]
 mod composite_generator_tests {
-    use rustic::core::generator::prelude::builder::MultiToneGeneratorBuilder;
+    use treble::core::generator::prelude::builder::MultiToneGeneratorBuilder;
 
     #[test]
     pub fn test_tick_block_consistency() {

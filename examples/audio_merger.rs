@@ -4,8 +4,8 @@ use std::fs::File;
 use log::error;
 use std::path::PathBuf;
 
-use rustic::core::generator::prelude::builder::MultiToneGeneratorBuilder;
-use rustic::core::{
+use treble::core::generator::prelude::builder::MultiToneGeneratorBuilder;
+use treble::core::{
     filters::prelude::GainFilter,
     graph::{System, simple_source},
 };

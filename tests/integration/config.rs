@@ -6,7 +6,7 @@
 //! - Configuration validation
 //! - File loading and missing field handling
 
-use rustic::audio::{AudioConfig, LogConfig};
+use treble::audio::{AudioConfig, LogConfig};
 use std::io::Write;
 
 // ============================================================================
@@ -249,8 +249,8 @@ fn test_logconfig_default_values() {
     assert_eq!(config.level, "info", "Default log level should be 'info'");
     assert!(!config.log_to_file, "Default log_to_file should be false");
     assert_eq!(
-        config.log_file, "rustic.log",
-        "Default log_file should be 'rustic.log'"
+        config.log_file, "treble.log",
+        "Default log_file should be 'treble.log'"
     );
     assert!(config.log_to_stdout, "Default log_to_stdout should be true");
 }
@@ -294,7 +294,7 @@ fn test_logconfig_toml_missing_fields_use_defaults() {
 
     // Missing fields should have default values
     assert!(!config.log_to_file);
-    assert_eq!(config.log_file, "rustic.log");
+    assert_eq!(config.log_file, "treble.log");
     assert!(config.log_to_stdout);
 }
 

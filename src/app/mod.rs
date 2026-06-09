@@ -58,7 +58,7 @@ pub struct App {
     /// State for the visual graph editor. Protected by Mutex for `send(&self)`.
     graph_system: Mutex<GraphData>,
 
-    /// Handle to rustic's threads
+    /// Handle to Treble's threads
     pub handle: Option<AudioHandle>,
     /// Direct channel to the render thread (no intermediate command thread).
     message_tx: Option<crossbeam::channel::Sender<AudioMessage>>,
@@ -87,7 +87,7 @@ impl App {
         if let Some(app_dirs) =
             directories::ProjectDirs::from(crate::APP_ID.2, crate::APP_ID.1, crate::APP_ID.0)
         {
-            let config_path = app_dirs.config_dir().join("rustic.toml");
+            let config_path = app_dirs.config_dir().join("treble.toml");
             match App::from_file(&config_path) {
                 Ok(app) => Ok(app),
                 Err(AppError::FileNotFound) => {

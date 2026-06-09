@@ -23,7 +23,7 @@ pub struct AppConfig {
 
 impl AppConfig {
     /// Load config from a file path. If the path is relative, it is resolved
-    /// against the app root directory (`~/.config/rustic/`).
+    /// against the app root directory (`~/.config/treble/`).
     pub fn from_file(file: &Path) -> Result<Self, AppError> {
         let config_file = if file.is_absolute() {
             file.to_path_buf()

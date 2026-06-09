@@ -1,8 +1,8 @@
 //! Graph / System Unit Tests
 
-use rustic::core::audio::{Block, CHANNELS};
-use rustic::core::filters::prelude::{DelayFilter, GainFilter};
-use rustic::core::graph::{SimpleSink, Source, System};
+use treble::core::audio::{Block, CHANNELS};
+use treble::core::filters::prelude::{DelayFilter, GainFilter};
+use treble::core::graph::{SimpleSink, Source, System};
 
 /// A trivial source that emits a constant stereo block.
 #[derive(Debug, Clone)]

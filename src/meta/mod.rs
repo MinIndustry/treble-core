@@ -1,4 +1,4 @@
-use rustic_meta::{FilterInfo, MetaGenerator, MetaSink, Parameter};
+use treble_meta::{FilterInfo, MetaGenerator, MetaSink, Parameter};
 
 pub mod traits;
 

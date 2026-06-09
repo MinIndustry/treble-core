@@ -209,7 +209,7 @@ pub(crate) fn handle_graph_command(
             if let Some(&idx) = gs.filter_map.get(&node_id) {
                 // Keep the command-thread topology copy in sync for mix_mode
                 if param_name == "mix_mode" {
-                    let mode = rustic_meta::MixMode::from_ordinal(value as usize);
+                    let mode = treble_meta::MixMode::from_ordinal(value as usize);
                     gs.system.set_mix_mode(idx, mode);
                 }
                 message_tx

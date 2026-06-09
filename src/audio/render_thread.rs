@@ -204,7 +204,7 @@ fn process_graph_message(system: &mut System, cmd: GraphAudioMessage, event_tx: 
             value,
         } => {
             if param_name == "mix_mode" {
-                let mode = rustic_meta::MixMode::from_ordinal(value as usize);
+                let mode = treble_meta::MixMode::from_ordinal(value as usize);
                 system.set_mix_mode(NodeIndex::new(node_index), mode);
             } else if let Some(f) = system.get_filter_mut(NodeIndex::new(node_index)) {
                 f.set_parameter(param_name.as_str(), value);

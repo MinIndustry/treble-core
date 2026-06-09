@@ -3,7 +3,7 @@
 
 #[cfg(test)]
 mod tests {
-    use rustic::core::envelope::{
+    use treble::core::envelope::{
         Envelope,
         prelude::{ADSREnvelope, ADSREnvelopeBuilder, LinearSegment},
     };
