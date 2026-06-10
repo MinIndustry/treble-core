@@ -31,5 +31,5 @@ pub trait Instrument: std::fmt::Debug + Send + Sync {
     /// Converts this instrument into a self-contained `System` sub-graph.
     /// Used by `AudioGraph::compile()` to assemble all instruments into a
     /// single unified graph for the render thread.
-    fn into_system(self: Box<Self>, sample_rate: f32) -> System;
+    fn into_system(&self, sample_rate: f32) -> System;
 }

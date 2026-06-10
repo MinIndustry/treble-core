@@ -240,10 +240,11 @@ impl Instrument for Synth {
             / self.generators.len().max(1) as f32;
     }
 
-    fn into_system(self: Box<Self>, sample_rate: f32) -> System {
+    fn into_system(&self, sample_rate: f32) -> System {
         let voice_count = self.generators.len();
         let template = self
             .generators
+            .clone()
             .into_iter()
             .next()
             .map(|(g, _)| g)

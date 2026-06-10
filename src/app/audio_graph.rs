@@ -55,28 +55,25 @@ impl AudioGraph {
         self.instruments.is_empty()
     }
 
-    /// Consume all instrument slots and compile them into a unified `System`.
+    /// Compiles all instrument slots into a unified `System`.
     ///
     /// The returned `System` has one `AudioOutputSink` and is ready to be
     /// swapped into the render thread. The `source_map` is updated so the
     /// caller can route `NoteStart`/`NoteStop` to the correct source index.
-    ///
-    /// The `instruments` vec is emptied by this call; re-add instruments if
-    /// you need to compile again.
     pub fn compile(&mut self, sample_rate: f32) -> Result<System, AudioGraphError> {
         if self.instruments.is_empty() {
             return Ok(System::silent());
         }
 
-        let slots: Vec<InstrumentSlot> = std::mem::take(&mut self.instruments);
-        let n = slots.len();
+        // let slots: Vec<InstrumentSlot> = std::mem::take(&mut self.instruments);
+        let n = self.instruments.len();
 
         let mut main = System::new();
         let mut output_nodes = Vec::with_capacity(n);
 
         self.source_map.clear();
 
-        for (slot_idx, slot) in slots.into_iter().enumerate() {
+        for (slot_idx, slot) in self.instruments.iter().enumerate() {
             let source_start = main.sources_len();
 
             let inst_system = slot.instrument.into_system(sample_rate);

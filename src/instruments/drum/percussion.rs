@@ -67,8 +67,8 @@ impl Instrument for Clap {
         }
     }
 
-    fn into_system(self: Box<Self>, sample_rate: f32) -> System {
-        percussive_system(self.generator, sample_rate, 0.9)
+    fn into_system(&self, sample_rate: f32) -> System {
+        percussive_system(self.generator.clone(), sample_rate, 0.9)
     }
 }
 
@@ -130,8 +130,8 @@ impl Instrument for Rim {
         }
     }
 
-    fn into_system(self: Box<Self>, sample_rate: f32) -> System {
-        percussive_system(self.generator, sample_rate, 0.85)
+    fn into_system(&self, sample_rate: f32) -> System {
+        percussive_system(self.generator.clone(), sample_rate, 0.85)
     }
 }
 
@@ -199,8 +199,8 @@ impl Instrument for Tom {
         }
     }
 
-    fn into_system(self: Box<Self>, sample_rate: f32) -> System {
-        percussive_system(self.generator, sample_rate, 0.95)
+    fn into_system(&self, sample_rate: f32) -> System {
+        percussive_system(self.generator.clone(), sample_rate, 0.95)
     }
 }
 
