@@ -1,0 +1,61 @@
+name: Bench regression
+
+# Runs criterion benches on the PR's base commit, then on the PR itself
+# (same runner, same job → fair comparison), and fails if any benchmark's
+# mean regressed more than the threshold. Draft PRs are skipped; the
+# `ready_for_review` trigger runs the gate the moment a draft flips ready.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: bench-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  bench-regression:
+    name: bench-regression
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write # post the comparison table as a PR comment
+    steps:
+      - name: Checkout base (merge target)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+
+      - name: Install ALSA headers (cpal build dependency)
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Bench base
+        run: cargo bench --bench graph -- --save-baseline base --noplot
+
+      - name: Checkout PR (preserve criterion baselines)
+        uses: actions/checkout@v4
+        with:
+          clean: false # keep target/criterion from the base run
+
+      - name: Bench PR
+        run: cargo bench --bench graph -- --save-baseline pr --noplot
+
+      - name: Compare & enforce threshold
+        run: python3 .github/scripts/bench_compare.py --base base --new pr --max-regression-pct 15
+
+      - name: Comment results on PR
+        if: always()
+        run: |
+          if [ -f bench-report.md ]; then
+            gh pr comment "$PR" --body-file bench-report.md --edit-last \
+              || gh pr comment "$PR" --body-file bench-report.md
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          GH_REPO: ${{ github.repository }}
