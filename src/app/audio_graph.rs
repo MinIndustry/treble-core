@@ -64,11 +64,9 @@ impl AudioGraph {
         if self.instruments.is_empty() {
             return Ok(System::silent());
         }
-
-        // let slots: Vec<InstrumentSlot> = std::mem::take(&mut self.instruments);
-        let n = self.instruments.len();
-
+        
         let mut main = System::new();
+        let n = self.instruments.len();
         let mut output_nodes = Vec::with_capacity(n);
 
         self.source_map.clear();
