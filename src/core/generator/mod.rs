@@ -211,7 +211,7 @@ pub mod prelude {
                 FrequencyRelation::Harmonic(harmonic) => base_freq * (*harmonic) as f32,
                 FrequencyRelation::Ratio(ratio) => base_freq * ratio,
                 FrequencyRelation::Offset(offset) => base_freq + offset,
-                FrequencyRelation::Semitones(semitones) => base_freq * 2.0_f32.powi(*semitones),
+                FrequencyRelation::Semitones(semitones) => base_freq * 2.0_f32.powf(*semitones as f32 / 12.0),
             }
         }
     }
