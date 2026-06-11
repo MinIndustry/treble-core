@@ -2,11 +2,7 @@ use std::collections::{HashMap, VecDeque};
 
 use crate::{
     Note,
-    core::{
-        Block,
-        audio::{mono_to_frame, silent_block},
-        generator::prelude::MultiToneGenerator,
-    },
+    core::{Block, audio::silent_block, generator::prelude::MultiToneGenerator},
 };
 
 use crate::core::graph::Source;
@@ -87,36 +83,36 @@ impl From<MultiToneGenerator> for PolyphonicSource {
 
 impl Source for PolyphonicSource {
     fn pull(&mut self, block_size: usize) -> Block {
-        let any_active = self.generators.iter().any(|(_, a, _)| *a);
-
-        if !any_active {
+        if !self.generators.iter().any(|(_, a, _)| *a) {
             return silent_block(block_size);
         }
 
         let dt = 1.0 / self.sample_rate;
-        let samples: Vec<f32> = self
-            .generators
-            .iter_mut()
-            .map(|(g, active, released)| {
-                if !*active {
-                    return vec![0.0; block_size];
-                }
-                if g.completed() && *released {
-                    *active = false;
-                    *released = false;
-                    return vec![0.0; block_size];
-                }
-                g.tick_block(block_size, dt)
-            })
-            .fold(vec![0.0; block_size], |b1, b2| {
-                b1.into_iter().zip(b2).map(|(a, b)| a + b).collect()
-            });
+        let mut out = silent_block(block_size);
+
+        for (g, active, released) in self.generators.iter_mut() {
+            if !*active {
+                continue;
+            }
+
+            if g.completed() && *released {
+                *active = false;
+                *released = false;
+                continue;
+            }
+
+            for frame in out.iter_mut() {
+                let s = g.tick(dt);
+                frame[0] += s;
+                frame[1] += s;
+            }
+        }
 
         // Clean up tracking for generators that completed their release phase
         self.notes_age.retain(|&i| self.generators[i].1);
         self.current_notes.retain(|_, v| self.generators[*v].1);
 
-        samples.into_iter().map(mono_to_frame).collect()
+        out
     }
 
     fn stop(&mut self) {
