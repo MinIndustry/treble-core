@@ -1770,8 +1770,8 @@ dependencies = [
 
 [[package]]
 name = "treble-derive"
-version = "0.1.0"
-source = "git+https://github.com/MinIndustry/treble-derive.git#7f0ae0a75b7b593a387178fb92ef61c1d92e247b"
+version = "0.1.1"
+source = "git+https://github.com/MinIndustry/treble-derive.git?tag=0.1.1#9046b2a39f784aa01cd2afdb173a5676b984ff3a"
 dependencies = [
  "convert_case",
  "proc-macro2",
@@ -1783,7 +1783,7 @@ dependencies = [
 [[package]]
 name = "treble-meta"
 version = "0.1.0"
-source = "git+https://github.com/MinIndustry/treble-meta.git#2fb9a3c842b82ff3fa5b90f5fb87c472df02c8e0"
+source = "git+https://github.com/MinIndustry/treble-meta.git?tag=0.1.0#2fb9a3c842b82ff3fa5b90f5fb87c472df02c8e0"
 dependencies = [
  "proc-macro2",
  "quote",
