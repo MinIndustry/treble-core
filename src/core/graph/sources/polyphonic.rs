@@ -24,7 +24,7 @@ pub enum PolyphonicAllocationStrategy {
 pub struct PolyphonicSource {
     generator_template: MultiToneGenerator,
     // Generator, active, released
-    generators: Vec<(MultiToneGenerator, bool, bool)>,
+    generators: Vec<(MultiToneGenerator, bool, bool, Option<f32>)>,
     max_voices: usize,
     replacement_strategy: PolyphonicAllocationStrategy,
     sample_rate: f32,
@@ -53,7 +53,7 @@ impl PolyphonicSource {
 
     /// Find the index of the first inactive generator slot in the pool.
     fn find_free_slot(&self) -> Option<usize> {
-        self.generators.iter().position(|(_, active, _)| !*active)
+        self.generators.iter().position(|(_, active, _, _)| !*active)
     }
 
     /// Get the generator index to evict based on the replacement strategy.
@@ -83,14 +83,14 @@ impl From<MultiToneGenerator> for PolyphonicSource {
 
 impl Source for PolyphonicSource {
     fn pull(&mut self, block_size: usize) -> Block {
-        if !self.generators.iter().any(|(_, a, _)| *a) {
+        if !self.generators.iter().any(|(_, a, _, _)| *a) {
             return silent_block(block_size);
         }
 
         let dt = 1.0 / self.sample_rate;
         let mut out = silent_block(block_size);
 
-        for (g, active, released) in self.generators.iter_mut() {
+        for (g, active, released, velocity) in self.generators.iter_mut() {
             if !*active {
                 continue;
             }
@@ -102,7 +102,7 @@ impl Source for PolyphonicSource {
             }
 
             for frame in out.iter_mut() {
-                let s = g.tick(dt);
+                let s = g.tick(dt) * velocity.unwrap_or(1.0);
                 frame[0] += s;
                 frame[1] += s;
             }
@@ -116,7 +116,7 @@ impl Source for PolyphonicSource {
     }
 
     fn stop(&mut self) {
-        for (g, _, released) in self.generators.iter_mut() {
+        for (g, _, released, _) in self.generators.iter_mut() {
             g.stop();
             *released = true;
         }
@@ -124,25 +124,27 @@ impl Source for PolyphonicSource {
     }
 
     fn kill(&mut self) {
-        for (g, active, released) in self.generators.iter_mut() {
+        for (g, active, released, velocity) in self.generators.iter_mut() {
             g.stop();
             *active = false;
             *released = false;
+            *velocity = None;
         }
         self.current_notes.clear();
         self.notes_age.clear();
     }
 
-    fn start_note(&mut self, note: Note, _velocity: f32) {
+    fn start_note(&mut self, note: Note, velocity: f32) {
         let freq = note.frequency();
 
         // If the note is already held, retrigger in place
         if let Some(&gen_index) = self.current_notes.get(&note) {
-            let (g, active, released) = &mut self.generators[gen_index];
+            let (g, active, released, generator_velocity) = &mut self.generators[gen_index];
             g.set_base_frequency(freq);
             g.start();
             *active = true;
             *released = false;
+            *generator_velocity = Some(velocity);
             // Move to back of age queue (it is now the youngest)
             self.notes_age.retain(|&i| i != gen_index);
             self.notes_age.push_back(gen_index);
@@ -155,17 +157,18 @@ impl Source for PolyphonicSource {
         } else if self.generators.len() < self.max_voices {
             // Grow the pool up to max_voices
             self.generators
-                .push((self.generator_template.clone(), false, false));
+                .push((self.generator_template.clone(), false, false, None));
             self.generators.len() - 1
         } else {
             // Pool is full — apply replacement strategy
             match self.get_eviction_index() {
                 None => return, // Drop: discard the new note
                 Some(evict_idx) => {
-                    let (g, active, released) = &mut self.generators[evict_idx];
+                    let (g, active, released, generator_velocity) = &mut self.generators[evict_idx];
                     g.stop();
                     *active = false;
                     *released = false;
+                    *generator_velocity = None;
                     self.current_notes.retain(|_, v| *v != evict_idx);
                     self.notes_age.retain(|&i| i != evict_idx);
                     evict_idx
@@ -173,11 +176,12 @@ impl Source for PolyphonicSource {
             }
         };
 
-        let (g, active, released) = &mut self.generators[gen_index];
+        let (g, active, released, generator_velocity) = &mut self.generators[gen_index];
         g.set_base_frequency(freq);
         g.start();
         *active = true;
         *released = false;
+        *generator_velocity = Some(velocity);
 
         self.current_notes.insert(note, gen_index);
         self.notes_age.push_back(gen_index);
@@ -185,7 +189,7 @@ impl Source for PolyphonicSource {
 
     fn stop_note(&mut self, note: Note) {
         if let Some(&gen_index) = self.current_notes.get(&note) {
-            let (g, _, released) = &mut self.generators[gen_index];
+            let (g, _, released, _) = &mut self.generators[gen_index];
             g.stop();
             *released = true;
             self.current_notes.remove(&note);
@@ -194,6 +198,6 @@ impl Source for PolyphonicSource {
     }
 
     fn is_active(&self) -> bool {
-        self.generators.iter().any(|(_, active, _)| *active)
+        self.generators.iter().any(|(_, active, _, _)| *active)
     }
 }
