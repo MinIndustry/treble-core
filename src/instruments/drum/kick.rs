@@ -91,7 +91,7 @@ impl Instrument for Kick {
         }
     }
 
-    fn into_system(&self, sample_rate: f32) -> System {
+    fn as_system(&self, sample_rate: f32) -> System {
         let source = MonophonicSource::new_percussive(
             self.generator.clone(),
             sample_rate,

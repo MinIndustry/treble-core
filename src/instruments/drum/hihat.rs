@@ -129,7 +129,7 @@ impl Instrument for HiHat {
         // Percussive: let the decay envelope finish naturally — no hard cut.
     }
 
-    fn into_system(&self, sample_rate: f32) -> System {
+    fn as_system(&self, sample_rate: f32) -> System {
         // Rebuild with the actual runtime sample rate (self.graph was pre-built
         // with a 44100 default for the legacy tick path).
         let source = Self::_build_source(sample_rate);

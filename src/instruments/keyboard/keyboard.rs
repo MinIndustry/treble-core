@@ -158,7 +158,7 @@ impl Instrument for Keyboard {
             / self.generators.len() as f32
     }
 
-    fn into_system(&self, sample_rate: f32) -> System {
+    fn as_system(&self, sample_rate: f32) -> System {
         let voice_count = self.generators.len();
         let template = self
             .generators
