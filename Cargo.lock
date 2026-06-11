@@ -1764,20 +1764,20 @@ dependencies = [
  "thiserror 2.0.12",
  "toml",
  "treble-derive",
- "treble-meta 0.1.0 (git+https://github.com/MinIndustry/treble-meta.git?tag=0.1.0)",
+ "treble-meta",
  "typetag",
 ]
 
 [[package]]
 name = "treble-derive"
-version = "0.1.0"
-source = "git+https://github.com/MinIndustry/treble-derive.git?tag=0.1.0#084e307c98ed733452b3c5b3ba9be3e241aeb6ab"
+version = "0.1.1"
+source = "git+https://github.com/MinIndustry/treble-derive.git?tag=0.1.1#9046b2a39f784aa01cd2afdb173a5676b984ff3a"
 dependencies = [
  "convert_case",
  "proc-macro2",
  "quote",
  "syn",
- "treble-meta 0.1.0 (git+https://github.com/MinIndustry/treble-meta.git)",
+ "treble-meta",
 ]
 
 [[package]]
@@ -1789,16 +1789,6 @@ dependencies = [
  "quote",
  "serde",
  "ts-rs",
-]
-
-[[package]]
-name = "treble-meta"
-version = "0.1.0"
-source = "git+https://github.com/MinIndustry/treble-meta.git#2fb9a3c842b82ff3fa5b90f5fb87c472df02c8e0"
-dependencies = [
- "proc-macro2",
- "quote",
- "serde",
 ]
 
 [[package]]
