@@ -1,0 +1,51 @@
+name: Tests
+
+# Required gate for merging into main. The `test` job must pass; the `lint`
+# job (fmt + clippy -D warnings) is informative only until the existing
+# 7 clippy warnings and rustfmt drift are cleaned up — then add "lint" to the
+# required status checks alongside "test".
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: test-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system build deps (cpal → ALSA, plotters → fontconfig)
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libfontconfig1-dev pkg-config
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run tests
+        run: cargo test
+
+  lint:
+    name: lint (informative)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system build deps
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libfontconfig1-dev pkg-config
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Format
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy --features plotting,ts --all-targets -- -D warnings
