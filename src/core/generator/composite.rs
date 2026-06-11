@@ -94,17 +94,17 @@ impl MultiToneGenerator {
         // Map true time elapsed for pitch bend
         self.time += time_elapsed;
 
+        let number_of_generators = self.tone_generators.len();
         let values = self
             .tone_generators
             .iter_mut()
-            .map(|g| g.tick(actual_elapsed))
-            .collect::<Vec<f32>>();
+            .map(|g| g.tick(actual_elapsed));
 
         let ampl = match self.mix_mode {
-            MixMode::Average => values.iter().sum::<f32>() / values.len() as f32,
-            MixMode::Multiply => values.iter().fold(1.0, |a, v| a * v),
-            MixMode::Max => values.iter().fold(f32::NEG_INFINITY, |a, v| a.max(*v)),
-            MixMode::Sum => values.iter().sum(),
+            MixMode::Average => values.sum::<f32>() / number_of_generators as f32,
+            MixMode::Multiply => values.product(),
+            MixMode::Max => values.fold(f32::NEG_INFINITY, |a, v| a.max(v)),
+            MixMode::Sum => values.sum(),
         };
 
         if let Some(envelope) = &self.global_amplitude_envelope {
