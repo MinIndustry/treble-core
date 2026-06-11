@@ -64,7 +64,7 @@ impl AudioGraph {
         if self.instruments.is_empty() {
             return Ok(System::silent());
         }
-        
+
         let mut main = System::new();
         let n = self.instruments.len();
         let mut output_nodes = Vec::with_capacity(n);

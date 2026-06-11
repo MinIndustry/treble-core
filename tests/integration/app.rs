@@ -4,8 +4,8 @@
 //! - App initialization with default and custom configs
 //! - Configuration loading from files
 
-use treble::prelude::App;
 use std::io::Write;
+use treble::prelude::App;
 
 // ============================================================================
 // App Initialization Tests

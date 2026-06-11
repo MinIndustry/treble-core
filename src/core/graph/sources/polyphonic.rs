@@ -53,7 +53,9 @@ impl PolyphonicSource {
 
     /// Find the index of the first inactive generator slot in the pool.
     fn find_free_slot(&self) -> Option<usize> {
-        self.generators.iter().position(|(_, active, _, _)| !*active)
+        self.generators
+            .iter()
+            .position(|(_, active, _, _)| !*active)
     }
 
     /// Get the generator index to evict based on the replacement strategy.

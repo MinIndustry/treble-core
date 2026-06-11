@@ -10,6 +10,7 @@
 //! spawning actual audio threads, which is complex for unit testing.
 //! These tests focus on the data structures and their behavior.
 
+use std::sync::atomic::Ordering;
 use treble::Note;
 use treble::audio::messages::InstrumentAudioMessage;
 use treble::audio::{
@@ -17,7 +18,6 @@ use treble::audio::{
     StatusEvent,
 };
 use treble::core::utils::NOTES;
-use std::sync::atomic::Ordering;
 
 // ============================================================================
 // SharedAudioState Tests

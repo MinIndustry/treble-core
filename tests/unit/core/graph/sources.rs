@@ -15,8 +15,8 @@ use treble::core::generator::prelude::{
     builder::{MultiToneGeneratorBuilder, ToneGeneratorBuilder},
 };
 use treble::core::graph::{
-    MonophonicAllocationStrategy, MonophonicSource, PolyphonicAllocationStrategy,
-    PolyphonicSource, Source,
+    MonophonicAllocationStrategy, MonophonicSource, PolyphonicAllocationStrategy, PolyphonicSource,
+    Source,
 };
 
 const SAMPLE_RATE: f32 = 44100.0;
@@ -68,9 +68,18 @@ fn monophonic_lower_velocity_is_quieter() {
     let loud = mono_rms_at_velocity(1.0);
     let mid = mono_rms_at_velocity(0.5);
     let quiet = mono_rms_at_velocity(0.25);
-    assert!(loud > 0.1, "full-velocity note should produce signal (rms = {loud})");
-    assert!(mid < loud * 0.95, "velocity 0.5 (rms {mid}) should be quieter than 1.0 (rms {loud})");
-    assert!(quiet < mid * 0.95, "velocity 0.25 (rms {quiet}) should be quieter than 0.5 (rms {mid})");
+    assert!(
+        loud > 0.1,
+        "full-velocity note should produce signal (rms = {loud})"
+    );
+    assert!(
+        mid < loud * 0.95,
+        "velocity 0.5 (rms {mid}) should be quieter than 1.0 (rms {loud})"
+    );
+    assert!(
+        quiet < mid * 0.95,
+        "velocity 0.25 (rms {quiet}) should be quieter than 0.5 (rms {mid})"
+    );
 }
 
 #[test]
@@ -88,7 +97,10 @@ fn monophonic_full_velocity_keeps_unit_loudness() {
 fn monophonic_zero_velocity_is_near_silent() {
     let zero = mono_rms_at_velocity(0.0);
     let loud = mono_rms_at_velocity(1.0);
-    assert!(zero < loud * 0.05, "velocity 0.0 should be near-silent (rms = {zero})");
+    assert!(
+        zero < loud * 0.05,
+        "velocity 0.0 should be near-silent (rms = {zero})"
+    );
 }
 
 #[test]
@@ -96,9 +108,18 @@ fn polyphonic_lower_velocity_is_quieter() {
     let loud = poly_rms_at_velocity(1.0);
     let mid = poly_rms_at_velocity(0.5);
     let quiet = poly_rms_at_velocity(0.25);
-    assert!(loud > 0.1, "full-velocity note should produce signal (rms = {loud})");
-    assert!(mid < loud * 0.95, "velocity 0.5 (rms {mid}) should be quieter than 1.0 (rms {loud})");
-    assert!(quiet < mid * 0.95, "velocity 0.25 (rms {quiet}) should be quieter than 0.5 (rms {mid})");
+    assert!(
+        loud > 0.1,
+        "full-velocity note should produce signal (rms = {loud})"
+    );
+    assert!(
+        mid < loud * 0.95,
+        "velocity 0.5 (rms {mid}) should be quieter than 1.0 (rms {loud})"
+    );
+    assert!(
+        quiet < mid * 0.95,
+        "velocity 0.25 (rms {quiet}) should be quieter than 0.5 (rms {mid})"
+    );
 }
 
 #[test]

@@ -16,8 +16,8 @@ fn main() -> Result<(), ()> {
 
 #[cfg(feature = "plotting")]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    use treble::plotting::PlotBuilder;
     use std::f32::consts::PI;
+    use treble::plotting::PlotBuilder;
 
     println!("Generating advanced plot with multiple series and annotations...");
 
