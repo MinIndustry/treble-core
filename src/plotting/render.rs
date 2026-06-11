@@ -89,15 +89,15 @@ pub(crate) fn render_plot(config: &PlotBuilder, path: &Path) -> Result<(), PlotE
         chart
             .draw_series(LineSeries::new(serie_config.data.iter().copied(), &color))?
             .label(&serie_config.label)
-            .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &color));
+            .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], color));
     }
 
     // Draw legend
     if config.show_legend && !config.series.is_empty() {
         chart
             .configure_series_labels()
-            .background_style(&WHITE.mix(0.8))
-            .border_style(&BLACK)
+            .background_style(WHITE.mix(0.8))
+            .border_style(BLACK)
             .draw()?;
     }
 

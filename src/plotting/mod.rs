@@ -72,11 +72,10 @@ use serie::PlotSerie;
 #[allow(unused_imports)]
 use types::{LineConfig, LineType, SeriesConfig};
 
-/// Prelude module for convenient imports
+/// Convenient imports for plotting
+///
+/// Use `use treble::plotting::prelude::*;` to import commonly used types.
 pub mod prelude {
-    //! Convenient imports for plotting
-    //!
-    //! Use `use treble::plotting::prelude::*;` to import commonly used types.
     pub use super::{PlotBuilder, PlotError, plot_data, plot_multi};
 }
 
