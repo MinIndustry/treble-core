@@ -60,7 +60,7 @@ Default capacity: **8 192 samples** (~93 ms at 44.1 kHz stereo). The render thre
 
 ### Render pipeline
 
-All audio is processed through a single `System` graph. There is no separate "instrument mode" — every instrument is compiled into a `Source` node inside the graph before playback starts.
+All audio is processed through a single `System` graph. Every instrument is compiled into a `Source` node inside the graph before playback starts.
 
 On `App::start()`, `AudioGraph::compile()` assembles all loaded instruments into one `System` and passes it to the render thread. The render thread calls `system.run()` every block, draining all pending `AudioMessage`s between blocks.
 
@@ -88,7 +88,7 @@ The render thread sends `BackendEvent`s back to the caller via an `mpsc::channel
 
 A `SingleToneGenerator` produces one oscillator voice:
 
-- **Waveform** — `Sine`, `Square`, `Sawtooth`, `Triangle`, `WhiteNoise`
+- **Waveform** — `Sine`, `Square`, `Sawtooth`, `Triangle`, `WhiteNoise`, ...
 - **FrequencyRelation** — `Ratio`, `Harmonic`, `Semitones`, `Constant`, `Offset` relative to a base frequency
 - **Amplitude envelope** — any `dyn Envelope`
 - **Pitch envelope** — optional `dyn Envelope` that scales `time_elapsed` per sample
@@ -116,7 +116,7 @@ Sources implement the `Source` trait and feed audio into the graph. Two built-in
 
 Filters implement `Filter::process(input: Frame) -> Frame` and optionally `set_parameter(name, value)`:
 
-`LowPassFilter`, `HighPassFilter`, `BandPass`, `GainFilter`, `Clipper`, `Compressor`, `Tremolo`, `DelayFilter`, `MovingAverage`
+`LowPassFilter`, `HighPassFilter`, `BandPass`, `GainFilter`, `Clipper`, `Compressor`, `Tremolo`, `DelayFilter`, `MovingAverage`, ...
 
 ### Instruments
 
