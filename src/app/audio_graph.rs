@@ -64,7 +64,7 @@ impl AudioGraph {
         if self.instruments.is_empty() {
             return Ok(System::silent());
         }
-        
+
         let mut main = System::new();
         let n = self.instruments.len();
         let mut output_nodes = Vec::with_capacity(n);
@@ -74,7 +74,7 @@ impl AudioGraph {
         for (slot_idx, slot) in self.instruments.iter().enumerate() {
             let source_start = main.sources_len();
 
-            let inst_system = slot.instrument.into_system(sample_rate);
+            let inst_system = slot.instrument.as_system(sample_rate);
             let output_node = main.absorb(inst_system)?;
 
             // Every absorbed source up to source_start is this instrument's

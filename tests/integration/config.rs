@@ -6,8 +6,8 @@
 //! - Configuration validation
 //! - File loading and missing field handling
 
-use treble::audio::{AudioConfig, LogConfig};
 use std::io::Write;
+use treble::audio::{AudioConfig, LogConfig};
 
 // ============================================================================
 // AudioConfig Tests

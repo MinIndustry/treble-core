@@ -119,7 +119,7 @@ impl Measure {
     /// Returns the orderer vector of chords
     pub fn get_orderer_chords(&self) -> Vec<Chord> {
         let mut chords_cpy = self.chords_set.to_vec();
-        chords_cpy.sort_by(|e1, e2| e1.0.cmp(&e2.0));
+        chords_cpy.sort_by_key(|e| e.0);
         chords_cpy.iter().map(|e| e.1.clone()).collect()
     }
 }

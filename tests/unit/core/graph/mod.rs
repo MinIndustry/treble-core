@@ -1,5 +1,7 @@
 //! Graph / System Unit Tests
 
+mod sources;
+
 use treble::core::audio::{Block, CHANNELS};
 use treble::core::filters::prelude::{DelayFilter, GainFilter};
 use treble::core::graph::{SimpleSink, Source, System};

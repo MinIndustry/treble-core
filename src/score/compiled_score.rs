@@ -279,7 +279,7 @@ impl crate::instruments::Instrument for DummyInstrument {
         0.0
     }
     fn tick(&mut self) {}
-    fn into_system(&self, _sample_rate: f32) -> crate::core::graph::System {
+    fn as_system(&self, _sample_rate: f32) -> crate::core::graph::System {
         crate::core::graph::System::silent()
     }
 }

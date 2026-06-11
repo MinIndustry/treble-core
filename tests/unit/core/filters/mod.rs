@@ -1,9 +1,9 @@
 //! Filter Unit Tests
 //! Tests for audio filters including pass filters, effects, and structural filters
 
+use std::sync::Arc;
 use treble::core::audio::{Block, CHANNELS, silent_block};
 use treble::core::graph::{Entry, Filter};
-use std::sync::Arc;
 
 /// Create a constant stereo block: every frame has value [v, v]
 fn const_block(n: usize, v: f32) -> Arc<Block> {

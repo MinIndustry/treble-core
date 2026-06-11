@@ -30,6 +30,7 @@ pub struct MonophonicSource {
     active: bool,
     released: bool,
     current_note: Option<Note>,
+    current_velocity: Option<f32>,
 }
 
 impl MonophonicSource {
@@ -46,6 +47,7 @@ impl MonophonicSource {
             active: false,
             released: false,
             current_note: None,
+            current_velocity: None,
         }
     }
 
@@ -62,6 +64,7 @@ impl MonophonicSource {
             active: false,
             released: false,
             current_note: None,
+            current_velocity: None,
         }
     }
 
@@ -92,7 +95,10 @@ impl Source for MonophonicSource {
             self.active = false;
             self.released = false;
         }
-        samples.into_iter().map(mono_to_frame).collect()
+        samples
+            .into_iter()
+            .map(|s| mono_to_frame(s * self.current_velocity.unwrap_or(1.0)))
+            .collect()
     }
 
     fn start(&mut self) {
@@ -121,11 +127,13 @@ impl Source for MonophonicSource {
         self.generator.stop();
         self.active = false;
         self.released = false;
+        self.current_velocity = None;
     }
 
-    fn start_note(&mut self, note: crate::Note, _velocity: f32) {
+    fn start_note(&mut self, note: crate::Note, velocity: f32) {
         if self.should_replace() {
             self.current_note = Some(note);
+            self.current_velocity = Some(velocity);
             if self.track_pitch {
                 self.generator.set_base_frequency(note.frequency());
             }
