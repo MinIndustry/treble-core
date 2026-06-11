@@ -89,7 +89,7 @@ fn main() {
     );
     #[cfg(feature = "plotting")]
     {
-        let left_ear: Vec<(f32, f32)> = complete_value_list
+        let left_ear: Vec<(f32, f32)> = samples
             .iter()
             .enumerate()
             .map(|(position, element)| {
