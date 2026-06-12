@@ -11,7 +11,16 @@ use crate::core::graph::{ModTarget, System};
 #[allow(clippy::large_enum_variant)]
 pub enum AudioMessage {
     /// Instrument note control — routed by source index in the compiled System.
+    /// Applied at the start of the next rendered block.
     Instrument(InstrumentAudioMessage),
+    /// Instrument note control scheduled for an absolute engine frame.
+    /// The render thread splits block rendering at `at_frame`, so the event
+    /// lands sample-accurately. Frames already in the past apply immediately.
+    /// Read the current engine frame from [`SharedAudioState::current_frame`](crate::audio::SharedAudioState).
+    ScheduledInstrument {
+        at_frame: u64,
+        command: InstrumentAudioMessage,
+    },
     /// Graph structural/playback control — for the visual graph editor.
     Graph(GraphAudioMessage),
     // Lifecycle

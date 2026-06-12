@@ -506,7 +506,15 @@ impl System {
     // Performs one full run of the system, running every filter once in an order such that data
     // that entered the system this run can exit it this run as well.
     pub fn run(&mut self) {
-        let block_size = self.block_size;
+        self.run_frames(self.block_size);
+    }
+
+    /// Performs one run producing `frames` frames instead of the configured
+    /// block size. The render thread uses this to split a block at scheduled
+    /// note-event boundaries (sample-accurate timing); all DSP nodes are
+    /// block-size-agnostic so any `frames >= 1` is valid.
+    pub fn run_frames(&mut self, frames: usize) {
+        let block_size = frames;
 
         // Pull from all sources; push directly to connected AudioNodes (fan-out).
         // Two-step collect releases the borrow on self.sources before we touch self.graph.

@@ -11,7 +11,8 @@ use petgraph::graph::NodeIndex;
 
 use super::config::AudioConfig;
 use super::events::{AudioEvent, BackendEvent, ErrorEvent, EventSender};
-use super::messages::{AudioMessage, GraphAudioMessage, InstrumentAudioMessage};
+use super::messages::{AudioMessage, GraphAudioMessage};
+use super::scheduler::{EventScheduler, apply_instrument_message, render_block};
 use super::shared_state::SharedAudioState;
 use crate::core::graph::System;
 
@@ -80,11 +81,13 @@ fn render_loop(
         config.calculate_ring_buffer_size(sample_rate) * crate::core::audio::CHANNELS;
 
     let mut block_count: u64 = 0;
+    let mut scheduler = EventScheduler::new();
+    let mut current_frame: u64 = 0;
 
     while !shared_state.shutdown.load(Ordering::Relaxed) {
         // Process all pending control messages
         while let Ok(msg) = message_rx.try_recv() {
-            process_audio_message(system, msg, event_tx);
+            process_audio_message(system, &mut scheduler, msg, event_tx);
         }
 
         // Throttle to target latency
@@ -102,17 +105,14 @@ fn render_loop(
             shared_state.master_volume.load(Ordering::Relaxed),
         );
 
-        // Run the graph for one block
-        system.run();
+        // Run the graph for one block, splitting at scheduled note events so
+        // each event lands on exactly its frame. Master volume + limiting are
+        // applied inside the sink; render_block consumes it per segment.
         chunk_buffer.clear();
-        if let Ok(sink) = system.get_sink(0) {
-            let frames = sink.consume();
-            log::trace!("[render] consumed {} frames from sink", frames.len());
-            for frame in &frames {
-                chunk_buffer.push(frame[0]); // L — master volume + limiting applied inside sink
-                chunk_buffer.push(frame[1]); // R
-            }
-        }
+        current_frame = render_block(system, &mut scheduler, current_frame, &mut chunk_buffer);
+        shared_state
+            .current_frame
+            .store(current_frame, Ordering::Relaxed);
 
         // Write to ring buffer
         let mut written = 0;
@@ -153,21 +153,6 @@ fn render_loop(
         //       AudioEvent::Chunk derives Serialize which Arc<T> doesn't satisfy
         //       without a serde newtype wrapper.
         event_tx.send(BackendEvent::Audio(AudioEvent::Chunk(chunk_buffer.clone())));
-    }
-}
-
-fn process_instrument_message(system: &mut System, cmd: InstrumentAudioMessage) {
-    match cmd {
-        InstrumentAudioMessage::NoteStart {
-            source_index,
-            note,
-            velocity,
-        } => {
-            system.start_note(source_index, note, velocity);
-        }
-        InstrumentAudioMessage::NoteStop { source_index, note } => {
-            system.stop_note(source_index, note);
-        }
     }
 }
 
@@ -236,10 +221,26 @@ fn process_graph_message(system: &mut System, cmd: GraphAudioMessage, event_tx: 
     let _ = event_tx;
 }
 
-fn process_audio_message(system: &mut System, msg: AudioMessage, event_tx: &EventSender) {
+fn process_audio_message(
+    system: &mut System,
+    scheduler: &mut EventScheduler,
+    msg: AudioMessage,
+    event_tx: &EventSender,
+) {
     match msg {
-        AudioMessage::Instrument(cmd) => process_instrument_message(system, cmd),
-        AudioMessage::Graph(cmd) => process_graph_message(system, cmd, event_tx),
+        // Untimestamped events keep the old behavior: applied at block start.
+        AudioMessage::Instrument(cmd) => apply_instrument_message(system, cmd),
+        AudioMessage::ScheduledInstrument { at_frame, command } => {
+            scheduler.schedule(at_frame, command);
+        }
+        AudioMessage::Graph(cmd) => {
+            // A cleared graph has no sources left for pending events to target.
+            // (Swap keeps them: slot indices are append-only since BUG-001.)
+            if matches!(cmd, GraphAudioMessage::Clear) {
+                scheduler.clear();
+            }
+            process_graph_message(system, cmd, event_tx);
+        }
         AudioMessage::Shutdown => {
             // Handled via shutdown flag in shared_state
         }

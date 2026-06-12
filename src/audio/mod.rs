@@ -12,6 +12,7 @@ pub mod events;
 mod handle;
 pub mod messages;
 pub(crate) mod render_thread;
+pub mod scheduler;
 pub mod shared_state;
 
 // Re-export commonly used types
@@ -24,4 +25,5 @@ pub use events::{
 };
 pub use handle::{AudioHandle, AudioMetrics};
 pub use messages::{AudioMessage, GraphAudioMessage, InstrumentAudioMessage};
+pub use scheduler::{EventScheduler, render_block};
 pub use shared_state::SharedAudioState;

@@ -261,6 +261,65 @@ impl App {
         }))
     }
 
+    /// Schedule note-on for an absolute engine frame (sample-accurate).
+    ///
+    /// Compute `at_frame` from [`current_frame()`](Self::current_frame) plus a
+    /// lookahead. Frames already in the past apply at the next block start.
+    pub fn note_on_at(
+        &self,
+        instrument_idx: usize,
+        note: Note,
+        velocity: f32,
+        at_frame: u64,
+    ) -> Result<(), AppError> {
+        if !(0.0..=1.0).contains(&velocity) {
+            return Err(AppError::InvalidParameter(format!(
+                "velocity {velocity} out of range [0.0, 1.0]"
+            )));
+        }
+        let source_index = self
+            .audio_graph
+            .source_map
+            .get(&instrument_idx)
+            .copied()
+            .ok_or(AppError::InvalidInstrumentIndex)?;
+        self.send_message(AudioMessage::ScheduledInstrument {
+            at_frame,
+            command: InstrumentAudioMessage::NoteStart {
+                source_index,
+                note,
+                velocity,
+            },
+        })
+    }
+
+    /// Schedule note-off for an absolute engine frame (sample-accurate).
+    pub fn note_off_at(
+        &self,
+        instrument_idx: usize,
+        note: Note,
+        at_frame: u64,
+    ) -> Result<(), AppError> {
+        let source_index = self
+            .audio_graph
+            .source_map
+            .get(&instrument_idx)
+            .copied()
+            .ok_or(AppError::InvalidInstrumentIndex)?;
+        self.send_message(AudioMessage::ScheduledInstrument {
+            at_frame,
+            command: InstrumentAudioMessage::NoteStop { source_index, note },
+        })
+    }
+
+    /// The engine frame clock: total frames rendered since `start()`.
+    /// `None` before the engine is started.
+    pub fn current_frame(&self) -> Option<u64> {
+        self.handle
+            .as_ref()
+            .map(|h| h.shared_state().current_frame.load(Ordering::Relaxed))
+    }
+
     /// Dispatch a frontend [`Command`].
     ///
     /// `AudioCommand`s are translated to source-index `AudioMessage`s internally.

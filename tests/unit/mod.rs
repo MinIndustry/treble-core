@@ -4,6 +4,7 @@
 //! Unit tests focus on testing individual functions and modules in isolation.
 
 pub mod app;
+pub mod audio;
 pub mod core;
 pub mod instruments;
 pub mod score;
