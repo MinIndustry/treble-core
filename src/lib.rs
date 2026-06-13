@@ -69,12 +69,6 @@ pub mod instruments;
 /// It allows to store and retrieve metadata about filters
 pub mod meta;
 
-/// The mod score contains all the building block for creating music
-/// Sheets contain instruments laid out on a staff, divided into measures
-/// Notes in the measures are structures that implement the `MeasureNote` trait.
-/// This allows to build complex notes, chords, ...
-pub mod score;
-
 /// Main prelude module that exports the most commonly used types from the crate
 pub mod prelude {
     // App exports
@@ -85,12 +79,6 @@ pub mod prelude {
 
     // Core exports - only expose the module, details accessed through it
     pub use super::core;
-
-    // Score exports (legacy) - export individual legacy score types into prelude so tests and callers keep working
-    pub use super::score::prelude::{
-        Chord, ChordModifier, DurationModifier, Measure, Note, NoteDuration, NoteModifier,
-        NoteName, Score, Staff, StaffInstance, TimeSignature,
-    };
 
     // Instruments exports
     pub use super::instruments::Instrument;
