@@ -50,9 +50,10 @@ pub mod prelude {
 
     /// A waveform type for tone generation.
     /// - Sine: A smooth periodic oscillation.
-    /// - Square: A waveform that alternates between high and low states.
-    /// - Sawtooth: A waveform that rises linearly and then drops sharply.
-    /// - Triangle: A waveform that rises and falls linearly.
+    /// - Square: Band-limited square wave (polyBLEP corrected); use for audio oscillators.
+    /// - Sawtooth: Band-limited sawtooth wave (polyBLEP corrected); use for audio oscillators.
+    /// - Triangle: Band-limited triangle wave (polyBLAMP corrected); use for audio oscillators.
+    /// - SquareRaw / SawRaw / TriangleRaw: Naive (non-band-limited) variants; use for LFOs.
     /// - WhiteNoise: A random signal with equal intensity at different frequencies.
     /// - PinkNoise: A random signal with equal energy per octave.
     /// - Blank: A constant output defined by amplitude.
@@ -63,6 +64,9 @@ pub mod prelude {
         Square,
         Sawtooth,
         Triangle,
+        SquareRaw,
+        SawRaw,
+        TriangleRaw,
         WhiteNoise,
         PinkNoise,
         Blank,
@@ -77,6 +81,9 @@ pub mod prelude {
                 Waveform::Square,
                 Waveform::Sawtooth,
                 Waveform::Triangle,
+                Waveform::SquareRaw,
+                Waveform::SawRaw,
+                Waveform::TriangleRaw,
                 Waveform::WhiteNoise,
                 Waveform::PinkNoise,
                 Waveform::Blank,
