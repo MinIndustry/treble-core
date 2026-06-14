@@ -50,9 +50,10 @@ pub mod prelude {
 
     /// A waveform type for tone generation.
     /// - Sine: A smooth periodic oscillation.
-    /// - Square: A waveform that alternates between high and low states.
-    /// - Sawtooth: A waveform that rises linearly and then drops sharply.
-    /// - Triangle: A waveform that rises and falls linearly.
+    /// - Square: Band-limited square wave (polyBLEP corrected); use for audio oscillators.
+    /// - Sawtooth: Band-limited sawtooth wave (polyBLEP corrected); use for audio oscillators.
+    /// - Triangle: Band-limited triangle wave (polyBLAMP corrected); use for audio oscillators.
+    /// - SquareRaw / SawRaw / TriangleRaw: Naive (non-band-limited) variants; use for LFOs.
     /// - WhiteNoise: A random signal with equal intensity at different frequencies.
     /// - PinkNoise: A random signal with equal energy per octave.
     /// - Blank: A constant output defined by amplitude.
@@ -63,6 +64,9 @@ pub mod prelude {
         Square,
         Sawtooth,
         Triangle,
+        SquareRaw,
+        SawRaw,
+        TriangleRaw,
         WhiteNoise,
         PinkNoise,
         Blank,
@@ -77,6 +81,9 @@ pub mod prelude {
                 Waveform::Square,
                 Waveform::Sawtooth,
                 Waveform::Triangle,
+                Waveform::SquareRaw,
+                Waveform::SawRaw,
+                Waveform::TriangleRaw,
                 Waveform::WhiteNoise,
                 Waveform::PinkNoise,
                 Waveform::Blank,
@@ -90,6 +97,9 @@ pub mod prelude {
                 Waveform::Square => "square",
                 Waveform::Sawtooth => "saw",
                 Waveform::Triangle => "triangle",
+                Waveform::SquareRaw => "square_raw",
+                Waveform::SawRaw => "saw_raw",
+                Waveform::TriangleRaw => "triangle_raw",
                 Waveform::WhiteNoise => "whitenoise",
                 Waveform::PinkNoise => "pinknoise",
                 Waveform::Blank => "blank",
@@ -104,6 +114,9 @@ pub mod prelude {
                 Waveform::Square => "Square Wave",
                 Waveform::Sawtooth => "Sawtooth",
                 Waveform::Triangle => "Triangle",
+                Waveform::SquareRaw => "Square Wave (Raw)",
+                Waveform::SawRaw => "Sawtooth (Raw)",
+                Waveform::TriangleRaw => "Triangle (Raw)",
                 Waveform::WhiteNoise => "White Noise",
                 Waveform::PinkNoise => "Pink Noise",
                 Waveform::Blank => "Blank (DC)",
@@ -117,6 +130,9 @@ pub mod prelude {
                 Waveform::Square => "Alternates between high and low states",
                 Waveform::Sawtooth => "Rises linearly then drops sharply",
                 Waveform::Triangle => "Rises and falls linearly",
+                Waveform::SquareRaw => "Naive square wave — use for LFOs",
+                Waveform::SawRaw => "Naive sawtooth wave — use for LFOs",
+                Waveform::TriangleRaw => "Naive triangle wave — use for LFOs",
                 Waveform::WhiteNoise => "Random signal, equal intensity per frequency",
                 Waveform::PinkNoise => "Random signal, equal energy per octave",
                 Waveform::Blank => "Constant DC output",
@@ -140,6 +156,9 @@ pub mod prelude {
                 "square" => Self::Square,
                 "saw" => Self::Sawtooth,
                 "triangle" => Self::Triangle,
+                "square_raw" => Self::SquareRaw,
+                "saw_raw" => Self::SawRaw,
+                "triangle_raw" => Self::TriangleRaw,
                 "whitenoise" => Self::WhiteNoise,
                 "pinknoise" => Self::PinkNoise,
                 "blank" => Self::Blank,
@@ -158,6 +177,9 @@ pub mod prelude {
                 "square" => Self::Square,
                 "saw" => Self::Sawtooth,
                 "triangle" => Self::Triangle,
+                "square_raw" => Self::SquareRaw,
+                "saw_raw" => Self::SawRaw,
+                "triangle_raw" => Self::TriangleRaw,
                 "whitenoise" => Self::WhiteNoise,
                 "pinknoise" => Self::PinkNoise,
                 "blank" => Self::Blank,
@@ -176,6 +198,9 @@ pub mod prelude {
                 Waveform::Square => "square".into(),
                 Waveform::Sawtooth => "saw".into(),
                 Waveform::Triangle => "triangle".into(),
+                Waveform::SquareRaw => "square_raw".into(),
+                Waveform::SawRaw => "saw_raw".into(),
+                Waveform::TriangleRaw => "triangle_raw".into(),
                 Waveform::WhiteNoise => "white".into(),
                 Waveform::PinkNoise => "pink".into(),
                 Waveform::Blank => "blank".into(),
