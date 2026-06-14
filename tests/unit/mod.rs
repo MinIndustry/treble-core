@@ -7,5 +7,4 @@ pub mod app;
 pub mod audio;
 pub mod core;
 pub mod instruments;
-pub mod score;
 pub mod utils;

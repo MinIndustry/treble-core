@@ -7,6 +7,35 @@ use crate::core::{envelope::Envelope, generator::prelude::*};
 
 use super::composite_builder;
 
+/// Quadratic polyBLEP correction for value discontinuities (sawtooth, square).
+/// `t`: normalized phase [0, 1); `dt`: phase increment per sample.
+/// Subtract from sawtooth; add/subtract at each square-wave edge.
+fn poly_blep(t: f32, dt: f32) -> f32 {
+    if t < dt {
+        let t = t / dt;
+        2.0 * t - t * t - 1.0
+    } else if t > 1.0 - dt {
+        let t = (t - 1.0) / dt;
+        t * t + 2.0 * t + 1.0
+    } else {
+        0.0
+    }
+}
+
+/// Cubic polyBLAMP correction for slope discontinuities (triangle).
+/// Integral of poly_blep; smooths the ±4-slope kinks at t=0 and t=0.5.
+fn poly_blamp(t: f32, dt: f32) -> f32 {
+    if t < dt {
+        let t = t / dt - 1.0;
+        -dt / 3.0 * t * t * t
+    } else if t > 1.0 - dt {
+        let t = (t - 1.0) / dt + 1.0;
+        dt / 3.0 * t * t * t
+    } else {
+        0.0
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SingleToneGenerator {
     waveform: Waveform,
@@ -77,6 +106,10 @@ impl SingleToneGenerator {
             self.phase = (self.phase + TAU * actual_elapsed * self.current_frequency) % TAU;
         }
 
+        // Normalized phase [0, 1) and per-sample phase increment — used by polyBLEP/BLAMP.
+        let t = self.phase / TAU;
+        let dt = actual_elapsed * self.current_frequency;
+
         let tone_value = match self.waveform {
             Waveform::Blank | Waveform::Err(_) => 1.0, // Returns 1.0 that will be mapped to the amplitude envelope
             Waveform::PinkNoise => {
@@ -90,16 +123,27 @@ impl SingleToneGenerator {
                 self.pink_b[6] = white * 0.115926;
                 (self.pink_b.iter().sum::<f32>() + white * 0.5362) * 0.11
             }
-            Waveform::Sawtooth => (self.phase * f32::consts::FRAC_1_PI) - 1.0,
+            Waveform::Sawtooth => {
+                let naive = 2.0 * t - 1.0;
+                naive - poly_blep(t, dt)
+            }
             Waveform::Sine => f32::sin(self.phase),
             Waveform::Square => {
-                if self.phase > f32::consts::PI {
-                    1.0
-                } else {
-                    -1.0
-                }
+                let naive = if t < 0.5 { 1.0_f32 } else { -1.0_f32 };
+                naive + poly_blep(t, dt) - poly_blep((t + 0.5).rem_euclid(1.0), dt)
             }
-            Waveform::Triangle => 1.0 - 2.0 * ((self.phase * f32::consts::FRAC_1_PI) - 1.0).abs(),
+            Waveform::Triangle => {
+                let naive = if t < 0.5 { 4.0 * t - 1.0 } else { 3.0 - 4.0 * t };
+                naive + 4.0 * (poly_blamp(t, dt) - poly_blamp((t + 0.5).rem_euclid(1.0), dt))
+            }
+            // Naive (non-band-limited) variants — correct for LFO duty where aliasing is inaudible.
+            Waveform::SawRaw => (self.phase * f32::consts::FRAC_1_PI) - 1.0,
+            Waveform::SquareRaw => {
+                if self.phase > f32::consts::PI { 1.0 } else { -1.0 }
+            }
+            Waveform::TriangleRaw => {
+                1.0 - 2.0 * ((self.phase * f32::consts::FRAC_1_PI) - 1.0).abs()
+            }
             Waveform::WhiteNoise => rand::thread_rng().gen_range(-1.0..1.0),
         };
 

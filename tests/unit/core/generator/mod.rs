@@ -86,13 +86,94 @@ mod tone_generator_tests {
 
 #[cfg(test)]
 mod waveform_tests {
-    // TODO: Add tests for different waveforms
-    // - Test sine wave generation
-    // - Test square wave generation
-    // - Test triangle wave generation
-    // - Test sawtooth wave generation
-    // - Test noise generation
-    // - Test blank/silence generation
+    use treble::core::generator::prelude::{
+        builder::ToneGeneratorBuilder,
+        Waveform,
+    };
+
+    const SAMPLE_RATE: f32 = 44100.0;
+    const TIME_STEP: f32 = 1.0 / SAMPLE_RATE;
+    // 2 kHz stresses aliasing; high enough that naive waveforms have noticeable
+    // discontinuities but low enough that polyBLEP/BLAMP stays in its valid range.
+    const FREQ: f32 = 2000.0;
+    const RENDER_SAMPLES: usize = 4096;
+
+    fn render(waveform: Waveform) -> Vec<f32> {
+        let mut tone = ToneGeneratorBuilder::new()
+            .waveform(waveform)
+            .frequency(FREQ)
+            .build();
+        tone.start();
+        (0..RENDER_SAMPLES)
+            .map(|_| tone.tick(TIME_STEP))
+            .collect()
+    }
+
+    fn max_abs(samples: &[f32]) -> f32 {
+        samples.iter().copied().fold(0.0_f32, |m, v| m.max(v.abs()))
+    }
+
+    fn max_consecutive_diff(samples: &[f32]) -> f32 {
+        samples
+            .windows(2)
+            .map(|w| (w[1] - w[0]).abs())
+            .fold(0.0_f32, f32::max)
+    }
+
+    #[test]
+    fn band_limited_saw_amplitude_bounded() {
+        let samples = render(Waveform::Sawtooth);
+        // The polyBLEP correction can overshoot slightly; allow up to 1.05
+        assert!(
+            max_abs(&samples) <= 1.05,
+            "band-limited saw exceeded amplitude bound: {:.4}",
+            max_abs(&samples)
+        );
+    }
+
+    #[test]
+    fn band_limited_square_amplitude_bounded() {
+        let samples = render(Waveform::Square);
+        assert!(
+            max_abs(&samples) <= 1.05,
+            "band-limited square exceeded amplitude bound: {:.4}",
+            max_abs(&samples)
+        );
+    }
+
+    #[test]
+    fn band_limited_triangle_amplitude_bounded() {
+        let samples = render(Waveform::Triangle);
+        assert!(
+            max_abs(&samples) <= 1.05,
+            "band-limited triangle exceeded amplitude bound: {:.4}",
+            max_abs(&samples)
+        );
+    }
+
+    #[test]
+    fn band_limited_saw_smaller_discontinuity_than_raw() {
+        let blep = render(Waveform::Sawtooth);
+        let raw = render(Waveform::SawRaw);
+        let blep_jump = max_consecutive_diff(&blep);
+        let raw_jump = max_consecutive_diff(&raw);
+        assert!(
+            blep_jump < raw_jump,
+            "band-limited saw (max diff {blep_jump:.4}) should have smaller jumps than raw ({raw_jump:.4})"
+        );
+    }
+
+    #[test]
+    fn band_limited_square_smaller_discontinuity_than_raw() {
+        let blep = render(Waveform::Square);
+        let raw = render(Waveform::SquareRaw);
+        let blep_jump = max_consecutive_diff(&blep);
+        let raw_jump = max_consecutive_diff(&raw);
+        assert!(
+            blep_jump < raw_jump,
+            "band-limited square (max diff {blep_jump:.4}) should have smaller jumps than raw ({raw_jump:.4})"
+        );
+    }
 }
 
 #[cfg(test)]
