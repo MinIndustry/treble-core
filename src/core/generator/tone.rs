@@ -133,13 +133,21 @@ impl SingleToneGenerator {
                 naive + poly_blep(t, dt) - poly_blep((t + 0.5).rem_euclid(1.0), dt)
             }
             Waveform::Triangle => {
-                let naive = if t < 0.5 { 4.0 * t - 1.0 } else { 3.0 - 4.0 * t };
+                let naive = if t < 0.5 {
+                    4.0 * t - 1.0
+                } else {
+                    3.0 - 4.0 * t
+                };
                 naive + 4.0 * (poly_blamp(t, dt) - poly_blamp((t + 0.5).rem_euclid(1.0), dt))
             }
             // Naive (non-band-limited) variants — correct for LFO duty where aliasing is inaudible.
             Waveform::SawRaw => (self.phase * f32::consts::FRAC_1_PI) - 1.0,
             Waveform::SquareRaw => {
-                if self.phase > f32::consts::PI { 1.0 } else { -1.0 }
+                if self.phase > f32::consts::PI {
+                    1.0
+                } else {
+                    -1.0
+                }
             }
             Waveform::TriangleRaw => {
                 1.0 - 2.0 * ((self.phase * f32::consts::FRAC_1_PI) - 1.0).abs()

@@ -86,10 +86,7 @@ mod tone_generator_tests {
 
 #[cfg(test)]
 mod waveform_tests {
-    use treble::core::generator::prelude::{
-        builder::ToneGeneratorBuilder,
-        Waveform,
-    };
+    use treble::core::generator::prelude::{Waveform, builder::ToneGeneratorBuilder};
 
     const SAMPLE_RATE: f32 = 44100.0;
     const TIME_STEP: f32 = 1.0 / SAMPLE_RATE;
@@ -104,9 +101,7 @@ mod waveform_tests {
             .frequency(FREQ)
             .build();
         tone.start();
-        (0..RENDER_SAMPLES)
-            .map(|_| tone.tick(TIME_STEP))
-            .collect()
+        (0..RENDER_SAMPLES).map(|_| tone.tick(TIME_STEP)).collect()
     }
 
     fn max_abs(samples: &[f32]) -> f32 {
