@@ -1,5 +1,12 @@
 # Treble
 
+<div align="center">
+    <img alt="CI badge" src="https://github.com/minindustry/treble-core/actions/workflows/test.yml/badge.svg" />
+    <img alt="CI badge" src="https://github.com/minindustry/treble-core/actions/workflows/docs.yml/badge.svg" />
+    <img alt="License badge" src="https://img.shields.io/github/license/minindustry/treble-core" />
+    <img alt="Rust version badge" src="https://img.shields.io/badge/rust-1.96%2B-gray" />
+</div>
+
 ## Project Overview
 
 Treble is a frontend-agnostic core library for audio synthesis. It provides composable DSP primitives — generators, envelopes, filters, and a node graph — behind a lock-free, real-time-safe audio pipeline. The same engine can be embedded in GUI applications, CLI tools, or test harnesses without modification.
