@@ -170,11 +170,20 @@ impl App {
             .map(|e| e.1)
             .ok_or(AudioError::StreamError("No supported config".to_string()))?;
 
-        let sample_rate = SampleRate(44100.min(best_config.max_sample_rate().0).max(best_config.min_sample_rate().0));
+        let sample_rate = SampleRate(
+            44100
+                .min(best_config.max_sample_rate().0)
+                .max(best_config.min_sample_rate().0),
+        );
 
-        log::info!("Found working configuration with channels={} and sr={} ({}, {})", best_config.channels(), sample_rate.0, best_config.min_sample_rate().0, best_config.max_sample_rate().0);
-        let supported_config =
-            best_config.with_sample_rate(sample_rate);
+        log::info!(
+            "Found working configuration with channels={} and sr={} ({}, {})",
+            best_config.channels(),
+            sample_rate.0,
+            best_config.min_sample_rate().0,
+            best_config.max_sample_rate().0
+        );
+        let supported_config = best_config.with_sample_rate(sample_rate);
 
         let mut cpal_config = supported_config.config();
         cpal_config.buffer_size = cpal::BufferSize::Fixed(config.cpal_buffer_size as u32);
