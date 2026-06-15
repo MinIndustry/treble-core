@@ -168,12 +168,6 @@ impl App {
             })
             .max_by_key(|e| e.0)
             .map(|e| e.1)
-            .or_else(|| {
-                device
-                    .supported_output_configs()
-                    .ok()
-                    .and_then(|mut r| r.next())
-            })
             .ok_or(AudioError::StreamError("No supported config".to_string()))?;
 
         let sample_rate = SampleRate(44100.min(best_config.max_sample_rate().0).max(best_config.min_sample_rate().0));
