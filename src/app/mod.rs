@@ -149,20 +149,41 @@ impl App {
         let host = cpal::default_host();
         let device = host.default_output_device().ok_or(AudioError::NoDevice)?;
 
-        let mut supported_configs_range = device
+        let best_config = device
             .supported_output_configs()
-            .map_err(|e| AudioError::StreamError(e.to_string()))?;
+            .map_err(|e| AudioError::StreamError(e.to_string()))?
+            .map(|c| {
+                let mut score = 0;
 
-        let supported_config = supported_configs_range
-            .find(|c| c.channels() == crate::core::audio::CHANNELS as u16)
-            .or_else(|| {
-                device
-                    .supported_output_configs()
-                    .ok()
-                    .and_then(|mut r| r.next())
+                // Try not to get too far from 44100
+                if c.max_sample_rate().0 >= 44100 && c.min_sample_rate().0 <= 44100 {
+                    score += 1;
+                }
+
+                if c.channels() == crate::core::audio::CHANNELS as u16 {
+                    score += 2;
+                }
+
+                (score, c)
             })
-            .ok_or(AudioError::StreamError("No supported config".to_string()))?
-            .with_sample_rate(SampleRate(44100));
+            .max_by_key(|e| e.0)
+            .map(|e| e.1)
+            .ok_or(AudioError::StreamError("No supported config".to_string()))?;
+
+        let sample_rate = SampleRate(
+            44100
+                .min(best_config.max_sample_rate().0)
+                .max(best_config.min_sample_rate().0),
+        );
+
+        log::info!(
+            "Found working configuration with channels={} and sr={} ({}, {})",
+            best_config.channels(),
+            sample_rate.0,
+            best_config.min_sample_rate().0,
+            best_config.max_sample_rate().0
+        );
+        let supported_config = best_config.with_sample_rate(sample_rate);
 
         let mut cpal_config = supported_config.config();
         cpal_config.buffer_size = cpal::BufferSize::Fixed(config.cpal_buffer_size as u32);

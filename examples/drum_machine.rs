@@ -21,7 +21,7 @@ fn main() {
             ColorChoice::Auto,
         ),
         WriteLogger::new(
-            LevelFilter::Warn,
+            LevelFilter::Info,
             Config::default(),
             File::create("app.log").unwrap(),
         ),
