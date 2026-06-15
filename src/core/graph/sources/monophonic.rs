@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{
     Note,
     core::{
@@ -9,7 +11,7 @@ use crate::{
 
 use crate::core::graph::Source;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 /// Strategies for replacing or not a playing note in the monophonic generator.
 pub enum MonophonicAllocationStrategy {
     #[default]
@@ -51,6 +53,8 @@ impl MonophonicSource {
         }
     }
 
+    /// Percussive sources do not track the pitch of the played notes
+    /// but keep their original base_frequency
     pub fn new_percussive(
         generator: MultiToneGenerator,
         sample_rate: f32,

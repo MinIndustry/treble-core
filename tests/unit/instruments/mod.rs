@@ -3,6 +3,8 @@
 
 pub mod drum;
 pub mod keyboard;
+#[cfg(test)]
+pub mod spec;
 
 #[cfg(test)]
 mod instrument_trait_tests {
