@@ -709,6 +709,7 @@ impl System {
         self.graph.node_weight_mut(index).map(|n| n.filter_mut())
     }
 
+    /// Saves the graph to a file
     pub fn save_to_file(&self, path: &Path) -> Result<(), String> {
         let mut output = File::create(path).map_err(|e| e.to_string())?;
         write!(output, "{:?}", Dot::with_config(&self.graph, &[])).map_err(|e| e.to_string())

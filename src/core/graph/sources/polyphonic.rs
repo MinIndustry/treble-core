@@ -1,5 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
     Note,
     core::{Block, audio::silent_block, generator::prelude::MultiToneGenerator},
@@ -7,7 +9,7 @@ use crate::{
 
 use crate::core::graph::Source;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 /// Strategies for replacing or not a playing note in the polyphonic generator.
 pub enum PolyphonicAllocationStrategy {
     #[default]
