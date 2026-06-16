@@ -226,5 +226,10 @@ pub fn compile_spec(spec: &InstrumentSpec, sample_rate: f32) -> Result<System, S
         last_filter_index = Some(filter_index);
     }
 
+    // If there is no fx, connect the source to the sink
+    if spec.fx.is_empty() {
+        compiled_system.connect_source_to_sink(source_index, sink_index);
+    }
+
     Ok(compiled_system)
 }
