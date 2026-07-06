@@ -4,6 +4,7 @@ use crate::core::graph::System;
 mod custom;
 mod drum;
 mod keyboard;
+pub mod registry;
 pub mod spec;
 mod synth;
 mod voices;
@@ -12,6 +13,7 @@ pub mod prelude {
     pub use super::custom::*;
     pub use super::drum::*;
     pub use super::keyboard::*;
+    pub use super::registry::InstrumentRegistry;
     pub use super::spec::*;
     pub use super::synth::*;
     pub use super::voices::*;

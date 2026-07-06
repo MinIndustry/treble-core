@@ -22,6 +22,9 @@ pub enum AppError {
     #[error("Invalid instrument index (not found in compiled graph)")]
     InvalidInstrumentIndex,
 
+    #[error("Unknown instrument: {0}")]
+    UnknownInstrument(String),
+
     #[error("Invalid parameter: {0}")]
     InvalidParameter(String),
 

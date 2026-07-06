@@ -7,68 +7,16 @@ fn main() {
 fn main() {
     use std::path::Path;
 
-    use treble::core::generator::prelude::{FrequencyRelation, MixMode, Waveform};
-    use treble::core::graph::MonophonicAllocationStrategy;
     use treble::instruments::Instrument;
-    use treble::instruments::prelude::Kick;
-    use treble::instruments::spec::{
-        EnvelopeSpec, InstrumentSpec, ToneSpec, VoiceSpec, compile_spec,
-    };
+    use treble::instruments::prelude::{InstrumentRegistry, Kick};
+    use treble::instruments::spec::compile_spec;
     use treble::plotting::PlotBuilder;
     use treble::{Note, core::Block};
 
     let mut og_kick = Kick::new().as_system(44100.0);
-    let mut kick_system = match {
-        let kick_spec: InstrumentSpec = InstrumentSpec {
-            name: String::from("Kick"),
-            voice: VoiceSpec::Mono {
-                track_pitch: false,
-                allocation: MonophonicAllocationStrategy::Replace,
-            },
-            tones: vec![
-                ToneSpec {
-                    waveform: Waveform::WhiteNoise,
-                    frequency_relation: FrequencyRelation::Constant(1.0),
-                    amplitude_envelope: Some(EnvelopeSpec::Adsr {
-                        attack: 0.01,
-                        decay: 0.1,
-                        sustain: 0.0,
-                        release: 0.0,
-                    }),
-                },
-                ToneSpec {
-                    waveform: Waveform::Sine,
-                    frequency_relation: FrequencyRelation::Ratio(1.0),
-                    amplitude_envelope: Some(EnvelopeSpec::Adsr {
-                        attack: 0.0,
-                        decay: 0.0,
-                        sustain: 1.0,
-                        release: 0.0,
-                    }),
-                },
-            ],
-            pitch_envelope: Some(EnvelopeSpec::Adsr {
-                attack: 0.0,
-                decay: 0.3,
-                sustain: 0.5,
-                release: 0.0,
-            }),
-            mix_mode: MixMode::Sum,
-            amplitude_envelope: Some(EnvelopeSpec::Adsr {
-                attack: 0.01,
-                decay: 0.3,
-                sustain: 0.0,
-                release: 0.0,
-            }),
-            base_frequency: Some(58.0),
-            fx: vec![],
-            gain: 1.0,
-            velocity_sensitivity: 0.0,
-            mods: vec![],
-        };
-
-        compile_spec(&kick_spec, 44100.0)
-    } {
+    let registry = InstrumentRegistry::built_in();
+    let kick_spec = registry.get("kick").expect("kick is a built-in");
+    let mut kick_system = match compile_spec(kick_spec, 44100.0) {
         Ok(s) => s,
         Err(e) => {
             println!("Unable to build a kick from the spec: {e}");

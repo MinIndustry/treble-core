@@ -4,6 +4,8 @@
 pub mod drum;
 pub mod keyboard;
 #[cfg(test)]
+pub mod registry;
+#[cfg(test)]
 pub mod spec;
 
 #[cfg(test)]

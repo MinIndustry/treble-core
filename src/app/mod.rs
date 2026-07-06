@@ -1,9 +1,9 @@
 //! Contains the application layer logic (configuration, thread managment)
 
 use std::path::Path;
+use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::{Receiver, Sender, channel};
-use std::sync::{Arc, Mutex};
 
 use cpal::SampleRate;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -26,8 +26,11 @@ use crate::audio::{
 };
 use crate::core::utils::Note;
 use crate::instruments::Instrument;
+use crate::instruments::registry::InstrumentRegistry;
+use crate::instruments::spec::{InstrumentSpec, SpecInstrument};
+use std::collections::HashMap;
 
-use commands::{AppCommand, AudioCommand, SystemCommand};
+use commands::{AppCommand, AudioCommand, InstrumentCommand, SystemCommand};
 use config::AppConfig;
 use graph_handler::{GraphData, handle_graph_command};
 use prelude::*;
@@ -55,8 +58,14 @@ pub struct App {
     /// All instrument slots. Populated before `start()`, compiled on start.
     pub audio_graph: AudioGraph,
 
-    /// State for the visual graph editor. Protected by Mutex for `send(&self)`.
-    graph_system: Mutex<GraphData>,
+    /// Instrument specs by name: built-ins + everything registered at runtime.
+    pub registry: InstrumentRegistry,
+
+    /// Slot indices of instantiated specs, by registry name.
+    spec_slots: HashMap<String, usize>,
+
+    /// State for the visual graph editor.
+    graph_system: GraphData,
 
     /// Handle to Treble's threads
     pub handle: Option<AudioHandle>,
@@ -69,7 +78,9 @@ impl Default for App {
         Self {
             config: AppConfig::default(),
             audio_graph: AudioGraph::new(),
-            graph_system: Mutex::new(GraphData::default()),
+            registry: InstrumentRegistry::built_in(),
+            spec_slots: HashMap::new(),
+            graph_system: GraphData::default(),
             handle: None,
             message_tx: None,
         }
@@ -111,6 +122,40 @@ impl App {
     /// call [`recompile()`](Self::recompile) afterwards.
     pub fn add_instrument(&mut self, instrument: Box<dyn Instrument>) -> usize {
         self.audio_graph.add_instrument(instrument)
+    }
+
+    /// Add an instrument from a spec (validated at this point, not at trigger
+    /// time) and return its slot index. Like [`add_instrument`](Self::add_instrument),
+    /// call [`recompile()`](Self::recompile) if the engine is already running.
+    pub fn add_spec(&mut self, spec: InstrumentSpec) -> Result<usize, AppError> {
+        let instrument =
+            SpecInstrument::new(spec).map_err(|e| AppError::InvalidParameter(e.to_string()))?;
+        Ok(self.audio_graph.add_instrument(Box::new(instrument)))
+    }
+
+    /// Instantiate a registered spec by name: adds a slot for it and, when the
+    /// engine is running, recompiles + hot-swaps. Idempotent — an already
+    /// instantiated name just returns its existing slot index.
+    pub fn instantiate(&mut self, name: &str) -> Result<usize, AppError> {
+        if let Some(&idx) = self.spec_slots.get(name) {
+            return Ok(idx);
+        }
+        let spec = self
+            .registry
+            .get(name)
+            .cloned()
+            .ok_or_else(|| AppError::UnknownInstrument(name.to_string()))?;
+        let idx = self.add_spec(spec)?;
+        self.spec_slots.insert(name.to_string(), idx);
+        if self.message_tx.is_some() {
+            self.recompile()?;
+        }
+        Ok(idx)
+    }
+
+    /// Slot index of an instantiated spec, by registry name.
+    pub fn instrument_idx(&self, name: &str) -> Option<usize> {
+        self.spec_slots.get(name).copied()
     }
 
     /// Recompile the audio graph and hot-swap it into the running render thread.
@@ -353,7 +398,8 @@ impl App {
     ///
     /// `AudioCommand`s are translated to source-index `AudioMessage`s internally.
     /// `GraphCommand`s mutate the visual graph and hot-swap the compiled result.
-    pub fn send(&self, command: Command) -> Result<(), AppError> {
+    /// `InstrumentCommand`s manage the spec registry and instrument slots.
+    pub fn send(&mut self, command: Command) -> Result<(), AppError> {
         match command {
             Command::Audio(AudioCommand::NoteStart {
                 instrument_idx,
@@ -371,8 +417,24 @@ impl App {
             Command::Graph(cmd) => {
                 let message_tx = self.message_tx.as_ref().ok_or(AppError::NotStarted)?;
                 let sample_rate = self.config.system.sample_rate as f32;
-                let mut gs = self.graph_system.lock().unwrap();
-                handle_graph_command(cmd, &mut gs, sample_rate, message_tx)
+                handle_graph_command(cmd, &mut self.graph_system, sample_rate, message_tx)
+            }
+
+            Command::Instrument(InstrumentCommand::Register(spec)) => self
+                .registry
+                .register(spec)
+                .map_err(|e| AppError::InvalidParameter(e.to_string())),
+
+            Command::Instrument(InstrumentCommand::Unregister { name }) => {
+                if self.registry.unregister(&name) {
+                    Ok(())
+                } else {
+                    Err(AppError::UnknownInstrument(name))
+                }
+            }
+
+            Command::Instrument(InstrumentCommand::Instantiate { name }) => {
+                self.instantiate(&name).map(|_| ())
             }
 
             Command::App(AppCommand::System(SystemCommand::SetMasterVolume(vol))) => {
@@ -403,13 +465,9 @@ impl App {
 
     /// Load configuration from a file.
     pub fn from_file(path: &Path) -> Result<App, AppError> {
-        Ok(App {
-            config: AppConfig::from_file(path)?,
-            audio_graph: AudioGraph::new(),
-            graph_system: Mutex::new(GraphData::default()),
-            handle: None,
-            message_tx: None,
-        })
+        let mut app = App::default();
+        app.config = AppConfig::from_file(path)?;
+        Ok(app)
     }
 
     // -----------------------------------------------------------------------
