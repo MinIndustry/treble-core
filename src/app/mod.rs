@@ -176,6 +176,14 @@ impl App {
                 .max(best_config.min_sample_rate().0),
         );
 
+        if sample_rate.0 != 44100 {
+            log::warn!(
+                "Device does not support 44100 Hz, engine will run at {} Hz ({}, {})",
+                sample_rate.0,
+                best_config.min_sample_rate().0,
+                best_config.max_sample_rate().0
+            );
+        }
         log::info!(
             "Found working configuration with channels={} and sr={} ({}, {})",
             best_config.channels(),
