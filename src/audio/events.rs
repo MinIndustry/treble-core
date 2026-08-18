@@ -113,6 +113,9 @@ pub enum AudioEvent {
     /// Stereo-interleaved samples `[L, R, L, R, …]` from the last render block.
     /// Use `.step_by(2)` to extract L or R channel.
     Chunk(Vec<f32>),
+    /// One stereo-interleaved block per instrument slot, before master limiting.
+    /// Vector indices match the application audio-graph slot indices.
+    StemChunk(Vec<Vec<f32>>),
 }
 
 /// Performance and diagnostic counters.
@@ -185,6 +188,10 @@ impl EventSender {
         if self.filter.load(Ordering::Relaxed) & event.category().bit() != 0 {
             let _ = self.tx.send(event);
         }
+    }
+
+    pub fn allows(&self, category: EventCategory) -> bool {
+        self.filter.load(Ordering::Relaxed) & category.bit() != 0
     }
 
     /// Update the enabled categories at runtime.

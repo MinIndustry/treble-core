@@ -6,6 +6,10 @@ use crate::core::{Block, Frame};
 pub trait Sink: Entry + Send + Sync {
     /// Gets the values of the sink
     fn consume(&mut self) -> Block;
+    /// Drop buffered frames without returning an allocated block.
+    fn discard(&mut self) {
+        let _ = self.consume();
+    }
     fn get_frames(&self) -> &[Frame];
     fn into_entry(self) -> Box<dyn Entry>;
     /// Update a named parameter. Default implementation is a no-op.

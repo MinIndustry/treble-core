@@ -6,7 +6,7 @@
 
 use std::collections::HashMap;
 
-use crate::core::graph::{AudioGraphError, AudioOutputSink, System};
+use crate::core::graph::{AudioGraphError, AudioOutputSink, SimpleSink, System};
 use crate::instruments::Instrument;
 use crate::instruments::spec::{InstrumentSpec, SpecError, compile_spec, validate_spec};
 use thiserror::Error;
@@ -140,6 +140,14 @@ impl AudioGraph {
         let sink_idx = main.add_sink(sink);
         for &out_node in output_nodes.iter() {
             main.connect_sink(out_node, sink_idx, 0);
+        }
+
+        // Post-instrument taps preserve isolated slot output for optional
+        // multitrack recording. Sink 0 remains the limited master; tap N+1
+        // corresponds to application instrument slot N.
+        for &out_node in &output_nodes {
+            let tap = main.add_sink(Box::new(SimpleSink::new()));
+            main.connect_sink(out_node, tap, 0);
         }
 
         main.compute()?;

@@ -10,7 +10,7 @@ use crossbeam::queue::ArrayQueue;
 use petgraph::graph::NodeIndex;
 
 use super::config::AudioConfig;
-use super::events::{AudioEvent, BackendEvent, ErrorEvent, EventSender};
+use super::events::{AudioEvent, BackendEvent, ErrorEvent, EventCategory, EventSender};
 use super::messages::{AudioMessage, GraphAudioMessage};
 use super::scheduler::{EventScheduler, apply_instrument_message, render_block};
 use super::shared_state::SharedAudioState;
@@ -153,6 +153,28 @@ fn render_loop(
         //       AudioEvent::Chunk derives Serialize which Arc<T> doesn't satisfy
         //       without a serde newtype wrapper.
         event_tx.send(BackendEvent::Audio(AudioEvent::Chunk(chunk_buffer.clone())));
+        if event_tx.allows(EventCategory::Audio) {
+            let stems = (1..system.sinks_len())
+                .map(|index| {
+                    system
+                        .get_sink(index)
+                        .map(|sink| {
+                            sink.consume()
+                                .into_iter()
+                                .flat_map(|frame| frame.into_iter())
+                                .collect()
+                        })
+                        .unwrap_or_default()
+                })
+                .collect();
+            event_tx.send(BackendEvent::Audio(AudioEvent::StemChunk(stems)));
+        } else {
+            for index in 1..system.sinks_len() {
+                if let Ok(sink) = system.get_sink(index) {
+                    sink.discard();
+                }
+            }
+        }
     }
 }
 

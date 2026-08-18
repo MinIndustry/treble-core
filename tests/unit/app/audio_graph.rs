@@ -19,6 +19,7 @@ pub fn test_audio_graph_compilation_isnt_destructive() {
         1,
         "There should be a single source in the compiled graph with a single instrument"
     );
+    assert_eq!(compiled_graph.sinks_len(), 2, "master plus one stem tap");
     assert_eq!(
         audio_graph.source_map.iter().len(),
         1,
@@ -34,6 +35,7 @@ pub fn test_audio_graph_compilation_isnt_destructive() {
         2,
         "There should be two sources for a graph with two instruments."
     );
+    assert_eq!(compiled_graph.sinks_len(), 3, "master plus two stem taps");
     assert_eq!(
         audio_graph.source_map.iter().len(),
         2,

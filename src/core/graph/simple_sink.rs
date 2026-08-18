@@ -28,6 +28,10 @@ impl Sink for SimpleSink {
         self.values.drain(..).collect()
     }
 
+    fn discard(&mut self) {
+        self.values.clear();
+    }
+
     fn get_frames(&self) -> &[Frame] {
         &self.values
     }
