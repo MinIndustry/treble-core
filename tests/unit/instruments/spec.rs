@@ -5,8 +5,8 @@ use treble::core::graph::{MonophonicAllocationStrategy, System};
 use treble::instruments::Instrument;
 use treble::instruments::prelude::Kick;
 use treble::instruments::prelude::{
-    EnvelopeSpec, FxSpec, InstrumentRegistry, InstrumentSpec, SpecError, ToneSpec, VoiceSpec,
-    compile_spec, validate_spec,
+    EnvelopeSpec, FxSpec, InstrumentRegistry, InstrumentSpec, SampleSpec, SpecError, ToneSpec,
+    VoiceSpec, compile_spec, validate_spec,
 };
 
 const SAMPLE_RATE: f32 = 44100.0;
@@ -30,6 +30,42 @@ fn render(system: &mut System, blocks: usize) -> Vec<f32> {
 
 fn rms(samples: &[f32]) -> f32 {
     (samples.iter().map(|s| s * s).sum::<f32>() / samples.len().max(1) as f32).sqrt()
+}
+
+#[test]
+fn wav_sample_specs_decode_and_render_from_memory() {
+    let path = std::env::temp_dir().join(format!("treble-sample-{}.wav", std::process::id()));
+    let wav = hound::WavSpec {
+        channels: 1,
+        sample_rate: SAMPLE_RATE as u32,
+        bits_per_sample: 16,
+        sample_format: hound::SampleFormat::Int,
+    };
+    let mut writer = hound::WavWriter::create(&path, wav).unwrap();
+    for index in 0..4_410 {
+        let value = (2.0 * std::f32::consts::PI * 440.0 * index as f32 / SAMPLE_RATE).sin();
+        writer
+            .write_sample((value * i16::MAX as f32) as i16)
+            .unwrap();
+    }
+    writer.finalize().unwrap();
+
+    let mut spec = minimal_spec();
+    spec.note_lifecycle = treble::instruments::prelude::NoteLifecycle::OneShot;
+    spec.tones.clear();
+    spec.amplitude_envelope = None;
+    spec.sample = Some(SampleSpec {
+        path: path.clone(),
+        root_midi: 69,
+        start_seconds: 0.0,
+        end_seconds: None,
+        looped: false,
+    });
+    let mut system = compile_spec(&spec, SAMPLE_RATE).expect("sample spec compiles");
+    let samples = render(&mut system, 8);
+
+    assert!(rms(&samples) > 0.2);
+    std::fs::remove_file(path).unwrap();
 }
 
 #[test]
@@ -230,6 +266,7 @@ fn minimal_spec() -> InstrumentSpec {
             frequency: None,
             amplitude_envelope: None,
         }],
+        sample: None,
         mix_mode: treble::core::generator::prelude::MixMode::Sum,
         pitch_envelope: None,
         amplitude_envelope: Some(EnvelopeSpec::Adsr {

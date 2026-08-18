@@ -26,6 +26,7 @@ treble-meta = { git = "https://github.com/MinIndustry/treble-meta.git", tag = "0
 evdev = { version = "0.12.2", optional = true }
 plotters = { version = "0.3.7", optional = true }
 rayon = "1.11.0"
+hound = "3.5.1"
 
 [dev-dependencies]
 pretty_assertions = "1.1.0"

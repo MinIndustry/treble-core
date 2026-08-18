@@ -151,6 +151,7 @@ fn kick() -> InstrumentSpec {
                 })),
             },
         ],
+        sample: None,
         mix_mode: MixMode::Sum,
         pitch_envelope: Some(EnvelopeSpec::Segment(SegmentSpec::Bezier {
             from: 1.0,
@@ -208,6 +209,7 @@ fn snare() -> InstrumentSpec {
                 amplitude_envelope: None,
             },
         ],
+        sample: None,
         mix_mode: MixMode::Sum,
         pitch_envelope: Some(EnvelopeSpec::Segment(SegmentSpec::Bezier {
             from: 1.2,
@@ -266,6 +268,7 @@ fn hihat() -> InstrumentSpec {
             tone(Waveform::Sine, Some(8_923.0), 0.09),
             tone(Waveform::Sine, Some(11_317.0), 0.05),
         ],
+        sample: None,
         mix_mode: MixMode::Sum,
         pitch_envelope: None,
         amplitude_envelope: Some(EnvelopeSpec::Segments {
@@ -339,6 +342,7 @@ fn clap() -> InstrumentSpec {
                 },
             }),
         }],
+        sample: None,
         mix_mode: MixMode::Sum,
         pitch_envelope: None,
         amplitude_envelope: None,
@@ -362,6 +366,7 @@ fn rim() -> InstrumentSpec {
             frequency: None,
             amplitude_envelope: None,
         }],
+        sample: None,
         mix_mode: MixMode::Sum,
         pitch_envelope: None,
         amplitude_envelope: Some(EnvelopeSpec::Segments {
@@ -402,6 +407,7 @@ fn tom() -> InstrumentSpec {
             frequency: None,
             amplitude_envelope: None,
         }],
+        sample: None,
         mix_mode: MixMode::Sum,
         pitch_envelope: Some(EnvelopeSpec::Segment(SegmentSpec::Bezier {
             from: 1.5,
@@ -555,6 +561,7 @@ fn synth(
             allocation: PolyphonicAllocationStrategy::default(),
         },
         tones,
+        sample: None,
         mix_mode: MixMode::Sum,
         pitch_envelope: None,
         amplitude_envelope: Some(EnvelopeSpec::Adsr {

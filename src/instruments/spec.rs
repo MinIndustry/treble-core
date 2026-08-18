@@ -3,6 +3,8 @@
 //! The aim of this module is to slowly replace the hardcoded instruments
 
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex, OnceLock, Weak};
 
 use petgraph::graph::NodeIndex;
 use serde::{Deserialize, Serialize};
@@ -35,6 +37,8 @@ pub enum SpecError {
     UnknownParameter { filter: String, param: String },
     #[error("Graph compute failed: {0}")]
     Compute(String),
+    #[error("Sample error: {0}")]
+    Sample(String),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -116,6 +120,22 @@ pub struct ToneSpec {
     /// Fixed tone frequency in Hz. `None` — the builder default.
     pub frequency: Option<f32>,
     pub amplitude_envelope: Option<EnvelopeSpec>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SampleSpec {
+    pub path: PathBuf,
+    #[serde(default = "default_root_midi")]
+    pub root_midi: u8,
+    #[serde(default)]
+    pub start_seconds: f32,
+    pub end_seconds: Option<f32>,
+    #[serde(default)]
+    pub looped: bool,
+}
+
+fn default_root_midi() -> u8 {
+    60
 }
 
 /// The envelope specification.
@@ -205,6 +225,8 @@ pub struct InstrumentSpec {
     pub note_lifecycle: NoteLifecycle,
     pub voice: VoiceSpec,
     pub tones: Vec<ToneSpec>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sample: Option<SampleSpec>,
     pub mix_mode: MixMode,
     pub pitch_envelope: Option<EnvelopeSpec>,
     pub amplitude_envelope: Option<EnvelopeSpec>,
@@ -272,6 +294,32 @@ fn param_field_name<'a>(param: &'a Parameter<&'static str>) -> &'a str {
 /// This is the definition-time check: `type_id`s must exist in the registry
 /// and every fx param must be a declared `#[filter_parameter]` of that filter.
 pub fn validate_spec(spec: &InstrumentSpec) -> Result<(), SpecError> {
+    if let Some(sample) = &spec.sample {
+        if sample.root_midi > 127 {
+            return Err(SpecError::Sample(
+                "root_midi must be between 0 and 127".into(),
+            ));
+        }
+        if !sample.start_seconds.is_finite() || sample.start_seconds < 0.0 {
+            return Err(SpecError::Sample(
+                "start_seconds must be a finite positive value".into(),
+            ));
+        }
+        if sample
+            .end_seconds
+            .is_some_and(|end| !end.is_finite() || end <= sample.start_seconds)
+        {
+            return Err(SpecError::Sample(
+                "end_seconds must be finite and greater than start_seconds".into(),
+            ));
+        }
+        hound::WavReader::open(&sample.path).map_err(|error| {
+            SpecError::Sample(format!(
+                "could not open '{}': {error}",
+                sample.path.display()
+            ))
+        })?;
+    }
     for fx in spec.fx.iter() {
         let info = inventory::iter::<crate::meta::FilterRegistration>()
             .map(|entry| (entry.info)())
@@ -311,63 +359,287 @@ fn create_filter(node_type: &str, sample_rate: f32) -> Result<Box<dyn Filter>, S
     Err(SpecError::UnknownFilter(node_type.to_string()))
 }
 
-pub fn compile_spec(spec: &InstrumentSpec, sample_rate: f32) -> Result<System, SpecError> {
-    validate_spec(spec)?;
+#[derive(Debug)]
+struct SampleData {
+    frames: Vec<crate::core::Frame>,
+    sample_rate: u32,
+}
 
-    let mut generator = MultiToneGeneratorBuilder::new();
-    for tone in &spec.tones {
-        let mut tone_builder = ToneGeneratorBuilder::new().waveform(tone.waveform.clone());
-        if let Some(frequency) = tone.frequency {
-            tone_builder = tone_builder.frequency(frequency);
-        } else if let Some(relation) = &tone.frequency_relation {
-            tone_builder = tone_builder.frequency_relation(relation.clone());
-        }
-        if let Some(envelope) = &tone.amplitude_envelope {
-            tone_builder = tone_builder.amplitude_envelope(envelope.as_dyn_envelope());
-        }
-        generator = generator.add_generator(tone_builder.build());
+static SAMPLE_CACHE: OnceLock<Mutex<HashMap<PathBuf, Weak<SampleData>>>> = OnceLock::new();
+
+fn load_sample(spec: &SampleSpec) -> Result<Arc<SampleData>, SpecError> {
+    let path = std::fs::canonicalize(&spec.path).map_err(|error| {
+        SpecError::Sample(format!(
+            "could not resolve '{}': {error}",
+            spec.path.display()
+        ))
+    })?;
+    let cache = SAMPLE_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Some(data) = cache
+        .lock()
+        .expect("sample cache lock poisoned")
+        .get(&path)
+        .and_then(Weak::upgrade)
+    {
+        return Ok(data);
     }
 
-    generator = generator
-        .mix_mode(spec.mix_mode.clone())
-        .amplitude_envelope(
-            spec.amplitude_envelope
-                .as_ref()
-                .map(|es| es.as_dyn_envelope()),
-        )
-        .pitch_envelope(spec.pitch_envelope.as_ref().map(|es| es.as_dyn_envelope()));
-    if let Some(base_frequency) = spec.base_frequency {
-        generator = generator.frequency(base_frequency);
+    let mut reader = hound::WavReader::open(&path).map_err(|error| {
+        SpecError::Sample(format!("could not decode '{}': {error}", path.display()))
+    })?;
+    let format = reader.spec();
+    let channels = format.channels.max(1) as usize;
+    let values = match format.sample_format {
+        hound::SampleFormat::Float => reader
+            .samples::<f32>()
+            .map(|sample| sample.map(|value| value.clamp(-1.0, 1.0)))
+            .collect::<Result<Vec<_>, _>>(),
+        hound::SampleFormat::Int => {
+            let denominator = 2_f32.powi(format.bits_per_sample.saturating_sub(1) as i32);
+            reader
+                .samples::<i32>()
+                .map(|sample| sample.map(|value| value as f32 / denominator))
+                .collect::<Result<Vec<_>, _>>()
+        }
     }
-    let generator = generator.build();
-
-    let voice_source: Box<dyn Source> = match &spec.voice {
-        VoiceSpec::Mono {
-            track_pitch,
-            allocation,
-        } => {
-            if *track_pitch {
-                Box::new(MonophonicSource::new(
-                    generator,
-                    sample_rate,
-                    allocation.clone(),
-                ))
+    .map_err(|error| SpecError::Sample(format!("invalid WAV samples: {error}")))?;
+    let start = (spec.start_seconds * format.sample_rate as f32).round() as usize;
+    let end = spec
+        .end_seconds
+        .map(|seconds| (seconds * format.sample_rate as f32).round() as usize)
+        .unwrap_or(values.len() / channels)
+        .min(values.len() / channels);
+    if start >= end {
+        return Err(SpecError::Sample(
+            "the selected sample range contains no audio".into(),
+        ));
+    }
+    let frames = (start..end)
+        .map(|frame| {
+            let offset = frame * channels;
+            let left = values[offset];
+            let right = if channels > 1 {
+                values[offset + 1]
             } else {
-                Box::new(MonophonicSource::new_percussive(
-                    generator,
-                    sample_rate,
-                    allocation.clone(),
-                ))
+                left
+            };
+            [left, right]
+        })
+        .collect();
+    let data = Arc::new(SampleData {
+        frames,
+        sample_rate: format.sample_rate,
+    });
+    cache
+        .lock()
+        .expect("sample cache lock poisoned")
+        .insert(path, Arc::downgrade(&data));
+    Ok(data)
+}
+
+#[derive(Debug, Clone)]
+struct SampleVoice {
+    note: crate::Note,
+    cursor: f64,
+    increment: f64,
+    velocity: f32,
+    release_frames: Option<usize>,
+}
+
+#[derive(Debug, Clone)]
+struct SampleSource {
+    data: Arc<SampleData>,
+    root_midi: u8,
+    looped: bool,
+    output_sample_rate: f32,
+    max_voices: usize,
+    voices: Vec<SampleVoice>,
+}
+
+impl SampleSource {
+    fn new(
+        data: Arc<SampleData>,
+        root_midi: u8,
+        looped: bool,
+        output_sample_rate: f32,
+        max_voices: usize,
+    ) -> Self {
+        Self {
+            data,
+            root_midi,
+            looped,
+            output_sample_rate,
+            max_voices,
+            voices: Vec::new(),
+        }
+    }
+
+    fn release(&mut self, note: Option<crate::Note>) {
+        let fade = (self.output_sample_rate * 0.005).round().max(1.0) as usize;
+        for voice in &mut self.voices {
+            if note.is_none_or(|note| voice.note == note) {
+                voice.release_frames = Some(fade);
             }
         }
-        VoiceSpec::Poly { voices, allocation } => Box::new(PolyphonicSource::new(
-            generator,
-            (*voices).max(1),
-            sample_rate,
-            allocation.clone(),
-        )),
-    };
-    let (release_after, release_duration) = natural_note_timing(spec);
+    }
+}
+
+impl Source for SampleSource {
+    fn pull(&mut self, block_size: usize) -> crate::core::Block {
+        let mut output = crate::core::audio::silent_block(block_size);
+        let sample_len = self.data.frames.len();
+        for frame in &mut output {
+            for voice in &mut self.voices {
+                if sample_len == 0 {
+                    continue;
+                }
+                if voice.cursor >= sample_len as f64 {
+                    if self.looped {
+                        voice.cursor %= sample_len as f64;
+                    } else {
+                        continue;
+                    }
+                }
+                let index = voice.cursor.floor() as usize;
+                let next = (index + 1).min(sample_len - 1);
+                let fraction = (voice.cursor - index as f64) as f32;
+                let gain = voice
+                    .release_frames
+                    .map(|remaining| remaining as f32 / (self.output_sample_rate * 0.005).max(1.0))
+                    .unwrap_or(1.0)
+                    * voice.velocity;
+                for (channel, output) in frame.iter_mut().enumerate() {
+                    let value = self.data.frames[index][channel]
+                        + (self.data.frames[next][channel] - self.data.frames[index][channel])
+                            * fraction;
+                    *output += value * gain;
+                }
+                voice.cursor += voice.increment;
+                if let Some(remaining) = &mut voice.release_frames {
+                    *remaining = remaining.saturating_sub(1);
+                }
+            }
+            self.voices.retain(|voice| {
+                voice.release_frames != Some(0) && (self.looped || voice.cursor < sample_len as f64)
+            });
+        }
+        output
+    }
+
+    fn stop(&mut self) {
+        self.release(None);
+    }
+
+    fn kill(&mut self) {
+        self.release(None);
+    }
+
+    fn start_note(&mut self, note: crate::Note, velocity: f32) {
+        self.voices.retain(|voice| voice.note != note);
+        if self.voices.len() >= self.max_voices {
+            self.voices.remove(0);
+        }
+        let pitch_ratio = 2_f64.powf((note.to_midi() as f64 - self.root_midi as f64) / 12.0);
+        self.voices.push(SampleVoice {
+            note,
+            cursor: 0.0,
+            increment: self.data.sample_rate as f64 / self.output_sample_rate as f64 * pitch_ratio,
+            velocity,
+            release_frames: None,
+        });
+    }
+
+    fn stop_note(&mut self, note: crate::Note) {
+        self.release(Some(note));
+    }
+
+    fn kill_note(&mut self, note: crate::Note) {
+        self.release(Some(note));
+    }
+
+    fn is_active(&self) -> bool {
+        !self.voices.is_empty()
+    }
+}
+
+pub fn compile_spec(spec: &InstrumentSpec, sample_rate: f32) -> Result<System, SpecError> {
+    validate_spec(spec)?;
+    let (voice_source, release_after, release_duration): (Box<dyn Source>, f32, f32) =
+        if let Some(sample) = &spec.sample {
+            let data = load_sample(sample)?;
+            let duration = data.frames.len() as f32 / data.sample_rate as f32;
+            let max_voices = match spec.voice {
+                VoiceSpec::Mono { .. } => 1,
+                VoiceSpec::Poly { voices, .. } => voices.max(1),
+            };
+            (
+                Box::new(SampleSource::new(
+                    data,
+                    sample.root_midi,
+                    sample.looped,
+                    sample_rate,
+                    max_voices,
+                )),
+                duration,
+                0.005,
+            )
+        } else {
+            let mut generator = MultiToneGeneratorBuilder::new();
+            for tone in &spec.tones {
+                let mut tone_builder = ToneGeneratorBuilder::new().waveform(tone.waveform.clone());
+                if let Some(frequency) = tone.frequency {
+                    tone_builder = tone_builder.frequency(frequency);
+                } else if let Some(relation) = &tone.frequency_relation {
+                    tone_builder = tone_builder.frequency_relation(relation.clone());
+                }
+                if let Some(envelope) = &tone.amplitude_envelope {
+                    tone_builder = tone_builder.amplitude_envelope(envelope.as_dyn_envelope());
+                }
+                generator = generator.add_generator(tone_builder.build());
+            }
+
+            generator = generator
+                .mix_mode(spec.mix_mode.clone())
+                .amplitude_envelope(
+                    spec.amplitude_envelope
+                        .as_ref()
+                        .map(|es| es.as_dyn_envelope()),
+                )
+                .pitch_envelope(spec.pitch_envelope.as_ref().map(|es| es.as_dyn_envelope()));
+            if let Some(base_frequency) = spec.base_frequency {
+                generator = generator.frequency(base_frequency);
+            }
+            let generator = generator.build();
+
+            let voice_source: Box<dyn Source> = match &spec.voice {
+                VoiceSpec::Mono {
+                    track_pitch,
+                    allocation,
+                } => {
+                    if *track_pitch {
+                        Box::new(MonophonicSource::new(
+                            generator,
+                            sample_rate,
+                            allocation.clone(),
+                        ))
+                    } else {
+                        Box::new(MonophonicSource::new_percussive(
+                            generator,
+                            sample_rate,
+                            allocation.clone(),
+                        ))
+                    }
+                }
+                VoiceSpec::Poly { voices, allocation } => Box::new(PolyphonicSource::new(
+                    generator,
+                    (*voices).max(1),
+                    sample_rate,
+                    allocation.clone(),
+                )),
+            };
+            let (release_after, release_duration) = natural_note_timing(spec);
+            (voice_source, release_after, release_duration)
+        };
     let system_source: Box<dyn Source> = Box::new(crate::core::graph::NoteLifecycleSource::new(
         voice_source,
         spec.note_lifecycle,
