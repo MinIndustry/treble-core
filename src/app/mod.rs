@@ -3,7 +3,6 @@
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use std::sync::mpsc::{Receiver, Sender, channel};
 
 use cpal::SampleRate;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -21,8 +20,8 @@ use crate::app::audio_graph::AudioGraph;
 use crate::app::error::AppError;
 use crate::audio::EventSender;
 use crate::audio::{
-    AudioError, AudioHandle, AudioMessage, BackendEvent, EventFilter, GraphAudioMessage,
-    InstrumentAudioMessage, StatusEvent,
+    AudioError, AudioHandle, AudioMessage, BackendEvent, EventFilter, EventReceiver,
+    GraphAudioMessage, InstrumentAudioMessage, StatusEvent,
 };
 use crate::core::utils::Note;
 use crate::instruments::Instrument;
@@ -268,9 +267,9 @@ impl App {
     /// Compiles the instrument graph, spawns the render thread, and returns
     /// a receiver for backend events. Pass an [`EventFilter`] to control which
     /// event categories are forwarded; use [`EventFilter::all()`] to receive everything.
-    pub fn start(&mut self, filter: EventFilter) -> Result<Receiver<BackendEvent>, AudioError> {
-        let (raw_tx, event_rx): (Sender<BackendEvent>, Receiver<BackendEvent>) = channel();
-        let event_tx = EventSender::new(raw_tx, filter);
+    pub fn start(&mut self, filter: EventFilter) -> Result<EventReceiver, AudioError> {
+        let (event_tx, event_rx) =
+            EventSender::new(filter, self.config.audio.audio_event_queue_size);
 
         info!("Starting audio engine");
         self.config

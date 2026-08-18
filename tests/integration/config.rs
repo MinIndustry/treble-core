@@ -156,6 +156,7 @@ fn test_audioconfig_toml_serialization_roundtrip() {
         render_chunk_size: 512,
         audio_ring_buffer_size: 44100,
         message_ring_buffer_size: 2048,
+        audio_event_queue_size: 32,
         target_latency_ms: 100.0,
     };
 
@@ -176,6 +177,10 @@ fn test_audioconfig_toml_serialization_roundtrip() {
     assert_eq!(
         original.message_ring_buffer_size,
         deserialized.message_ring_buffer_size
+    );
+    assert_eq!(
+        original.audio_event_queue_size,
+        deserialized.audio_event_queue_size
     );
     assert_eq!(original.target_latency_ms, deserialized.target_latency_ms);
 }

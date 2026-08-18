@@ -148,12 +148,8 @@ fn render_loop(
             );
         }
 
-        // Broadcast chunk for recording / analysis.
-        // TODO: Arc<Vec<f32>> would eliminate the clone-per-broadcast, but
-        //       AudioEvent::Chunk derives Serialize which Arc<T> doesn't satisfy
-        //       without a serde newtype wrapper.
-        event_tx.send(BackendEvent::Audio(AudioEvent::Chunk(chunk_buffer.clone())));
         if event_tx.allows(EventCategory::Audio) {
+            event_tx.send(BackendEvent::Audio(AudioEvent::Chunk(chunk_buffer.clone())));
             let stems = (1..system.sinks_len())
                 .map(|index| {
                     system

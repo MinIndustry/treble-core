@@ -21,7 +21,8 @@ pub use config::{AudioConfig, LogConfig};
 pub use error::{AudioError, CommandError};
 pub(crate) use events::EventSender;
 pub use events::{
-    AudioEvent, BackendEvent, DiagnosticsEvent, ErrorEvent, EventCategory, EventFilter, StatusEvent,
+    AudioEvent, BackendEvent, DiagnosticsEvent, ErrorEvent, EventCategory, EventFilter,
+    EventReceiver, StatusEvent,
 };
 pub use handle::{AudioHandle, AudioMetrics};
 pub use messages::{AudioMessage, GraphAudioMessage, InstrumentAudioMessage};
