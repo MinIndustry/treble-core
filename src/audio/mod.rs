@@ -15,6 +15,7 @@ pub(crate) mod render_thread;
 pub(crate) mod resampler;
 pub mod scheduler;
 pub mod shared_state;
+pub(crate) mod stream;
 
 // Re-export commonly used types
 pub use callback::create_cpal_callback;
@@ -29,3 +30,4 @@ pub use handle::{AudioHandle, AudioMetrics};
 pub use messages::{AudioMessage, GraphAudioMessage, InstrumentAudioMessage};
 pub use scheduler::{EventScheduler, render_block};
 pub use shared_state::SharedAudioState;
+pub use stream::output_device_names;

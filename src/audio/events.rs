@@ -141,6 +141,8 @@ pub enum ErrorEvent {
     GraphError { description: String },
     /// An audio thread panicked; the thread name and panic message are included.
     ThreadPanic { thread: String, message: String },
+    /// The active operating-system output stream reported an error.
+    AudioStream { message: String },
 }
 
 // Top-level envelope

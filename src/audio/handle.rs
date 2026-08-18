@@ -2,28 +2,27 @@ use super::{AudioError, SharedAudioState};
 use std::sync::Arc;
 use std::thread::JoinHandle;
 
+use super::stream::OutputStreamRuntime;
+
 /// Handle to the audio render thread.
 ///
-/// The `cpal::Stream` is intentionally forgotten (leaked) so that this struct
-/// is `Send` and can be stored in shared state (e.g. Tauri managed state).
-/// The stream continues playing; the OS reclaims it on process exit.
+/// The platform stream lives on a dedicated thread because some backends do
+/// not allow it to be moved between threads. Shutdown joins both owners.
 pub struct AudioHandle {
     render_thread: JoinHandle<()>,
+    output_stream: OutputStreamRuntime,
     shared_state: Arc<SharedAudioState>,
 }
 
 impl AudioHandle {
-    pub fn new(
+    pub(crate) fn new(
         render_thread: JoinHandle<()>,
-        stream: cpal::Stream,
+        output_stream: OutputStreamRuntime,
         shared_state: Arc<SharedAudioState>,
     ) -> Self {
-        // Forget the stream so AudioHandle is Send.
-        // The stream keeps playing; cleanup happens on process exit.
-        std::mem::forget(stream);
-
         Self {
             render_thread,
+            output_stream,
             shared_state,
         }
     }
@@ -37,6 +36,7 @@ impl AudioHandle {
         self.render_thread
             .join()
             .map_err(|_| AudioError::ThreadPanic)?;
+        self.output_stream.shutdown();
 
         Ok(())
     }

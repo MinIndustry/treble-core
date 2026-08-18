@@ -4,8 +4,6 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-use cpal::SampleRate;
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use log::info;
 
 pub mod audio_graph;
@@ -77,6 +75,7 @@ pub struct App {
     message_tx: Option<crossbeam::channel::Sender<AudioMessage>>,
     /// Backend event filter shared with the render thread.
     event_tx: Option<EventSender>,
+    active_output_device: Option<String>,
 }
 
 impl Default for App {
@@ -91,6 +90,7 @@ impl Default for App {
             handle: None,
             message_tx: None,
             event_tx: None,
+            active_output_device: None,
         }
     }
 }
@@ -268,6 +268,20 @@ impl App {
     /// a receiver for backend events. Pass an [`EventFilter`] to control which
     /// event categories are forwarded; use [`EventFilter::all()`] to receive everything.
     pub fn start(&mut self, filter: EventFilter) -> Result<EventReceiver, AudioError> {
+        self.start_on_output_device(filter, None)
+    }
+
+    /// Start on a named output device, or the operating-system default when omitted.
+    pub fn start_on_output_device(
+        &mut self,
+        filter: EventFilter,
+        output_device: Option<&str>,
+    ) -> Result<EventReceiver, AudioError> {
+        if self.handle.is_some() {
+            return Err(AudioError::ConfigError(
+                "audio engine is already running".into(),
+            ));
+        }
         let (event_tx, event_rx) =
             EventSender::new(filter, self.config.audio.audio_event_queue_size);
 
@@ -284,62 +298,7 @@ impl App {
         let audio_queue = Arc::new(ArrayQueue::<f32>::new(config.audio_ring_buffer_size));
 
         let (message_tx, message_rx) = crossbeam::channel::bounded(config.message_ring_buffer_size);
-
-        let host = cpal::default_host();
-        let device = host.default_output_device().ok_or(AudioError::NoDevice)?;
-
-        let best_config = device
-            .supported_output_configs()
-            .map_err(|e| AudioError::StreamError(e.to_string()))?
-            .map(|c| {
-                let mut score = 0;
-
-                // Try not to get too far from 44100
-                if c.max_sample_rate().0 >= 44100 && c.min_sample_rate().0 <= 44100 {
-                    score += 1;
-                }
-
-                if c.channels() == crate::core::audio::CHANNELS as u16 {
-                    score += 2;
-                }
-
-                (score, c)
-            })
-            .max_by_key(|e| e.0)
-            .map(|e| e.1)
-            .ok_or(AudioError::StreamError("No supported config".to_string()))?;
-
-        let sample_rate = SampleRate(
-            44100
-                .min(best_config.max_sample_rate().0)
-                .max(best_config.min_sample_rate().0),
-        );
-
-        if sample_rate.0 != 44100 {
-            log::warn!(
-                "Device does not support 44100 Hz, engine will run at {} Hz ({}, {})",
-                sample_rate.0,
-                best_config.min_sample_rate().0,
-                best_config.max_sample_rate().0
-            );
-        }
-        log::info!(
-            "Found working configuration with channels={} and sr={} ({}, {})",
-            best_config.channels(),
-            sample_rate.0,
-            best_config.min_sample_rate().0,
-            best_config.max_sample_rate().0
-        );
-        let supported_config = best_config.with_sample_rate(sample_rate);
-
-        let mut cpal_config = supported_config.config();
-        cpal_config.buffer_size = cpal::BufferSize::Fixed(config.cpal_buffer_size as u32);
-
-        let sample_rate = cpal_config.sample_rate.0;
         let engine_sample_rate = self.config.system.sample_rate;
-        shared_state
-            .sample_rate
-            .store(sample_rate, Ordering::Relaxed);
         shared_state
             .engine_sample_rate
             .store(engine_sample_rate, Ordering::Relaxed);
@@ -347,15 +306,25 @@ impl App {
             .master_volume
             .store(self.config.system.master_volume, Ordering::Relaxed);
 
-        info!(
-            "Audio config: engine_rate={engine_sample_rate}, output_rate={sample_rate}, buffer_size={}, ring_buffer={}",
-            config.cpal_buffer_size, config.audio_ring_buffer_size
-        );
-
         let compiled = self
             .audio_graph
             .compile(engine_sample_rate as f32)
             .map_err(|e| AudioError::StreamError(format!("Graph compile error: {:?}", e)))?;
+
+        let (output_stream, stream_info) = crate::audio::stream::spawn_output_stream(
+            output_device.map(str::to_owned),
+            audio_queue.clone(),
+            shared_state.clone(),
+            config.clone(),
+            event_tx.clone(),
+        )?;
+        info!(
+            "Audio config: device='{}', engine_rate={engine_sample_rate}, output_rate={}, buffer_size={}, ring_buffer={}",
+            stream_info.device_name,
+            stream_info.sample_rate,
+            config.cpal_buffer_size,
+            config.audio_ring_buffer_size
+        );
 
         let render_thread = crate::audio::render_thread::spawn_audio_render_thread(
             shared_state.clone(),
@@ -366,30 +335,28 @@ impl App {
             event_tx.clone(),
         );
 
-        let callback = crate::audio::create_cpal_callback(audio_queue, shared_state.clone());
-
-        let stream = device
-            .build_output_stream(
-                &cpal_config,
-                callback,
-                move |err| log::error!("Audio stream error: {}", err),
-                None,
-            )
-            .map_err(|e| AudioError::StreamError(e.to_string()))?;
-
-        stream
-            .play()
-            .map_err(|e| AudioError::StreamError(e.to_string()))?;
-
         event_tx.send(BackendEvent::Status(StatusEvent::AudioStarted {
-            sample_rate,
+            sample_rate: stream_info.sample_rate,
+        }));
+        event_tx.send(BackendEvent::Status(StatusEvent::OutputDeviceChanged {
+            device: stream_info.device_name.clone(),
         }));
 
-        self.handle = Some(AudioHandle::new(render_thread, stream, shared_state));
+        self.handle = Some(AudioHandle::new(render_thread, output_stream, shared_state));
+        self.active_output_device = Some(stream_info.device_name);
         self.message_tx = Some(message_tx);
         self.event_tx = Some(event_tx);
 
         Ok(event_rx)
+    }
+
+    /// Enumerate output devices visible to the current CPAL host.
+    pub fn output_devices() -> Result<Vec<String>, AudioError> {
+        crate::audio::output_device_names()
+    }
+
+    pub fn active_output_device(&self) -> Option<&str> {
+        self.active_output_device.as_deref()
     }
 
     /// Change which backend event categories are forwarded without restarting audio.
@@ -570,6 +537,8 @@ impl App {
                 .map_err(|e| AppError::AudioError(e.to_string()))?;
         }
         self.message_tx = None;
+        self.event_tx = None;
+        self.active_output_device = None;
         Ok(())
     }
 
