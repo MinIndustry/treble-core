@@ -165,9 +165,10 @@ mod delay_tests {
     #[test]
     fn test_delay_metadata_parameters_resize_the_buffer() {
         let mut f = DelayFilter::default();
-        f.set_parameter("sample_rate", 10.0);
-        f.set_parameter("delay_for", 0.2);
-        f.set_parameter("mix", 1.0);
+        assert!(f.set_parameter("sample_rate", 10.0));
+        assert!(f.set_parameter("delay_for", 0.2));
+        assert!(f.set_parameter("mix", 1.0));
+        assert!(!f.set_parameter("delay_typo", 1.0));
         f.push(
             Arc::new(vec![[1.0; CHANNELS], [0.0; CHANNELS], [0.0; CHANNELS]]),
             0,

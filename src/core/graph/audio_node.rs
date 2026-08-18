@@ -48,6 +48,10 @@ impl AudioNode {
         &mut self.filter
     }
 
+    pub(super) fn filter(&self) -> &dyn Filter {
+        &*self.filter
+    }
+
     pub(super) fn set_mix_mode(&mut self, mode: MixMode) {
         self.mix_mode = mode;
     }

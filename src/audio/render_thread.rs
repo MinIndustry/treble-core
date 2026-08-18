@@ -109,10 +109,14 @@ fn render_loop(
         // Sync master volume to the sink each block (cheap atomic read).
         // The sink applies it before limiting, so the limiter always acts as
         // a hard ceiling regardless of the volume setting.
-        system.set_sink_parameter(
-            0,
-            "master_volume",
-            shared_state.master_volume.load(Ordering::Relaxed),
+        debug_assert!(
+            system
+                .set_sink_parameter(
+                    0,
+                    "master_volume",
+                    shared_state.master_volume.load(Ordering::Relaxed),
+                )
+                .is_ok()
         );
 
         // Run the graph for one block, splitting at scheduled note events so
@@ -223,7 +227,19 @@ fn process_graph_message(system: &mut System, cmd: GraphAudioMessage, event_tx: 
                 let mode = treble_meta::MixMode::from_ordinal(value as usize);
                 system.set_mix_mode(NodeIndex::new(node_index), mode);
             } else if let Some(f) = system.get_filter_mut(NodeIndex::new(node_index)) {
-                f.set_parameter(param_name.as_str(), value);
+                if !f.set_parameter(param_name.as_str(), value) {
+                    event_tx.send(BackendEvent::Error(ErrorEvent::CommandFailed {
+                        command: "SetParameter".into(),
+                        message: format!(
+                            "unknown parameter '{param_name}' for filter node {node_index}"
+                        ),
+                    }));
+                }
+            } else {
+                event_tx.send(BackendEvent::Error(ErrorEvent::CommandFailed {
+                    command: "SetParameter".into(),
+                    message: format!("filter node {node_index} does not exist"),
+                }));
             }
         }
         GraphAudioMessage::SetSourceParameter {
@@ -231,14 +247,26 @@ fn process_graph_message(system: &mut System, cmd: GraphAudioMessage, event_tx: 
             param_name,
             value,
         } => {
-            system.set_source_parameter(source_index, param_name.as_str(), value);
+            if let Err(error) =
+                system.set_source_parameter(source_index, param_name.as_str(), value)
+            {
+                event_tx.send(BackendEvent::Error(ErrorEvent::CommandFailed {
+                    command: "SetSourceParameter".into(),
+                    message: error.to_string(),
+                }));
+            }
         }
         GraphAudioMessage::AddModulation {
             from_source,
             target,
             param_name,
         } => {
-            system.add_mod_wire(from_source, target, param_name);
+            if let Err(error) = system.add_mod_wire(from_source, target, param_name) {
+                event_tx.send(BackendEvent::Error(ErrorEvent::CommandFailed {
+                    command: "AddModulation".into(),
+                    message: error.to_string(),
+                }));
+            }
         }
         GraphAudioMessage::RemoveModulation {
             from_source,
@@ -248,8 +276,6 @@ fn process_graph_message(system: &mut System, cmd: GraphAudioMessage, event_tx: 
             system.remove_mod_wire(from_source, &target, &param_name);
         }
     }
-    // Suppress unused parameter warning when no variant uses event_tx yet
-    let _ = event_tx;
 }
 
 fn process_audio_message(

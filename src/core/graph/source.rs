@@ -33,7 +33,14 @@ pub trait Source: std::fmt::Debug + DynClone + Send + Sync {
         false
     }
 
+    /// Returns whether this source accepts a scalar parameter with this name.
+    fn supports_parameter(&self, _name: &str) -> bool {
+        false
+    }
+
     /// Set a named parameter on this source (e.g. frequency, attack, sustain).
-    fn set_parameter(&mut self, _name: &str, _value: f32) {}
+    fn set_parameter(&mut self, _name: &str, _value: f32) -> bool {
+        false
+    }
 }
 dyn_clone::clone_trait_object!(Source);

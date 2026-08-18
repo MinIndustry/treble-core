@@ -119,8 +119,11 @@ impl Source for NoteLifecycleSource {
     fn is_active(&self) -> bool {
         self.source.is_active()
     }
-    fn set_parameter(&mut self, name: &str, value: f32) {
-        self.source.set_parameter(name, value);
+    fn supports_parameter(&self, name: &str) -> bool {
+        self.source.supports_parameter(name)
+    }
+    fn set_parameter(&mut self, name: &str, value: f32) -> bool {
+        self.source.set_parameter(name, value)
     }
 }
 

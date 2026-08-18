@@ -331,10 +331,23 @@ impl System {
     }
 
     /// Set a named parameter on a source by index.
-    pub fn set_source_parameter(&mut self, index: usize, name: &str, value: f32) {
-        if let Some((source, _)) = self.sources.get_mut(index) {
-            source.set_parameter(name, value);
-        }
+    pub fn set_source_parameter(
+        &mut self,
+        index: usize,
+        name: &str,
+        value: f32,
+    ) -> Result<(), AudioGraphError> {
+        let (source, _) = self
+            .sources
+            .get_mut(index)
+            .ok_or(AudioGraphError::InvalidNode)?;
+        source
+            .set_parameter(name, value)
+            .then_some(())
+            .ok_or_else(|| AudioGraphError::UnknownParameter {
+                target: format!("source {index}"),
+                parameter: name.to_owned(),
+            })
     }
 
     /// Returns the number of sinks currently registered in this system.
@@ -343,10 +356,22 @@ impl System {
     }
 
     /// Set a named parameter on a sink by index.
-    pub fn set_sink_parameter(&mut self, sink_idx: usize, name: &str, value: f32) {
-        if let Some((_, sink)) = self.sinks.get_mut(sink_idx) {
-            sink.set_parameter(name, value);
-        }
+    pub fn set_sink_parameter(
+        &mut self,
+        sink_idx: usize,
+        name: &str,
+        value: f32,
+    ) -> Result<(), AudioGraphError> {
+        let (_, sink) = self
+            .sinks
+            .get_mut(sink_idx)
+            .ok_or(AudioGraphError::InvalidNode)?;
+        sink.set_parameter(name, value)
+            .then_some(())
+            .ok_or_else(|| AudioGraphError::UnknownParameter {
+                target: format!("sink {sink_idx}"),
+                parameter: name.to_owned(),
+            })
     }
 
     /// Returns the number of computed layers (0 means graph not yet compiled).
@@ -392,7 +417,31 @@ impl System {
 
     /// Register a live modulation wire: the block mean of `from_source` will
     /// drive `param_name` on `target` every `run()` call.
-    pub fn add_mod_wire(&mut self, from_source: usize, target: ModTarget, param_name: String) {
+    pub fn add_mod_wire(
+        &mut self,
+        from_source: usize,
+        target: ModTarget,
+        param_name: String,
+    ) -> Result<(), AudioGraphError> {
+        if from_source >= self.sources.len() {
+            return Err(AudioGraphError::InvalidNode);
+        }
+        let supports_parameter = match target {
+            ModTarget::Source(index) => self
+                .sources
+                .get(index)
+                .is_some_and(|(source, _)| source.supports_parameter(&param_name)),
+            ModTarget::Filter(index) => self
+                .graph
+                .node_weight(index)
+                .is_some_and(|node| node.filter().supports_parameter(&param_name)),
+        };
+        if !supports_parameter {
+            return Err(AudioGraphError::UnknownParameter {
+                target: format!("{target:?}"),
+                parameter: param_name,
+            });
+        }
         // Avoid duplicates
         if !self.mod_wires.iter().any(|w| {
             w.from_source == from_source && w.target == target && w.param_name == param_name
@@ -403,6 +452,7 @@ impl System {
                 param_name,
             });
         }
+        Ok(())
     }
 
     /// Remove an existing modulation wire.
@@ -558,12 +608,12 @@ impl System {
             match target {
                 ModTarget::Source(idx) => {
                     if let Some((src, _)) = self.sources.get_mut(idx) {
-                        src.set_parameter(&param_name, value);
+                        debug_assert!(src.set_parameter(&param_name, value));
                     }
                 }
                 ModTarget::Filter(node_idx) => {
                     if let Some(node) = self.graph.node_weight_mut(node_idx) {
-                        node.filter_mut().set_parameter(&param_name, value);
+                        debug_assert!(node.filter_mut().set_parameter(&param_name, value));
                     }
                 }
             }

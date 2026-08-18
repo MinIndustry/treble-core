@@ -350,9 +350,10 @@ fn create_filter(node_type: &str, sample_rate: f32) -> Result<Box<dyn Filter>, S
         let info = (entry.info)();
         if info.type_id == node_type {
             let mut filter = (entry.create)();
-            // Filters that expose sample_rate as a parameter pick up the
-            // engine rate here; others ignore it (logged at debug).
-            filter.set_parameter("sample_rate", sample_rate);
+            // Filters that expose sample_rate as a parameter pick up the engine rate here.
+            if filter.supports_parameter("sample_rate") {
+                debug_assert!(filter.set_parameter("sample_rate", sample_rate));
+            }
             return Ok(filter);
         }
     }
@@ -658,7 +659,12 @@ pub fn compile_spec(spec: &InstrumentSpec, sample_rate: f32) -> Result<System, S
     for fx in spec.fx.iter() {
         let mut filter = create_filter(&fx.type_id, sample_rate)?;
         for (param, value) in fx.params.iter() {
-            filter.set_parameter(param, *value);
+            if !filter.set_parameter(param, *value) {
+                return Err(SpecError::UnknownParameter {
+                    filter: fx.type_id.clone(),
+                    param: param.clone(),
+                });
+            }
         }
 
         let filter_index = compiled_system.add_filter(filter);

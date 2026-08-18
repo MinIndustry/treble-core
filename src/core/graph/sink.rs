@@ -12,7 +12,9 @@ pub trait Sink: Entry + Send + Sync {
     }
     fn get_frames(&self) -> &[Frame];
     fn into_entry(self) -> Box<dyn Entry>;
-    /// Update a named parameter. Default implementation is a no-op.
-    fn set_parameter(&mut self, _name: &str, _value: f32) {}
+    /// Update a named parameter, returning `false` when it is unsupported.
+    fn set_parameter(&mut self, _name: &str, _value: f32) -> bool {
+        false
+    }
 }
 dyn_clone::clone_trait_object!(Sink);
