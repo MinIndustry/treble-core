@@ -153,7 +153,25 @@ impl Source for SimpleSource {
         self.active
     }
 
-    fn set_parameter(&mut self, name: &str, value: f32) {
+    fn supports_parameter(&self, name: &str) -> bool {
+        matches!(
+            name,
+            "frequency"
+                | "amplitude"
+                | "attack"
+                | "decay"
+                | "sustain"
+                | "release"
+                | "attack_curve"
+                | "decay_curve"
+                | "release_curve"
+                | "attack_cp_t"
+                | "decay_cp_t"
+                | "release_cp_t"
+        )
+    }
+
+    fn set_parameter(&mut self, name: &str, value: f32) -> bool {
         match name {
             "frequency" => {
                 self.generator.set_base_frequency(value);
@@ -202,8 +220,9 @@ impl Source for SimpleSource {
                 self.release_cp_t = value.clamp(0.0, 1.0);
                 self.apply_envelope();
             }
-            _ => {}
+            _ => return false,
         }
+        true
     }
 }
 

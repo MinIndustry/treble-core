@@ -10,8 +10,9 @@ use crossbeam::queue::ArrayQueue;
 use petgraph::graph::NodeIndex;
 
 use super::config::AudioConfig;
-use super::events::{AudioEvent, BackendEvent, ErrorEvent, EventSender};
+use super::events::{AudioEvent, BackendEvent, ErrorEvent, EventCategory, EventSender};
 use super::messages::{AudioMessage, GraphAudioMessage};
+use super::resampler::LinearResampler;
 use super::scheduler::{EventScheduler, apply_instrument_message, render_block};
 use super::shared_state::SharedAudioState;
 use crate::core::graph::System;
@@ -75,10 +76,19 @@ fn render_loop(
 ) {
     let mut chunk_buffer =
         Vec::with_capacity(config.render_chunk_size * crate::core::audio::CHANNELS);
+    let engine_sample_rate = shared_state.engine_sample_rate.load(Ordering::Relaxed);
+    let output_sample_rate = shared_state.sample_rate.load(Ordering::Relaxed);
+    let mut resampler = LinearResampler::new(engine_sample_rate, output_sample_rate);
+    let mut output_buffer = Vec::with_capacity(
+        ((config.render_chunk_size as f64 * output_sample_rate as f64
+            / engine_sample_rate.max(1) as f64)
+            .ceil() as usize
+            + 2)
+            * crate::core::audio::CHANNELS,
+    );
 
-    let sample_rate = shared_state.sample_rate.load(Ordering::Relaxed);
     let target_samples =
-        config.calculate_ring_buffer_size(sample_rate) * crate::core::audio::CHANNELS;
+        config.calculate_ring_buffer_size(output_sample_rate) * crate::core::audio::CHANNELS;
 
     let mut block_count: u64 = 0;
     let mut scheduler = EventScheduler::new();
@@ -99,10 +109,14 @@ fn render_loop(
         // Sync master volume to the sink each block (cheap atomic read).
         // The sink applies it before limiting, so the limiter always acts as
         // a hard ceiling regardless of the volume setting.
-        system.set_sink_parameter(
-            0,
-            "master_volume",
-            shared_state.master_volume.load(Ordering::Relaxed),
+        debug_assert!(
+            system
+                .set_sink_parameter(
+                    0,
+                    "master_volume",
+                    shared_state.master_volume.load(Ordering::Relaxed),
+                )
+                .is_ok()
         );
 
         // Run the graph for one block, splitting at scheduled note events so
@@ -114,20 +128,23 @@ fn render_loop(
             .current_frame
             .store(current_frame, Ordering::Relaxed);
 
-        // Write to ring buffer
+        // Convert stable engine-rate audio to the active output-device rate.
+        resampler.process(&chunk_buffer, &mut output_buffer);
+
+        // Write device-rate audio to the ring buffer.
         let mut written = 0;
-        for &sample in chunk_buffer.iter() {
+        for &sample in &output_buffer {
             if audio_queue.push(sample).is_ok() {
                 written += 1;
             } else {
                 break;
             }
         }
-        if written != chunk_buffer.len() {
+        if written != output_buffer.len() {
             log::warn!(
                 "Failed to write full chunk: {} / {}",
                 written,
-                chunk_buffer.len()
+                output_buffer.len()
             );
         }
 
@@ -148,11 +165,29 @@ fn render_loop(
             );
         }
 
-        // Broadcast chunk for recording / analysis.
-        // TODO: Arc<Vec<f32>> would eliminate the clone-per-broadcast, but
-        //       AudioEvent::Chunk derives Serialize which Arc<T> doesn't satisfy
-        //       without a serde newtype wrapper.
-        event_tx.send(BackendEvent::Audio(AudioEvent::Chunk(chunk_buffer.clone())));
+        if event_tx.allows(EventCategory::Audio) {
+            event_tx.send(BackendEvent::Audio(AudioEvent::Chunk(chunk_buffer.clone())));
+            let stems = (1..system.sinks_len())
+                .map(|index| {
+                    system
+                        .get_sink(index)
+                        .map(|sink| {
+                            sink.consume()
+                                .into_iter()
+                                .flat_map(|frame| frame.into_iter())
+                                .collect()
+                        })
+                        .unwrap_or_default()
+                })
+                .collect();
+            event_tx.send(BackendEvent::Audio(AudioEvent::StemChunk(stems)));
+        } else {
+            for index in 1..system.sinks_len() {
+                if let Ok(sink) = system.get_sink(index) {
+                    sink.discard();
+                }
+            }
+        }
     }
 }
 
@@ -192,7 +227,19 @@ fn process_graph_message(system: &mut System, cmd: GraphAudioMessage, event_tx: 
                 let mode = treble_meta::MixMode::from_ordinal(value as usize);
                 system.set_mix_mode(NodeIndex::new(node_index), mode);
             } else if let Some(f) = system.get_filter_mut(NodeIndex::new(node_index)) {
-                f.set_parameter(param_name.as_str(), value);
+                if !f.set_parameter(param_name.as_str(), value) {
+                    event_tx.send(BackendEvent::Error(ErrorEvent::CommandFailed {
+                        command: "SetParameter".into(),
+                        message: format!(
+                            "unknown parameter '{param_name}' for filter node {node_index}"
+                        ),
+                    }));
+                }
+            } else {
+                event_tx.send(BackendEvent::Error(ErrorEvent::CommandFailed {
+                    command: "SetParameter".into(),
+                    message: format!("filter node {node_index} does not exist"),
+                }));
             }
         }
         GraphAudioMessage::SetSourceParameter {
@@ -200,14 +247,26 @@ fn process_graph_message(system: &mut System, cmd: GraphAudioMessage, event_tx: 
             param_name,
             value,
         } => {
-            system.set_source_parameter(source_index, param_name.as_str(), value);
+            if let Err(error) =
+                system.set_source_parameter(source_index, param_name.as_str(), value)
+            {
+                event_tx.send(BackendEvent::Error(ErrorEvent::CommandFailed {
+                    command: "SetSourceParameter".into(),
+                    message: error.to_string(),
+                }));
+            }
         }
         GraphAudioMessage::AddModulation {
             from_source,
             target,
             param_name,
         } => {
-            system.add_mod_wire(from_source, target, param_name);
+            if let Err(error) = system.add_mod_wire(from_source, target, param_name) {
+                event_tx.send(BackendEvent::Error(ErrorEvent::CommandFailed {
+                    command: "AddModulation".into(),
+                    message: error.to_string(),
+                }));
+            }
         }
         GraphAudioMessage::RemoveModulation {
             from_source,
@@ -217,8 +276,6 @@ fn process_graph_message(system: &mut System, cmd: GraphAudioMessage, event_tx: 
             system.remove_mod_wire(from_source, &target, &param_name);
         }
     }
-    // Suppress unused parameter warning when no variant uses event_tx yet
-    let _ = event_tx;
 }
 
 fn process_audio_message(
@@ -233,10 +290,17 @@ fn process_audio_message(
         AudioMessage::ScheduledInstrument { at_frame, command } => {
             scheduler.schedule(at_frame, command);
         }
+        AudioMessage::ScheduledGraphSwap {
+            at_frame,
+            system,
+            fade_in_frames,
+            tail_frames,
+        } => {
+            scheduler.schedule_graph_swap(at_frame, system, fade_in_frames, tail_frames);
+        }
         AudioMessage::Graph(cmd) => {
-            // A cleared graph has no sources left for pending events to target.
-            // (Swap keeps them: slot indices are append-only since BUG-001.)
-            if matches!(cmd, GraphAudioMessage::Clear) {
+            // Immediate graph replacement starts a new graph generation.
+            if matches!(cmd, GraphAudioMessage::Clear | GraphAudioMessage::Swap(_)) {
                 scheduler.clear();
             }
             process_graph_message(system, cmd, event_tx);

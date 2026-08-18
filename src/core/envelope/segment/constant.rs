@@ -58,7 +58,7 @@ impl Envelope for ConstantSegment {
 
     fn completed(&self, time: f32, note_off: f32) -> bool {
         if let Some(duration) = self.duration {
-            (time - note_off) < duration
+            (time - note_off) >= duration
         } else {
             false
         }

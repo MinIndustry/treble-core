@@ -21,6 +21,16 @@ pub enum AudioMessage {
         at_frame: u64,
         command: InstrumentAudioMessage,
     },
+    /// Replace the graph at an exact engine frame. Note events queued at or
+    /// after that frame before this message are discarded as belonging to the
+    /// previous graph generation; events submitted afterwards target the new
+    /// graph.
+    ScheduledGraphSwap {
+        at_frame: u64,
+        system: System,
+        fade_in_frames: u64,
+        tail_frames: u64,
+    },
     /// Graph structural/playback control — for the visual graph editor.
     Graph(GraphAudioMessage),
     // Lifecycle
@@ -67,7 +77,7 @@ pub enum GraphAudioMessage {
     KillSource {
         source_index: usize,
     },
-    /// Replace the entire running graph with a freshly compiled one.
+    /// Replace the entire running graph with a freshly compiled one immediately.
     Swap(System),
     Clear,
     /// Register a live modulation wire in the running system.

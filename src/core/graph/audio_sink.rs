@@ -119,14 +119,15 @@ impl Sink for AudioOutputSink {
         Box::new(self)
     }
 
-    fn set_parameter(&mut self, name: &str, value: f32) {
+    fn set_parameter(&mut self, name: &str, value: f32) -> bool {
         match name {
             "master_volume" => self.master_volume = value,
             "limiter_threshold" => self.limiter_threshold = value,
             "limiter_attack" => self.limiter_attack = value,
             "limiter_release" => self.limiter_release = value,
             "sample_rate" => self.sample_rate = value,
-            _ => {}
+            _ => return false,
         }
+        true
     }
 }

@@ -23,13 +23,24 @@ pub trait Source: std::fmt::Debug + DynClone + Send + Sync {
     fn stop_note(&mut self, _note: Note) {
         self.stop();
     }
+    /// Note-aware hard stop (defaults to killing the complete source).
+    fn kill_note(&mut self, _note: Note) {
+        self.kill();
+    }
 
     /// True while the source is producing non-silent output (or during release).
     fn is_active(&self) -> bool {
         false
     }
 
+    /// Returns whether this source accepts a scalar parameter with this name.
+    fn supports_parameter(&self, _name: &str) -> bool {
+        false
+    }
+
     /// Set a named parameter on this source (e.g. frequency, attack, sustain).
-    fn set_parameter(&mut self, _name: &str, _value: f32) {}
+    fn set_parameter(&mut self, _name: &str, _value: f32) -> bool {
+        false
+    }
 }
 dyn_clone::clone_trait_object!(Source);

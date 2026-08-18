@@ -1,5 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
     Note,
     core::{Block, audio::silent_block, generator::prelude::MultiToneGenerator},
@@ -7,7 +9,7 @@ use crate::{
 
 use crate::core::graph::Source;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 /// Strategies for replacing or not a playing note in the polyphonic generator.
 pub enum PolyphonicAllocationStrategy {
     #[default]
@@ -196,6 +198,14 @@ impl Source for PolyphonicSource {
             *released = true;
             self.current_notes.remove(&note);
             // Keep in notes_age until the release phase finishes in pull()
+        }
+    }
+
+    fn kill_note(&mut self, note: Note) {
+        if let Some(gen_index) = self.current_notes.remove(&note) {
+            let (generator, _, released, _) = &mut self.generators[gen_index];
+            generator.cutoff();
+            *released = true;
         }
     }
 

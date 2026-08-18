@@ -13,10 +13,14 @@ pub struct DelayFilter {
     source: Arc<Block>,
     #[filter_parameter(range, 0.0, 20.0, 0.5)]
     delay_for: f32,
+    #[filter_parameter(range, 0.0, 0.99, 0.0)]
+    feedback: f32,
+    #[filter_parameter(range, 0.0, 1.0, 1.0)]
+    mix: f32,
     buffer: VecDeque<Frame>,
-    /// Stored for future use (e.g. recomputing buffer size on set_parameter)
-    #[allow(dead_code)]
+    #[filter_parameter(range, 1.0, 192000.0, 44100.0)]
     sample_rate: f32,
+    configured_for: (f32, f32),
 }
 
 impl DelayFilter {
@@ -25,8 +29,20 @@ impl DelayFilter {
         Self {
             source: Arc::new(Vec::new()),
             delay_for: delay,
+            feedback: 0.0,
+            mix: 1.0,
             buffer: VecDeque::from(vec![[0.0; CHANNELS]; n_frames]),
             sample_rate,
+            configured_for: (delay, sample_rate),
+        }
+    }
+
+    fn ensure_buffer(&mut self) {
+        let configuration = (self.delay_for, self.sample_rate);
+        if configuration != self.configured_for {
+            let frames = (self.delay_for * self.sample_rate).round().max(1.0) as usize;
+            self.buffer = VecDeque::from(vec![[0.0; CHANNELS]; frames]);
+            self.configured_for = configuration;
         }
     }
 }
@@ -51,16 +67,29 @@ impl fmt::Display for DelayFilter {
 
 impl fmt::Debug for DelayFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "DelayFilter {{ delay_for: {} }}", self.delay_for)
+        write!(
+            f,
+            "DelayFilter {{ delay_for: {}, feedback: {}, mix: {} }}",
+            self.delay_for, self.feedback, self.mix
+        )
     }
 }
 
 impl Filter for DelayFilter {
     fn transform(&mut self) -> Vec<Block> {
-        self.buffer.extend(self.source.iter());
-        let output = self.buffer.drain(0..self.source.len());
+        self.ensure_buffer();
+        let mut output = Vec::with_capacity(self.source.len());
+        for input in self.source.iter() {
+            let delayed = self.buffer.pop_front().unwrap_or([0.0; CHANNELS]);
+            self.buffer.push_back(std::array::from_fn(|channel| {
+                input[channel] + delayed[channel] * self.feedback
+            }));
+            output.push(std::array::from_fn(|channel| {
+                input[channel] * (1.0 - self.mix) + delayed[channel] * self.mix
+            }));
+        }
         self.source = Arc::new(Vec::new());
-        vec![output.collect()]
+        vec![output]
     }
 
     fn postponable(&self) -> bool {

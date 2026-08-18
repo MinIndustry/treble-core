@@ -21,6 +21,10 @@ pub struct AudioConfig {
     #[serde(default = "default_message_ring_buffer_size")]
     pub message_ring_buffer_size: usize,
 
+    /// Maximum queued recording/analysis payloads before the oldest is dropped.
+    #[serde(default = "default_audio_event_queue_size")]
+    pub audio_event_queue_size: usize,
+
     /// Target maximum latency in milliseconds
     #[serde(default = "default_target_latency_ms")]
     pub target_latency_ms: f32,
@@ -38,6 +42,9 @@ fn default_audio_ring_buffer_size() -> usize {
 fn default_message_ring_buffer_size() -> usize {
     1024
 }
+fn default_audio_event_queue_size() -> usize {
+    16
+}
 fn default_target_latency_ms() -> f32 {
     50.0
 }
@@ -49,6 +56,7 @@ impl Default for AudioConfig {
             render_chunk_size: default_render_chunk_size(),
             audio_ring_buffer_size: default_audio_ring_buffer_size(),
             message_ring_buffer_size: default_message_ring_buffer_size(),
+            audio_event_queue_size: default_audio_event_queue_size(),
             target_latency_ms: default_target_latency_ms(),
         }
     }
@@ -70,6 +78,9 @@ impl AudioConfig {
         }
         if self.audio_ring_buffer_size < self.render_chunk_size * 4 {
             return Err("audio_ring_buffer_size too small".to_string());
+        }
+        if self.audio_event_queue_size == 0 {
+            return Err("audio_event_queue_size must be at least 1".to_string());
         }
         Ok(())
     }

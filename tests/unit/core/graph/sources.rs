@@ -142,3 +142,27 @@ fn polyphonic_retrigger_applies_new_velocity() {
         "retrigger at velocity 0.25 (rms {quiet}) should be quieter than 1.0 (rms {loud})"
     );
 }
+
+#[test]
+fn monophonic_cutoff_uses_a_short_fade() {
+    let mut source = MonophonicSource::new(
+        steady_sine(),
+        SAMPLE_RATE,
+        MonophonicAllocationStrategy::Replace,
+    );
+    let note = Note::from_midi(69);
+    source.start_note(note, 1.0);
+    source.pull(64);
+    source.kill_note(note);
+
+    let cutoff = source.pull(512);
+    assert!(
+        cutoff[..100].iter().any(|frame| frame[0].abs() > 0.01),
+        "cutoff must retain a short audible fade"
+    );
+    assert!(
+        cutoff[300..].iter().all(|frame| frame[0].abs() < 0.000001),
+        "cutoff fade must settle to silence"
+    );
+    assert!(!source.is_active());
+}

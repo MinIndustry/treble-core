@@ -18,6 +18,7 @@ pub struct MultiToneGenerator {
     global_amplitude_envelope: Option<Box<dyn Envelope>>,
     time: f32,
     note_off: Option<f32>,
+    cutoff_at: Option<f32>,
 }
 
 impl MultiToneGenerator {
@@ -45,6 +46,7 @@ impl MultiToneGenerator {
             global_amplitude_envelope,
             time: 0.0,
             note_off: None,
+            cutoff_at: None,
         }
     }
 
@@ -52,6 +54,7 @@ impl MultiToneGenerator {
         trace!("Composite Generator starting ({}Hz)", self.base_frequency);
         self.time = 0.0;
         self.note_off = None;
+        self.cutoff_at = None;
         // Reset all child tone generators to ensure clean retriggering
         self.tone_generators.iter_mut().for_each(|tg| tg.start());
     }
@@ -65,7 +68,18 @@ impl MultiToneGenerator {
         self.tone_generators.iter_mut().for_each(|tg| tg.stop());
     }
 
+    /// End a voice quickly without introducing a sample discontinuity.
+    pub fn cutoff(&mut self) {
+        self.cutoff_at = Some(self.time);
+        self.tone_generators
+            .iter_mut()
+            .for_each(|generator| generator.stop());
+    }
+
     pub fn completed(&self) -> bool {
+        if let Some(cutoff_at) = self.cutoff_at {
+            return self.time - cutoff_at >= 0.005;
+        }
         if self.tone_generators.is_empty() {
             return true;
         }
@@ -107,11 +121,16 @@ impl MultiToneGenerator {
             MixMode::Sum => values.sum(),
         };
 
-        if let Some(envelope) = &self.global_amplitude_envelope {
+        let output = if let Some(envelope) = &self.global_amplitude_envelope {
             ampl * envelope.at(self.time, self.note_off.unwrap_or(0.0))
         } else {
             ampl
-        }
+        };
+        let cutoff_gain = self
+            .cutoff_at
+            .map(|cutoff_at| (1.0 - (self.time - cutoff_at) / 0.005).clamp(0.0, 1.0))
+            .unwrap_or(1.0);
+        output * cutoff_gain
     }
 
     /// Runs the generator for `n` samples

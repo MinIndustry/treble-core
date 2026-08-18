@@ -25,4 +25,7 @@ pub enum AudioGraphError {
 
     #[error("processing error: {0}")]
     ProcessingError(&'static str),
+
+    #[error("unknown parameter '{parameter}' for {target}")]
+    UnknownParameter { target: String, parameter: String },
 }

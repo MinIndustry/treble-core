@@ -1,19 +1,35 @@
 //! AudioGraph — assembles all instruments into a single compiled `System`.
 //!
-//! `AudioGraph::compile()` calls `instrument.into_system()` for each slot,
-//! absorbs every sub-graph into one master graph, and connects all instrument
-//! outputs directly to the `AudioOutputSink`, which handles summing, master
-//! volume, and peak-limiting in one place.
+//! Instrument specs remain serializable data until `compile()` builds their
+//! runtime systems. Legacy native instruments are supported as an explicit
+//! compatibility path while the old per-sample instrument API is retired.
 
 use std::collections::HashMap;
 
-use crate::core::graph::{AudioGraphError, AudioOutputSink, System};
+use crate::core::graph::{AudioGraphError, AudioOutputSink, SimpleSink, System};
 use crate::instruments::Instrument;
+use crate::instruments::spec::{InstrumentSpec, SpecError, compile_spec, validate_spec};
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum AudioGraphCompileError {
+    #[error(transparent)]
+    Graph(#[from] AudioGraphError),
+    #[error(transparent)]
+    Spec(#[from] SpecError),
+}
+
+/// The persistent definition behind an instrument slot.
+pub enum InstrumentDefinition {
+    /// Canonical path: serializable data, compiled afresh for every graph build.
+    Spec(Box<InstrumentSpec>),
+    /// Compatibility path for custom/native instruments that are not specs yet.
+    Legacy(Box<dyn Instrument>),
+}
 
 /// A single instrument slot inside the audio graph.
 pub struct InstrumentSlot {
-    /// The instrument that will be converted to a sub-graph on compile.
-    pub instrument: Box<dyn Instrument>,
+    pub definition: InstrumentDefinition,
     /// Optional per-instrument filter chain (merged after `into_system()`).
     /// Currently unused — reserved for Phase 4.
     pub filters: Option<System>,
@@ -38,12 +54,41 @@ impl AudioGraph {
 
     /// Append an instrument and return its slot index.
     pub fn add_instrument(&mut self, instrument: Box<dyn Instrument>) -> usize {
+        self.push(InstrumentDefinition::Legacy(instrument))
+    }
+
+    /// Validate and append a serializable instrument specification.
+    pub fn add_spec(&mut self, spec: InstrumentSpec) -> Result<usize, SpecError> {
+        validate_spec(&spec)?;
+        Ok(self.push(InstrumentDefinition::Spec(Box::new(spec))))
+    }
+
+    /// Replace a canonical slot without changing its stable slot index.
+    pub fn replace_spec(&mut self, slot_idx: usize, spec: InstrumentSpec) -> Result<(), SpecError> {
+        validate_spec(&spec)?;
+        let slot = self
+            .instruments
+            .get_mut(slot_idx)
+            .ok_or_else(|| SpecError::Other(format!("unknown instrument slot {slot_idx}")))?;
+        slot.definition = InstrumentDefinition::Spec(Box::new(spec));
+        Ok(())
+    }
+
+    fn push(&mut self, definition: InstrumentDefinition) -> usize {
         let idx = self.instruments.len();
         self.instruments.push(InstrumentSlot {
-            instrument,
+            definition,
             filters: None,
         });
         idx
+    }
+
+    /// Return the retained spec for a canonical slot, or `None` for legacy slots.
+    pub fn spec(&self, slot_idx: usize) -> Option<&InstrumentSpec> {
+        match &self.instruments.get(slot_idx)?.definition {
+            InstrumentDefinition::Spec(spec) => Some(spec),
+            InstrumentDefinition::Legacy(_) => None,
+        }
     }
 
     /// Number of instrument slots.
@@ -60,7 +105,7 @@ impl AudioGraph {
     /// The returned `System` has one `AudioOutputSink` and is ready to be
     /// swapped into the render thread. The `source_map` is updated so the
     /// caller can route `NoteStart`/`NoteStop` to the correct source index.
-    pub fn compile(&mut self, sample_rate: f32) -> Result<System, AudioGraphError> {
+    pub fn compile(&mut self, sample_rate: f32) -> Result<System, AudioGraphCompileError> {
         if self.instruments.is_empty() {
             return Ok(System::silent());
         }
@@ -74,7 +119,10 @@ impl AudioGraph {
         for (slot_idx, slot) in self.instruments.iter().enumerate() {
             let source_start = main.sources_len();
 
-            let inst_system = slot.instrument.as_system(sample_rate);
+            let inst_system = match &slot.definition {
+                InstrumentDefinition::Spec(spec) => compile_spec(spec, sample_rate)?,
+                InstrumentDefinition::Legacy(instrument) => instrument.as_system(sample_rate),
+            };
             let output_node = main.absorb(inst_system)?;
 
             // Every absorbed source up to source_start is this instrument's
@@ -92,6 +140,14 @@ impl AudioGraph {
         let sink_idx = main.add_sink(sink);
         for &out_node in output_nodes.iter() {
             main.connect_sink(out_node, sink_idx, 0);
+        }
+
+        // Post-instrument taps preserve isolated slot output for optional
+        // multitrack recording. Sink 0 remains the limited master; tap N+1
+        // corresponds to application instrument slot N.
+        for &out_node in &output_nodes {
+            let tap = main.add_sink(Box::new(SimpleSink::new()));
+            main.connect_sink(out_node, tap, 0);
         }
 
         main.compute()?;

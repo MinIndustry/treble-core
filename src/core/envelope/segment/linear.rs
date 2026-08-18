@@ -21,6 +21,20 @@ impl fmt::Display for LinearSegment {
 }
 
 #[typetag::serde]
+impl super::super::Envelope for LinearSegment {
+    fn at(&self, time: f32, note_off: f32) -> f32 {
+        if (note_off > 0.0 && time >= note_off) || time >= self.duration {
+            return self.to;
+        }
+        super::Segment::at(self, (time - note_off) / super::Segment::get_duration(self))
+    }
+
+    fn completed(&self, time: f32, note_off: f32) -> bool {
+        (time - note_off) >= super::Segment::get_duration(self)
+    }
+}
+
+#[typetag::serde]
 impl super::Segment for LinearSegment {
     fn at(&self, time: f32) -> f32 {
         if time <= 0.0 {

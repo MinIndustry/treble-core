@@ -125,122 +125,6 @@ impl System {
         self.block_size
     }
 
-    /// Merges the two systems to create a new one. The graphs are merged following the given mapping from sinks to sources.
-    /// Sinks to sources links are replaced with a simple combinator filter. The amount of input in the second system
-    /// should match the amount of output in the first system.
-    #[allow(clippy::type_complexity)]
-    pub fn merge(
-        mut self,
-        other: System,
-        mapping: Vec<(usize, usize)>,
-    ) -> Result<System, AudioGraphError> {
-        if self.sinks.len() != other.sinks.len() {
-            log::error!("Trying to merge graphs with incompatible shapes");
-            return Err(AudioGraphError::InvalidMerging);
-        }
-
-        // Contains the mapping other graph -> new graph
-        let mut new_edge_map: HashMap<NodeIndex, NodeIndex> = HashMap::new();
-
-        log::trace!("Merging two graphs together");
-        for (from, to) in mapping.iter() {
-            let (graph_b_source_descendant_index, graph_b_node_port) = other.sources[*to]
-                .1
-                .first()
-                .copied()
-                .unwrap_or((NodeIndex::new(0), 0));
-            let source_descendant = other.graph[graph_b_source_descendant_index].clone();
-
-            // Save the new index of the source descendant
-            let new_index = if let std::collections::hash_map::Entry::Vacant(e) =
-                new_edge_map.entry(graph_b_source_descendant_index)
-            {
-                let new_index = self.graph.add_node(source_descendant);
-                log::info!(
-                    "idx {} -> idx {}",
-                    graph_b_source_descendant_index.index(),
-                    new_index.index()
-                );
-                e.insert(new_index);
-                new_index
-            } else {
-                match new_edge_map.get(&graph_b_source_descendant_index) {
-                    Some(v) => *v,
-                    None => panic!("What ?"),
-                }
-            };
-
-            // Connect each of the sink's predecessor nodes to the source's successors
-            for &(sink_predecessor_id, sink_predecessor_port) in self.sinks[*from].0.iter() {
-                log::trace!(
-                    "\tNode {} -> Sink {} & Source {} -> Node {} => Node {} -> Node {}",
-                    sink_predecessor_id.index(),
-                    from,
-                    to,
-                    graph_b_source_descendant_index.index(),
-                    sink_predecessor_id.index(),
-                    new_index.index()
-                );
-                self.graph.add_edge(
-                    sink_predecessor_id,
-                    new_index,
-                    (sink_predecessor_port, graph_b_node_port),
-                );
-            }
-        }
-
-        // Go through all nodes in the other graph and add them to the new graph
-        for node_index in other.graph.node_indices() {
-            // Skip already added nodes
-            if new_edge_map.contains_key(&node_index) {
-                continue;
-            }
-
-            let node = other.graph[node_index].clone();
-            let new_index = self.graph.add_node(node);
-            new_edge_map.insert(node_index, new_index);
-        }
-
-        // Now that all nodes are added, connect the edges
-        for edge in other.graph.edge_indices() {
-            let (other_from, other_to) = other.graph.edge_endpoints(edge).unwrap();
-            let (from, to) = (new_edge_map[&other_from], new_edge_map[&other_to]);
-            log::info!(
-                "\tEdge ({}, {}) -> ({}, {})",
-                other_from.index(),
-                other_to.index(),
-                from.index(),
-                to.index()
-            );
-            let weight = other.graph[edge];
-            self.graph.add_edge(from, to, weight);
-        }
-
-        let new_sinks: Vec<_> = other
-            .sinks
-            .iter()
-            .map(|(sources, sink)| {
-                let remapped = sources
-                    .iter()
-                    .map(|&(node_idx, port)| (new_edge_map[&node_idx], port))
-                    .collect();
-                (remapped, dyn_clone::clone_box(&**sink))
-            })
-            .collect();
-
-        let new_system: System = System {
-            graph: self.graph,
-            layers: self.layers,
-            sources: self.sources,
-            sinks: new_sinks,
-            source_sink_wires: Vec::new(),
-            mod_wires: Vec::new(),
-            block_size: self.block_size,
-        };
-
-        Ok(new_system)
-    }
-
     // Adds a filter to the system. Further references to this filter should be done using the returned uuid
     pub fn add_filter(&mut self, filter: Box<dyn Filter>) -> NodeIndex<u32> {
         log::trace!("[Graph] Adding filter {:?}", filter);
@@ -331,10 +215,23 @@ impl System {
     }
 
     /// Set a named parameter on a source by index.
-    pub fn set_source_parameter(&mut self, index: usize, name: &str, value: f32) {
-        if let Some((source, _)) = self.sources.get_mut(index) {
-            source.set_parameter(name, value);
-        }
+    pub fn set_source_parameter(
+        &mut self,
+        index: usize,
+        name: &str,
+        value: f32,
+    ) -> Result<(), AudioGraphError> {
+        let (source, _) = self
+            .sources
+            .get_mut(index)
+            .ok_or(AudioGraphError::InvalidNode)?;
+        source
+            .set_parameter(name, value)
+            .then_some(())
+            .ok_or_else(|| AudioGraphError::UnknownParameter {
+                target: format!("source {index}"),
+                parameter: name.to_owned(),
+            })
     }
 
     /// Returns the number of sinks currently registered in this system.
@@ -343,10 +240,22 @@ impl System {
     }
 
     /// Set a named parameter on a sink by index.
-    pub fn set_sink_parameter(&mut self, sink_idx: usize, name: &str, value: f32) {
-        if let Some((_, sink)) = self.sinks.get_mut(sink_idx) {
-            sink.set_parameter(name, value);
-        }
+    pub fn set_sink_parameter(
+        &mut self,
+        sink_idx: usize,
+        name: &str,
+        value: f32,
+    ) -> Result<(), AudioGraphError> {
+        let (_, sink) = self
+            .sinks
+            .get_mut(sink_idx)
+            .ok_or(AudioGraphError::InvalidNode)?;
+        sink.set_parameter(name, value)
+            .then_some(())
+            .ok_or_else(|| AudioGraphError::UnknownParameter {
+                target: format!("sink {sink_idx}"),
+                parameter: name.to_owned(),
+            })
     }
 
     /// Returns the number of computed layers (0 means graph not yet compiled).
@@ -392,7 +301,31 @@ impl System {
 
     /// Register a live modulation wire: the block mean of `from_source` will
     /// drive `param_name` on `target` every `run()` call.
-    pub fn add_mod_wire(&mut self, from_source: usize, target: ModTarget, param_name: String) {
+    pub fn add_mod_wire(
+        &mut self,
+        from_source: usize,
+        target: ModTarget,
+        param_name: String,
+    ) -> Result<(), AudioGraphError> {
+        if from_source >= self.sources.len() {
+            return Err(AudioGraphError::InvalidNode);
+        }
+        let supports_parameter = match target {
+            ModTarget::Source(index) => self
+                .sources
+                .get(index)
+                .is_some_and(|(source, _)| source.supports_parameter(&param_name)),
+            ModTarget::Filter(index) => self
+                .graph
+                .node_weight(index)
+                .is_some_and(|node| node.filter().supports_parameter(&param_name)),
+        };
+        if !supports_parameter {
+            return Err(AudioGraphError::UnknownParameter {
+                target: format!("{target:?}"),
+                parameter: param_name,
+            });
+        }
         // Avoid duplicates
         if !self.mod_wires.iter().any(|w| {
             w.from_source == from_source && w.target == target && w.param_name == param_name
@@ -403,6 +336,7 @@ impl System {
                 param_name,
             });
         }
+        Ok(())
     }
 
     /// Remove an existing modulation wire.
@@ -558,12 +492,12 @@ impl System {
             match target {
                 ModTarget::Source(idx) => {
                     if let Some((src, _)) = self.sources.get_mut(idx) {
-                        src.set_parameter(&param_name, value);
+                        debug_assert!(src.set_parameter(&param_name, value));
                     }
                 }
                 ModTarget::Filter(node_idx) => {
                     if let Some(node) = self.graph.node_weight_mut(node_idx) {
-                        node.filter_mut().set_parameter(&param_name, value);
+                        debug_assert!(node.filter_mut().set_parameter(&param_name, value));
                     }
                 }
             }
@@ -709,6 +643,7 @@ impl System {
         self.graph.node_weight_mut(index).map(|n| n.filter_mut())
     }
 
+    /// Saves the graph to a file
     pub fn save_to_file(&self, path: &Path) -> Result<(), String> {
         let mut output = File::create(path).map_err(|e| e.to_string())?;
         write!(output, "{:?}", Dot::with_config(&self.graph, &[])).map_err(|e| e.to_string())

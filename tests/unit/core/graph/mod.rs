@@ -4,7 +4,7 @@ mod sources;
 
 use treble::core::audio::{Block, CHANNELS};
 use treble::core::filters::prelude::{DelayFilter, GainFilter};
-use treble::core::graph::{SimpleSink, Source, System};
+use treble::core::graph::{ModTarget, SimpleSink, Source, System};
 
 /// A trivial source that emits a constant stereo block.
 #[derive(Debug, Clone)]
@@ -36,6 +36,23 @@ fn build_simple_system(gain: f32, block_size: usize) -> System {
 #[cfg(test)]
 mod system_tests {
     use super::*;
+
+    #[test]
+    fn unknown_runtime_parameters_are_rejected() {
+        let mut system = System::new();
+        let source = system.add_source(Box::new(ConstantSource { value: 0.5 }));
+        let filter = system.add_filter(Box::new(GainFilter::new(1.0)));
+
+        let source_error = system
+            .set_source_parameter(source, "amplitdue", 0.5)
+            .expect_err("unknown source parameter should fail");
+        assert!(source_error.to_string().contains("amplitdue"));
+
+        let modulation_error = system
+            .add_mod_wire(source, ModTarget::Filter(filter), "gaim".into())
+            .expect_err("unknown modulation target parameter should fail");
+        assert!(modulation_error.to_string().contains("gaim"));
+    }
 
     #[test]
     fn test_system_run_basic() {

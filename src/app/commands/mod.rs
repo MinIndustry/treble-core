@@ -1,10 +1,12 @@
 use serde::{Deserialize, Serialize};
 
 mod graph;
+mod instrument;
 mod system;
 
 use crate::core::utils::note::Note;
 pub use graph::*;
+pub use instrument::*;
 pub use system::*;
 
 /// Commands that produce an `AudioMessage` for the render thread.
@@ -33,10 +35,12 @@ pub enum AppCommand {
 
 /// Top-level command envelope.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
 pub enum Command {
     Audio(AudioCommand),
     App(AppCommand),
     Graph(GraphCommand),
+    Instrument(InstrumentCommand),
 }
 
 impl AppCommand {

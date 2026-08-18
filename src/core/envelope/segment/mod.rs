@@ -28,8 +28,14 @@ pub trait Segment: fmt::Display + DynClone + fmt::Debug + Send + Sync {
 
     /// Maps the global time to the segment's local time [0.0 - 1.0]
     /// Any returned value above 1.0 means that the segment has completed.
+    /// A zero-duration segment is instantly complete (avoids 0/0 → NaN at
+    /// the exact start time).
     fn map_time(&self, segment_start: f32, current_time: f32) -> f32 {
-        (current_time - segment_start) / self.get_duration()
+        let duration = self.get_duration();
+        if duration <= 0.0 {
+            return 1.0;
+        }
+        (current_time - segment_start) / duration
     }
 }
 

@@ -161,7 +161,8 @@ pub(crate) fn handle_graph_command(
                 };
                 if let Some(target) = target {
                     gs.system
-                        .add_mod_wire(src_idx, target.clone(), param_name.clone());
+                        .add_mod_wire(src_idx, target.clone(), param_name.clone())
+                        .map_err(|error| AppError::InvalidParameter(error.to_string()))?;
                     message_tx
                         .send(AudioMessage::Graph(GraphAudioMessage::AddModulation {
                             from_source: src_idx,
@@ -221,7 +222,9 @@ pub(crate) fn handle_graph_command(
                     .map_err(|_| AppError::ChannelClosed)
             } else if let Some(&src_idx) = gs.source_map.get(&node_id) {
                 // Keep the command-thread copy in sync
-                gs.system.set_source_parameter(src_idx, &param_name, value);
+                gs.system
+                    .set_source_parameter(src_idx, &param_name, value)
+                    .map_err(|error| AppError::InvalidParameter(error.to_string()))?;
                 message_tx
                     .send(AudioMessage::Graph(GraphAudioMessage::SetSourceParameter {
                         source_index: src_idx,
@@ -331,9 +334,10 @@ fn create_filter(node_type: &str, sample_rate: f32) -> Result<Box<dyn Filter>, S
         let info = (entry.info)();
         if info.type_id == node_type {
             let mut filter = (entry.create)();
-            // Apply sample_rate to any filter that exposes it as a parameter.
-            // Filters without a "sample_rate" field will silently ignore this (logged at debug).
-            filter.set_parameter("sample_rate", sample_rate);
+            // Apply sample_rate only to filters that declare it.
+            if filter.supports_parameter("sample_rate") {
+                debug_assert!(filter.set_parameter("sample_rate", sample_rate));
+            }
             return Ok(filter);
         }
     }
