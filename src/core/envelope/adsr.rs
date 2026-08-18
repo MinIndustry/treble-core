@@ -82,7 +82,23 @@ impl fmt::Display for ADSREnvelope {
 #[typetag::serde]
 impl Envelope for ADSREnvelope {
     fn at(&self, time: f32, note_off: f32) -> f32 {
-        if self.attack.get_duration() >= time {
+        if note_off > 0.0 {
+            // Release begins at the actual note-off instant, even when that
+            // occurs during attack or decay. Scale the authored release curve
+            // to the instantaneous level to avoid a discontinuity.
+            let elapsed = time - note_off;
+            if elapsed >= self.release.get_duration() {
+                return 0.0;
+            }
+            let release_val = self.release.at(self.release.map_time(note_off, time));
+            let release_from = self.release.at(0.0);
+            let level_at_note_off = self.level_before_release(note_off);
+            if release_from.abs() > f32::EPSILON {
+                release_val * (level_at_note_off / release_from)
+            } else {
+                0.0
+            }
+        } else if self.attack.get_duration() >= time {
             // Still in attack phase
             self.attack.at(self.attack.map_time(0.0, time))
         } else if self.decay.get_duration() >= (time - self.attack.get_duration()) {
@@ -90,21 +106,6 @@ impl Envelope for ADSREnvelope {
             // Fixed: use decay.map_time() instead of attack.map_time()
             self.decay
                 .at(self.decay.map_time(self.attack.get_duration(), time))
-        } else if note_off > 0.0 {
-            // In release phase
-            if self.release.get_duration() > (time - note_off) {
-                // In release
-                let release_val = self.release.at(self.release.map_time(note_off, time));
-                let release_from = self.release.at(0.0);
-                let level_at_note_off = self.level_before_release(note_off);
-                if release_from > 0.0 && level_at_note_off < release_from {
-                    release_val * (level_at_note_off / release_from)
-                } else {
-                    release_val
-                }
-            } else {
-                0.0
-            }
         } else {
             // Sustain phase: return the end value of decay (sustain level)
             self.decay.at(1.0)

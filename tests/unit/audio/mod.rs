@@ -149,3 +149,26 @@ fn late_event_applies_at_block_start() {
         "late event must apply before the first sample of the block"
     );
 }
+
+#[test]
+fn graph_swap_lands_on_its_frame_and_discards_old_future_events() {
+    let mut system = sine_system();
+    system.start_note(0, Note::from_midi(69), 1.0);
+    let mut scheduler = EventScheduler::new();
+    scheduler.schedule(150, note_start(1.0));
+    scheduler.schedule_graph_swap(100, sine_system());
+
+    // Only the swap remains: the note belonged to the previous graph generation.
+    assert_eq!(scheduler.len(), 1);
+
+    let mut out = Vec::new();
+    render_block(&mut system, &mut scheduler, 0, &mut out);
+    assert!(
+        rms(&out[..200]) > 0.3,
+        "old graph must play until frame 100"
+    );
+    assert!(
+        out[200..].iter().all(|sample| *sample == 0.0),
+        "replacement graph must begin silent exactly at frame 100"
+    );
+}

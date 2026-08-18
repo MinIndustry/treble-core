@@ -188,7 +188,6 @@ impl EventSender {
     }
 
     /// Update the enabled categories at runtime.
-    #[allow(dead_code)]
     pub fn set_filter(&self, filter: EventFilter) {
         self.filter.store(filter.enabled, Ordering::Relaxed);
     }

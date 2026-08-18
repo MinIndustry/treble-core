@@ -127,6 +127,7 @@ mod compressor_tests {
 mod delay_tests {
     use super::*;
     use treble::core::filters::prelude::DelayFilter;
+    use treble_meta::MetaFilter;
 
     #[test]
     fn test_delay_outputs_silence_initially() {
@@ -159,6 +160,41 @@ mod delay_tests {
         for frame in &out[0] {
             assert!(frame[0].abs() < 1e-5, "Expected delayed silence");
         }
+    }
+
+    #[test]
+    fn test_delay_metadata_parameters_resize_the_buffer() {
+        let mut f = DelayFilter::default();
+        f.set_parameter("sample_rate", 10.0);
+        f.set_parameter("delay_for", 0.2);
+        f.set_parameter("mix", 1.0);
+        f.push(
+            Arc::new(vec![[1.0; CHANNELS], [0.0; CHANNELS], [0.0; CHANNELS]]),
+            0,
+        );
+        let out = f.transform();
+
+        assert_eq!(out[0][0], [0.0; CHANNELS]);
+        assert_eq!(out[0][1], [0.0; CHANNELS]);
+        assert_eq!(out[0][2], [1.0; CHANNELS]);
+    }
+}
+
+#[cfg(test)]
+mod reverb_tests {
+    use super::*;
+    use treble::core::filters::prelude::ReverbFilter;
+
+    #[test]
+    fn test_reverb_preserves_dry_attack_and_produces_a_tail() {
+        let mut f = ReverbFilter::new(1_000.0, 0.5);
+        let mut impulse = silent_block(100);
+        impulse[0] = [1.0; CHANNELS];
+        f.push(Arc::new(impulse), 0);
+        let out = f.transform();
+
+        assert!((out[0][0][0] - 0.5).abs() < 1e-5);
+        assert!(out[0][20..].iter().any(|frame| frame[0].abs() > 1e-5));
     }
 }
 

@@ -7,6 +7,7 @@ mod audio_sink;
 mod entry;
 pub mod error;
 mod filter;
+mod note_lifecycle;
 /// The sink module provides implementations for various types of sinks.
 mod simple_sink;
 /// The source module provides implementations for various types of sources.
@@ -22,6 +23,7 @@ pub use error::AudioGraphError;
 
 pub use entry::Entry;
 pub use filter::Filter;
+pub use note_lifecycle::NoteLifecycleSource;
 pub use sink::Sink;
 pub use source::Source;
 

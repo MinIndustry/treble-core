@@ -157,6 +157,14 @@ impl Source for MonophonicSource {
         }
     }
 
+    fn kill_note(&mut self, note: crate::Note) {
+        if self.active && (!self.track_pitch || self.current_note == Some(note)) {
+            self.generator.cutoff();
+            self.released = true;
+            self.current_note = None;
+        }
+    }
+
     fn is_active(&self) -> bool {
         self.active
     }

@@ -23,6 +23,10 @@ pub trait Source: std::fmt::Debug + DynClone + Send + Sync {
     fn stop_note(&mut self, _note: Note) {
         self.stop();
     }
+    /// Note-aware hard stop (defaults to killing the complete source).
+    fn kill_note(&mut self, _note: Note) {
+        self.kill();
+    }
 
     /// True while the source is producing non-silent output (or during release).
     fn is_active(&self) -> bool {

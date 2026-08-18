@@ -27,7 +27,7 @@ use crate::audio::{
 use crate::core::utils::Note;
 use crate::instruments::Instrument;
 use crate::instruments::registry::InstrumentRegistry;
-use crate::instruments::spec::{InstrumentSpec, SpecInstrument};
+use crate::instruments::spec::InstrumentSpec;
 use std::collections::HashMap;
 
 use commands::{AppCommand, AudioCommand, InstrumentCommand, SystemCommand};
@@ -38,7 +38,9 @@ use prelude::*;
 // Export essential types directly from the app module
 pub mod prelude {
     pub use super::App;
-    pub use super::audio_graph::{AudioGraph, InstrumentSlot};
+    pub use super::audio_graph::{
+        AudioGraph, AudioGraphCompileError, InstrumentDefinition, InstrumentSlot,
+    };
     pub use super::commands::{AppCommand, AudioCommand, Command};
     pub use super::filesystem::FSConfig;
     pub use super::system::SystemConfig;
@@ -64,6 +66,9 @@ pub struct App {
     /// Slot indices of instantiated specs, by registry name.
     spec_slots: HashMap<String, usize>,
 
+    /// Registry source name for each independently instantiated slot key.
+    spec_sources: HashMap<String, String>,
+
     /// State for the visual graph editor.
     graph_system: GraphData,
 
@@ -71,6 +76,8 @@ pub struct App {
     pub handle: Option<AudioHandle>,
     /// Direct channel to the render thread (no intermediate command thread).
     message_tx: Option<crossbeam::channel::Sender<AudioMessage>>,
+    /// Backend event filter shared with the render thread.
+    event_tx: Option<EventSender>,
 }
 
 impl Default for App {
@@ -80,9 +87,11 @@ impl Default for App {
             audio_graph: AudioGraph::new(),
             registry: InstrumentRegistry::built_in(),
             spec_slots: HashMap::new(),
+            spec_sources: HashMap::new(),
             graph_system: GraphData::default(),
             handle: None,
             message_tx: None,
+            event_tx: None,
         }
     }
 }
@@ -128,29 +137,100 @@ impl App {
     /// time) and return its slot index. Like [`add_instrument`](Self::add_instrument),
     /// call [`recompile()`](Self::recompile) if the engine is already running.
     pub fn add_spec(&mut self, spec: InstrumentSpec) -> Result<usize, AppError> {
-        let instrument =
-            SpecInstrument::new(spec).map_err(|e| AppError::InvalidParameter(e.to_string()))?;
-        Ok(self.audio_graph.add_instrument(Box::new(instrument)))
+        self.audio_graph
+            .add_spec(spec)
+            .map_err(|e| AppError::InvalidParameter(e.to_string()))
     }
 
     /// Instantiate a registered spec by name: adds a slot for it and, when the
     /// engine is running, recompiles + hot-swaps. Idempotent — an already
     /// instantiated name just returns its existing slot index.
     pub fn instantiate(&mut self, name: &str) -> Result<usize, AppError> {
-        if let Some(&idx) = self.spec_slots.get(name) {
+        self.instantiate_as(name, name)
+    }
+
+    /// Instantiate a registry spec into an independently addressable slot.
+    /// Multiple keys may use the same spec without sharing mono voice state.
+    pub fn instantiate_as(&mut self, instance: &str, spec_name: &str) -> Result<usize, AppError> {
+        if let Some(&idx) = self.spec_slots.get(instance) {
             return Ok(idx);
         }
         let spec = self
             .registry
-            .get(name)
+            .get(spec_name)
             .cloned()
-            .ok_or_else(|| AppError::UnknownInstrument(name.to_string()))?;
+            .ok_or_else(|| AppError::UnknownInstrument(spec_name.to_string()))?;
         let idx = self.add_spec(spec)?;
-        self.spec_slots.insert(name.to_string(), idx);
+        self.spec_slots.insert(instance.to_string(), idx);
+        self.spec_sources
+            .insert(instance.to_string(), spec_name.to_string());
         if self.message_tx.is_some() {
             self.recompile()?;
         }
         Ok(idx)
+    }
+
+    /// Create or replace an independently addressed ephemeral spec slot.
+    /// The definition is not added to the registry, making this suitable for
+    /// editor previews of unsaved instrument JSON.
+    pub fn instantiate_spec_as(
+        &mut self,
+        instance: &str,
+        spec: InstrumentSpec,
+    ) -> Result<usize, AppError> {
+        let idx = self.instantiate_spec_as_deferred(instance, spec)?;
+        if self.message_tx.is_some() {
+            self.recompile()?;
+        }
+        Ok(idx)
+    }
+
+    /// Create or replace an ephemeral slot without immediately rebuilding the
+    /// running graph. This allows callers to update a complete snapshot and
+    /// perform one atomic recompile afterwards.
+    pub fn instantiate_spec_as_deferred(
+        &mut self,
+        instance: &str,
+        spec: InstrumentSpec,
+    ) -> Result<usize, AppError> {
+        let idx = if let Some(&idx) = self.spec_slots.get(instance) {
+            self.audio_graph
+                .replace_spec(idx, spec)
+                .map_err(|error| AppError::InvalidParameter(error.to_string()))?;
+            idx
+        } else {
+            let idx = self.add_spec(spec)?;
+            self.spec_slots.insert(instance.to_string(), idx);
+            idx
+        };
+        self.spec_sources.remove(instance);
+        Ok(idx)
+    }
+
+    /// Register or replace a spec and rebuild every live instance that uses it.
+    pub fn register_spec(&mut self, spec: InstrumentSpec) -> Result<(), AppError> {
+        let name = spec.name.clone();
+        self.registry
+            .register(spec.clone())
+            .map_err(|error| AppError::InvalidParameter(error.to_string()))?;
+        let slots: Vec<usize> = self
+            .spec_sources
+            .iter()
+            .filter_map(|(instance, source)| {
+                (source == &name)
+                    .then(|| self.spec_slots.get(instance).copied())
+                    .flatten()
+            })
+            .collect();
+        for slot in slots {
+            self.audio_graph
+                .replace_spec(slot, spec.clone())
+                .map_err(|error| AppError::InvalidParameter(error.to_string()))?;
+        }
+        if self.message_tx.is_some() {
+            self.recompile()?;
+        }
+        Ok(())
     }
 
     /// Slot index of an instantiated spec, by registry name.
@@ -166,6 +246,16 @@ impl App {
             .compile(sample_rate)
             .map_err(|e| AppError::AudioError(format!("{:?}", e)))?;
         self.send_message(AudioMessage::Graph(GraphAudioMessage::Swap(system)))
+    }
+
+    /// Recompile now, but install the resulting graph at an exact engine frame.
+    pub fn recompile_at(&mut self, at_frame: u64) -> Result<(), AppError> {
+        let sample_rate = self.config.system.sample_rate as f32;
+        let system = self
+            .audio_graph
+            .compile(sample_rate)
+            .map_err(|e| AppError::AudioError(format!("{:?}", e)))?;
+        self.send_message(AudioMessage::ScheduledGraphSwap { at_frame, system })
     }
 
     /// Start the audio engine.
@@ -290,8 +380,16 @@ impl App {
 
         self.handle = Some(AudioHandle::new(render_thread, stream, shared_state));
         self.message_tx = Some(message_tx);
+        self.event_tx = Some(event_tx);
 
         Ok(event_rx)
+    }
+
+    /// Change which backend event categories are forwarded without restarting audio.
+    pub fn set_event_filter(&self, filter: EventFilter) {
+        if let Some(sender) = &self.event_tx {
+            sender.set_filter(filter);
+        }
     }
 
     /// Trigger note-on for the instrument at `instrument_idx`.

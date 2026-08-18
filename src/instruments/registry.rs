@@ -9,8 +9,8 @@ use std::collections::HashMap;
 use crate::core::generator::prelude::{FrequencyRelation, MixMode, Waveform};
 use crate::core::graph::{MonophonicAllocationStrategy, PolyphonicAllocationStrategy};
 use crate::instruments::spec::{
-    EnvelopeSpec, FxSpec, InstrumentSpec, SegmentSpec, SpecError, ToneSpec, VoiceSpec,
-    validate_spec,
+    EnvelopeSpec, FxSpec, InstrumentSpec, NoteLifecycle, SegmentSpec, SpecError, ToneSpec,
+    VoiceSpec, validate_spec,
 };
 
 /// Registry of instrument specs, keyed by `spec.name`.
@@ -65,6 +65,10 @@ impl InstrumentRegistry {
         self.specs.keys().map(String::as_str)
     }
 
+    pub fn specs(&self) -> impl Iterator<Item = &InstrumentSpec> {
+        self.specs.values()
+    }
+
     pub fn len(&self) -> usize {
         self.specs.len()
     }
@@ -111,6 +115,7 @@ fn percussive_voice() -> VoiceSpec {
 fn kick() -> InstrumentSpec {
     InstrumentSpec {
         name: "kick".into(),
+        note_lifecycle: NoteLifecycle::OneShot,
         voice: percussive_voice(),
         tones: vec![
             ToneSpec {
@@ -184,6 +189,7 @@ fn kick() -> InstrumentSpec {
 fn snare() -> InstrumentSpec {
     InstrumentSpec {
         name: "snare".into(),
+        note_lifecycle: NoteLifecycle::OneShot,
         voice: percussive_voice(),
         tones: vec![
             ToneSpec {
@@ -236,26 +242,29 @@ fn snare() -> InstrumentSpec {
     }
 }
 
-/// Mirrors `HiHat::new()` (`drum/hihat.rs`): six fixed-frequency square
-/// partials through a resonant bandpass.
+/// Natural closed hi-hat: a broadband noise burst carries the body while a few
+/// quiet, inharmonic sine partials add cymbal shimmer without the harsh upper
+/// harmonics produced by the previous square-wave bank.
 fn hihat() -> InstrumentSpec {
-    let partial = |frequency: f32| ToneSpec {
-        waveform: Waveform::Square,
+    let tone = |waveform, frequency, level| ToneSpec {
+        waveform,
         frequency_relation: None,
-        frequency: Some(frequency),
-        amplitude_envelope: None,
+        frequency,
+        amplitude_envelope: Some(EnvelopeSpec::Segment(SegmentSpec::Constant {
+            value: level,
+            duration: None,
+        })),
     };
 
     InstrumentSpec {
         name: "hihat".into(),
+        note_lifecycle: NoteLifecycle::OneShot,
         voice: percussive_voice(),
         tones: vec![
-            partial(123.0),
-            partial(150.0),
-            partial(180.0),
-            partial(219.0),
-            partial(240.0),
-            partial(261.0),
+            tone(Waveform::WhiteNoise, None, 0.82),
+            tone(Waveform::Sine, Some(6_713.0), 0.14),
+            tone(Waveform::Sine, Some(8_923.0), 0.09),
+            tone(Waveform::Sine, Some(11_317.0), 0.05),
         ],
         mix_mode: MixMode::Sum,
         pitch_envelope: None,
@@ -263,14 +272,14 @@ fn hihat() -> InstrumentSpec {
             attack: SegmentSpec::Bezier {
                 from: 0.0,
                 to: 1.0,
-                duration: 0.1,
-                control: (0.1, 0.0),
+                duration: 0.0008,
+                control: (0.0, 1.0),
             },
             decay: SegmentSpec::Bezier {
                 from: 1.0,
                 to: 0.0,
-                duration: 0.1,
-                control: (0.0, 0.0),
+                duration: 0.09,
+                control: (0.16, 0.015),
             },
             sustain: Some(SegmentSpec::Constant {
                 value: 0.0,
@@ -282,14 +291,20 @@ fn hihat() -> InstrumentSpec {
             },
         }),
         base_frequency: None,
-        fx: vec![FxSpec {
-            type_id: "ResonantBandpassFilter".into(),
-            params: HashMap::from([
-                ("center_frequency".into(), (10.0e3 + 400.0) / 2.0),
-                ("quality".into(), 20.0),
-            ]),
-        }],
-        gain: 1.0,
+        fx: vec![
+            FxSpec {
+                type_id: "HighPassFilter".into(),
+                params: HashMap::from([("cutoff_frequency".into(), 4800.0)]),
+            },
+            FxSpec {
+                type_id: "ResonantBandpassFilter".into(),
+                params: HashMap::from([
+                    ("center_frequency".into(), 9200.0),
+                    ("quality".into(), 0.55),
+                ]),
+            },
+        ],
+        gain: 0.72,
         velocity_sensitivity: 1.0,
         mods: vec![],
     }
@@ -299,6 +314,7 @@ fn hihat() -> InstrumentSpec {
 fn clap() -> InstrumentSpec {
     InstrumentSpec {
         name: "clap".into(),
+        note_lifecycle: NoteLifecycle::OneShot,
         voice: percussive_voice(),
         tones: vec![ToneSpec {
             waveform: Waveform::WhiteNoise,
@@ -338,6 +354,7 @@ fn clap() -> InstrumentSpec {
 fn rim() -> InstrumentSpec {
     InstrumentSpec {
         name: "rim".into(),
+        note_lifecycle: NoteLifecycle::OneShot,
         voice: percussive_voice(),
         tones: vec![ToneSpec {
             waveform: Waveform::Sine,
@@ -377,6 +394,7 @@ fn rim() -> InstrumentSpec {
 fn tom() -> InstrumentSpec {
     InstrumentSpec {
         name: "tom".into(),
+        note_lifecycle: NoteLifecycle::OneShot,
         voice: percussive_voice(),
         tones: vec![ToneSpec {
             waveform: Waveform::Sine,
@@ -459,8 +477,8 @@ const SYNTH_PRESETS: [SynthPreset; 9] = [
         Waveform::Sine,
         8,
         (0.005, 0.25, 0.4, 0.35),
-        Some(3500.0),
-        0.85,
+        Some(6500.0),
+        0.55,
     ),
     (
         "bass",
@@ -505,18 +523,38 @@ fn synth(
     lowpass_cutoff: Option<f32>,
     gain: f32,
 ) -> InstrumentSpec {
-    InstrumentSpec {
-        name: name.into(),
-        voice: VoiceSpec::Poly {
-            voices,
-            allocation: PolyphonicAllocationStrategy::default(),
-        },
-        tones: vec![ToneSpec {
+    let tones = if name == "piano" {
+        let partial = |relation, level| ToneSpec {
+            waveform: Waveform::Sine,
+            frequency_relation: Some(relation),
+            frequency: None,
+            amplitude_envelope: Some(EnvelopeSpec::Segment(SegmentSpec::Constant {
+                value: level,
+                duration: None,
+            })),
+        };
+        vec![
+            partial(FrequencyRelation::Identity, 1.0),
+            partial(FrequencyRelation::Harmonic(2), 0.42),
+            partial(FrequencyRelation::Harmonic(3), 0.2),
+            partial(FrequencyRelation::Harmonic(4), 0.09),
+        ]
+    } else {
+        vec![ToneSpec {
             waveform,
             frequency_relation: Some(FrequencyRelation::Identity),
             frequency: None,
             amplitude_envelope: None,
-        }],
+        }]
+    };
+    InstrumentSpec {
+        name: name.into(),
+        note_lifecycle: NoteLifecycle::Gated,
+        voice: VoiceSpec::Poly {
+            voices,
+            allocation: PolyphonicAllocationStrategy::default(),
+        },
+        tones,
         mix_mode: MixMode::Sum,
         pitch_envelope: None,
         amplitude_envelope: Some(EnvelopeSpec::Adsr {

@@ -12,12 +12,17 @@ use std::collections::BinaryHeap;
 use super::messages::InstrumentAudioMessage;
 use crate::core::graph::System;
 
+enum ScheduledAction {
+    Instrument(InstrumentAudioMessage),
+    GraphSwap(System),
+}
+
 /// A note event waiting for its frame. Ordered as a min-heap entry by
 /// `(at_frame, seq)` — `seq` preserves submission order within a frame.
 struct Entry {
     at_frame: u64,
     seq: u64,
-    command: InstrumentAudioMessage,
+    action: ScheduledAction,
 }
 
 impl PartialEq for Entry {
@@ -58,7 +63,19 @@ impl EventScheduler {
         self.heap.push(Entry {
             at_frame,
             seq: self.next_seq,
-            command,
+            action: ScheduledAction::Instrument(command),
+        });
+        self.next_seq += 1;
+    }
+
+    /// Queue a graph generation change. Future events already present belong
+    /// to the old generation and must not leak into the replacement graph.
+    pub fn schedule_graph_swap(&mut self, at_frame: u64, system: System) {
+        self.heap.retain(|entry| entry.at_frame < at_frame);
+        self.heap.push(Entry {
+            at_frame,
+            seq: self.next_seq,
+            action: ScheduledAction::GraphSwap(system),
         });
         self.next_seq += 1;
     }
@@ -71,17 +88,31 @@ impl EventScheduler {
     /// Pop the earliest event if it is due at or before `frame`.
     /// Call in a loop to drain everything due.
     pub fn pop_due(&mut self, frame: u64) -> Option<InstrumentAudioMessage> {
-        if self.heap.peek().is_some_and(|e| e.at_frame <= frame) {
-            match self.heap.pop() {
-                Some(e) => Some(e.command),
-                None => {
-                    log::warn!("Peek entry vanished");
-                    None
-                }
-            }
-        } else {
-            None
+        if self.heap.peek().is_none_or(|entry| entry.at_frame > frame) {
+            return None;
         }
+        if matches!(
+            self.heap.peek().map(|entry| &entry.action),
+            Some(ScheduledAction::Instrument(_))
+        ) {
+            let entry = self.heap.pop().expect("peeked scheduler entry must exist");
+            if let ScheduledAction::Instrument(command) = entry.action {
+                return Some(command);
+            }
+        }
+        None
+    }
+
+    fn pop_due_action(&mut self, frame: u64) -> Option<ScheduledAction> {
+        self.heap
+            .peek()
+            .is_some_and(|entry| entry.at_frame <= frame)
+            .then(|| {
+                self.heap
+                    .pop()
+                    .expect("peeked scheduler entry must exist")
+                    .action
+            })
     }
 
     pub fn len(&self) -> usize {
@@ -131,8 +162,13 @@ pub fn render_block(
 
     while current < block_end {
         // Apply everything due now (including late events).
-        while let Some(command) = scheduler.pop_due(current) {
-            apply_instrument_message(system, command);
+        while let Some(action) = scheduler.pop_due_action(current) {
+            match action {
+                ScheduledAction::Instrument(command) => {
+                    apply_instrument_message(system, command);
+                }
+                ScheduledAction::GraphSwap(new_system) => *system = new_system,
+            }
         }
 
         // Render up to the next event in this block, or the block end.

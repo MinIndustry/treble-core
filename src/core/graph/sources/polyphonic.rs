@@ -201,6 +201,14 @@ impl Source for PolyphonicSource {
         }
     }
 
+    fn kill_note(&mut self, note: Note) {
+        if let Some(gen_index) = self.current_notes.remove(&note) {
+            let (generator, _, released, _) = &mut self.generators[gen_index];
+            generator.cutoff();
+            *released = true;
+        }
+    }
+
     fn is_active(&self) -> bool {
         self.generators.iter().any(|(_, active, _, _)| *active)
     }

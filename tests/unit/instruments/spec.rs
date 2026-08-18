@@ -39,6 +39,91 @@ fn kick_spec_compiles() {
     assert!(compile_spec(kick, SAMPLE_RATE).is_ok());
 }
 
+#[test]
+fn hihat_spec_produces_an_audible_transient() {
+    let registry = InstrumentRegistry::built_in();
+    let hihat = registry.get("hihat").expect("hihat is a built-in");
+    let mut dry_spec = hihat.clone();
+    dry_spec.fx.clear();
+    let mut dry_system = compile_spec(&dry_spec, SAMPLE_RATE).expect("dry hihat compiles");
+    let dry_samples = render(&mut dry_system, 16);
+    let dry_rms = rms(&dry_samples[..2048.min(dry_samples.len())]);
+    let mut high_pass_spec = hihat.clone();
+    high_pass_spec.fx.truncate(1);
+    let mut high_pass_system =
+        compile_spec(&high_pass_spec, SAMPLE_RATE).expect("high-pass hihat compiles");
+    let high_pass_samples = render(&mut high_pass_system, 16);
+    let high_pass_rms = rms(&high_pass_samples[..2048.min(high_pass_samples.len())]);
+    let mut band_pass_spec = hihat.clone();
+    band_pass_spec.fx.remove(0);
+    let mut band_pass_system =
+        compile_spec(&band_pass_spec, SAMPLE_RATE).expect("band-pass hihat compiles");
+    let band_pass_samples = render(&mut band_pass_system, 16);
+    let band_pass_rms = rms(&band_pass_samples[..2048.min(band_pass_samples.len())]);
+    let mut system = compile_spec(hihat, SAMPLE_RATE).expect("hihat spec compiles");
+    let samples = render(&mut system, 16);
+    let transient_rms = rms(&samples[..2048.min(samples.len())]);
+    assert!(
+        transient_rms > 1e-3,
+        "hihat transient is silent: wet={transient_rms}, dry={dry_rms}, hp={high_pass_rms}, bp={band_pass_rms}"
+    );
+    assert!(samples.iter().all(|sample| sample.is_finite()));
+}
+
+#[test]
+fn explicit_hihat_frequencies_override_legacy_constant_relations() {
+    let registry = InstrumentRegistry::built_in();
+    let mut hihat = registry.get("hihat").expect("hihat is a built-in").clone();
+    for tone in &mut hihat.tones {
+        tone.frequency_relation =
+            Some(treble::core::generator::prelude::FrequencyRelation::Constant(1.0));
+    }
+
+    let mut system = compile_spec(&hihat, SAMPLE_RATE).expect("legacy hihat spec compiles");
+    let samples = render(&mut system, 16);
+    let transient_rms = rms(&samples[..2048.min(samples.len())]);
+
+    assert!(
+        transient_rms > 1e-3,
+        "explicit fixed frequencies were replaced by the stale relation: rms={transient_rms}"
+    );
+}
+
+#[test]
+fn language_effect_chain_validates_compiles_and_passes_dry_signal() {
+    let registry = InstrumentRegistry::built_in();
+    let mut pad = registry.get("pad").expect("pad is a built-in").clone();
+    pad.fx.extend([
+        FxSpec {
+            type_id: "LowPassFilter".into(),
+            params: std::collections::HashMap::from([("cutoff_frequency".into(), 800.0)]),
+        },
+        FxSpec {
+            type_id: "HighPassFilter".into(),
+            params: std::collections::HashMap::from([("cutoff_frequency".into(), 40.0)]),
+        },
+        FxSpec {
+            type_id: "DelayFilter".into(),
+            params: std::collections::HashMap::from([
+                ("delay_for".into(), 0.25),
+                ("feedback".into(), 0.4),
+                ("mix".into(), 0.35),
+            ]),
+        },
+        FxSpec {
+            type_id: "ReverbFilter".into(),
+            params: std::collections::HashMap::from([("amount".into(), 0.3)]),
+        },
+    ]);
+
+    validate_spec(&pad).expect("language FX chain validates");
+    let mut system = compile_spec(&pad, SAMPLE_RATE).expect("language FX chain compiles");
+    let samples = render(&mut system, 16);
+
+    assert!(rms(&samples) > 1e-4);
+    assert!(samples.iter().all(|sample| sample.is_finite()));
+}
+
 /// The registry kick must sound like the native `Kick` struct: compare
 /// windowed RMS envelopes (sample-exact comparison is impossible — tone
 /// generators randomize their start phase and white noise is unseeded).
@@ -134,6 +219,7 @@ fn fx_chains_are_fully_connected() {
 fn minimal_spec() -> InstrumentSpec {
     InstrumentSpec {
         name: "test-sine".into(),
+        note_lifecycle: Default::default(),
         voice: VoiceSpec::Mono {
             track_pitch: true,
             allocation: MonophonicAllocationStrategy::Replace,

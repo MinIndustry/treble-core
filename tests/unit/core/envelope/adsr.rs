@@ -5,7 +5,7 @@
 mod tests {
     use treble::core::envelope::{
         Envelope,
-        prelude::{ADSREnvelope, ADSREnvelopeBuilder, LinearSegment},
+        prelude::{ADSREnvelope, ADSREnvelopeBuilder, ConstantSegment, LinearSegment},
     };
 
     #[test]
@@ -89,6 +89,22 @@ mod tests {
             .build();
 
         // TODO: finish the test
+    }
+
+    #[test]
+    fn release_begins_immediately_during_attack() {
+        let envelope = ADSREnvelopeBuilder::new()
+            .attack(Box::new(LinearSegment::new(0.0, 1.0, 1.0)))
+            .decay(Box::new(LinearSegment::new(1.0, 0.8, 0.2)))
+            .sustain(Box::new(ConstantSegment::new(0.8, None)))
+            .release(Box::new(LinearSegment::new(0.8, 0.0, 0.2)))
+            .build();
+
+        let at_release = envelope.at(0.25, 0.25);
+        let halfway = envelope.at(0.35, 0.25);
+        assert!((at_release - 0.25).abs() < 0.001);
+        assert!((halfway - 0.125).abs() < 0.001);
+        assert!(envelope.at(0.45, 0.25).abs() < 0.000001);
     }
 
     // - Test sustain level behavior

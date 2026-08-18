@@ -6,16 +6,23 @@ use treble_derive::FilterMetaData;
 use crate::core::graph::{Entry, Filter};
 use crate::core::{Block, CHANNELS};
 
-#[derive(FilterMetaData, Clone, Debug, Default)]
+#[derive(FilterMetaData, Clone, Debug)]
 /// High-pass filter using a first-order IIR filter
 pub struct HighPassFilter {
     #[filter_source]
     source: Arc<Block>,
     #[filter_parameter(range, 1.0, 20000.0, 1000.0)]
     cutoff_frequency: f32,
+    #[filter_parameter(range, 1.0, 192000.0, 44100.0)]
     sample_rate: f32,
     previous_output: [f32; CHANNELS],
     previous_input: [f32; CHANNELS],
+}
+
+impl Default for HighPassFilter {
+    fn default() -> Self {
+        Self::new(1000.0, 44100.0)
+    }
 }
 
 impl HighPassFilter {

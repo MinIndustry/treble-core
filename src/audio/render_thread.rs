@@ -233,10 +233,12 @@ fn process_audio_message(
         AudioMessage::ScheduledInstrument { at_frame, command } => {
             scheduler.schedule(at_frame, command);
         }
+        AudioMessage::ScheduledGraphSwap { at_frame, system } => {
+            scheduler.schedule_graph_swap(at_frame, system);
+        }
         AudioMessage::Graph(cmd) => {
-            // A cleared graph has no sources left for pending events to target.
-            // (Swap keeps them: slot indices are append-only since BUG-001.)
-            if matches!(cmd, GraphAudioMessage::Clear) {
+            // Immediate graph replacement starts a new graph generation.
+            if matches!(cmd, GraphAudioMessage::Clear | GraphAudioMessage::Swap(_)) {
                 scheduler.clear();
             }
             process_graph_message(system, cmd, event_tx);

@@ -8,7 +8,6 @@ use petgraph::graph::NodeIndex;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::Note;
 use crate::core::envelope::Envelope;
 use crate::core::envelope::prelude::{
     ADSREnvelopeBuilder, BezierSegment, ConstantSegment, LinearSegment, Segment,
@@ -24,7 +23,6 @@ use crate::core::{
     generator::prelude::{FrequencyRelation, Waveform},
     graph::PolyphonicAllocationStrategy,
 };
-use crate::instruments::Instrument;
 use treble_meta::Parameter;
 
 #[derive(Error, Debug)]
@@ -112,6 +110,8 @@ pub struct ToneSpec {
     pub waveform: Waveform,
     /// How this tone's frequency follows the instrument's base frequency.
     /// `None` — the tone keeps its fixed `frequency` (e.g. hihat partials).
+    /// When both fields are present for compatibility with an older editor,
+    /// the explicit fixed `frequency` takes precedence.
     pub frequency_relation: Option<FrequencyRelation>,
     /// Fixed tone frequency in Hz. `None` — the builder default.
     pub frequency: Option<f32>,
@@ -187,9 +187,22 @@ pub struct FxSpec {
 /// WIP
 pub struct ModSpec;
 
+#[derive(Debug, Default, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+pub enum NoteLifecycle {
+    /// Ignore external note-off and complete the instrument's natural envelope.
+    OneShot,
+    /// Hold while pressed, then enter the envelope's release stage.
+    #[default]
+    Gated,
+    /// Silence the affected voice immediately on note-off.
+    Cutoff,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct InstrumentSpec {
     pub name: String,
+    #[serde(default)]
+    pub note_lifecycle: NoteLifecycle,
     pub voice: VoiceSpec,
     pub tones: Vec<ToneSpec>,
     pub mix_mode: MixMode,
@@ -200,6 +213,48 @@ pub struct InstrumentSpec {
     pub gain: f32,
     pub velocity_sensitivity: f32,
     pub mods: Vec<ModSpec>,
+}
+
+fn segment_duration(segment: &SegmentSpec) -> f32 {
+    match segment {
+        SegmentSpec::Linear { duration, .. } | SegmentSpec::Bezier { duration, .. } => *duration,
+        SegmentSpec::Constant { duration, .. } => duration.unwrap_or(0.0),
+    }
+}
+
+fn envelope_timing(envelope: &EnvelopeSpec) -> (f32, f32) {
+    match envelope {
+        EnvelopeSpec::Adsr {
+            attack,
+            decay,
+            release,
+            ..
+        } => (*attack + *decay, *release),
+        EnvelopeSpec::Segments {
+            attack,
+            decay,
+            sustain,
+            release,
+        } => (
+            segment_duration(attack)
+                + segment_duration(decay)
+                + sustain.as_ref().map(segment_duration).unwrap_or(0.0),
+            segment_duration(release),
+        ),
+        EnvelopeSpec::Segment(segment) => (segment_duration(segment), 0.0),
+    }
+}
+
+fn natural_note_timing(spec: &InstrumentSpec) -> (f32, f32) {
+    if let Some(envelope) = &spec.amplitude_envelope {
+        return envelope_timing(envelope);
+    }
+    spec.tones
+        .iter()
+        .filter_map(|tone| tone.amplitude_envelope.as_ref())
+        .map(envelope_timing)
+        .max_by(|left, right| (left.0 + left.1).total_cmp(&(right.0 + right.1)))
+        .unwrap_or((0.25, 0.01))
 }
 
 fn param_field_name<'a>(param: &'a Parameter<&'static str>) -> &'a str {
@@ -262,11 +317,10 @@ pub fn compile_spec(spec: &InstrumentSpec, sample_rate: f32) -> Result<System, S
     let mut generator = MultiToneGeneratorBuilder::new();
     for tone in &spec.tones {
         let mut tone_builder = ToneGeneratorBuilder::new().waveform(tone.waveform.clone());
-        if let Some(relation) = &tone.frequency_relation {
-            tone_builder = tone_builder.frequency_relation(relation.clone());
-        }
         if let Some(frequency) = tone.frequency {
             tone_builder = tone_builder.frequency(frequency);
+        } else if let Some(relation) = &tone.frequency_relation {
+            tone_builder = tone_builder.frequency_relation(relation.clone());
         }
         if let Some(envelope) = &tone.amplitude_envelope {
             tone_builder = tone_builder.amplitude_envelope(envelope.as_dyn_envelope());
@@ -287,7 +341,7 @@ pub fn compile_spec(spec: &InstrumentSpec, sample_rate: f32) -> Result<System, S
     }
     let generator = generator.build();
 
-    let system_source: Box<dyn Source> = match &spec.voice {
+    let voice_source: Box<dyn Source> = match &spec.voice {
         VoiceSpec::Mono {
             track_pitch,
             allocation,
@@ -313,6 +367,14 @@ pub fn compile_spec(spec: &InstrumentSpec, sample_rate: f32) -> Result<System, S
             allocation.clone(),
         )),
     };
+    let (release_after, release_duration) = natural_note_timing(spec);
+    let system_source: Box<dyn Source> = Box::new(crate::core::graph::NoteLifecycleSource::new(
+        voice_source,
+        spec.note_lifecycle,
+        sample_rate,
+        release_after,
+        release_duration,
+    ));
 
     let mut compiled_system = System::new();
     let source_index = compiled_system.add_source(system_source);
@@ -351,40 +413,4 @@ pub fn compile_spec(spec: &InstrumentSpec, sample_rate: f32) -> Result<System, S
         .map_err(|e| SpecError::Compute(format!("{e:?}")))?;
 
     Ok(compiled_system)
-}
-
-/// Bridges an [`InstrumentSpec`] into the [`Instrument`]-slot world of
-/// [`AudioGraph`](crate::app::audio_graph::AudioGraph) until slots hold specs
-/// directly (spec migration step 3).
-///
-/// Only the graph path is implemented: the legacy `tick()`/`get_output()`
-/// engine never sees spec instruments.
-#[derive(Debug, Clone)]
-pub struct SpecInstrument {
-    pub spec: InstrumentSpec,
-}
-
-impl SpecInstrument {
-    /// Wraps a spec, validating it eagerly so `as_system()` cannot fail later.
-    pub fn new(spec: InstrumentSpec) -> Result<Self, SpecError> {
-        validate_spec(&spec)?;
-        Ok(Self { spec })
-    }
-}
-
-impl Instrument for SpecInstrument {
-    fn start_note(&mut self, _note: Note, _velocity: f32) {}
-
-    fn stop_note(&mut self, _note: Note) {}
-
-    fn get_output(&mut self) -> f32 {
-        0.0
-    }
-
-    fn tick(&mut self) {}
-
-    fn as_system(&self, sample_rate: f32) -> System {
-        compile_spec(&self.spec, sample_rate)
-            .expect("SpecInstrument was validated at construction; compile_spec cannot fail")
-    }
 }
