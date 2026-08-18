@@ -233,8 +233,13 @@ fn process_audio_message(
         AudioMessage::ScheduledInstrument { at_frame, command } => {
             scheduler.schedule(at_frame, command);
         }
-        AudioMessage::ScheduledGraphSwap { at_frame, system } => {
-            scheduler.schedule_graph_swap(at_frame, system);
+        AudioMessage::ScheduledGraphSwap {
+            at_frame,
+            system,
+            fade_in_frames,
+            tail_frames,
+        } => {
+            scheduler.schedule_graph_swap(at_frame, system, fade_in_frames, tail_frames);
         }
         AudioMessage::Graph(cmd) => {
             // Immediate graph replacement starts a new graph generation.

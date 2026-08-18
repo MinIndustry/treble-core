@@ -255,7 +255,12 @@ impl App {
             .audio_graph
             .compile(sample_rate)
             .map_err(|e| AppError::AudioError(format!("{:?}", e)))?;
-        self.send_message(AudioMessage::ScheduledGraphSwap { at_frame, system })
+        self.send_message(AudioMessage::ScheduledGraphSwap {
+            at_frame,
+            system,
+            fade_in_frames: (sample_rate * 0.008).round() as u64,
+            tail_frames: (sample_rate * 0.75).round() as u64,
+        })
     }
 
     /// Start the audio engine.

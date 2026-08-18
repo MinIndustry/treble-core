@@ -156,7 +156,7 @@ fn graph_swap_lands_on_its_frame_and_discards_old_future_events() {
     system.start_note(0, Note::from_midi(69), 1.0);
     let mut scheduler = EventScheduler::new();
     scheduler.schedule(150, note_start(1.0));
-    scheduler.schedule_graph_swap(100, sine_system());
+    scheduler.schedule_graph_swap(100, sine_system(), 8, 100);
 
     // Only the swap remains: the note belonged to the previous graph generation.
     assert_eq!(scheduler.len(), 1);
@@ -168,7 +168,11 @@ fn graph_swap_lands_on_its_frame_and_discards_old_future_events() {
         "old graph must play until frame 100"
     );
     assert!(
-        out[200..].iter().all(|sample| *sample == 0.0),
-        "replacement graph must begin silent exactly at frame 100"
+        rms(&out[200..240]) > 0.05,
+        "old graph tail must survive the swap"
+    );
+    assert!(
+        out[400..].iter().all(|sample| sample.abs() < 0.000001),
+        "retired graph must be silent after its transition window"
     );
 }

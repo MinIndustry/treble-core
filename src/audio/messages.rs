@@ -28,6 +28,8 @@ pub enum AudioMessage {
     ScheduledGraphSwap {
         at_frame: u64,
         system: System,
+        fade_in_frames: u64,
+        tail_frames: u64,
     },
     /// Graph structural/playback control — for the visual graph editor.
     Graph(GraphAudioMessage),

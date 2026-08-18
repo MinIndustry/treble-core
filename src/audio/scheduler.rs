@@ -10,11 +10,23 @@ use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
 use super::messages::InstrumentAudioMessage;
+use crate::core::audio::{Block, silent_block};
 use crate::core::graph::System;
 
 enum ScheduledAction {
     Instrument(InstrumentAudioMessage),
-    GraphSwap(System),
+    GraphSwap {
+        system: System,
+        fade_in_frames: u64,
+        tail_frames: u64,
+    },
+}
+
+struct GraphTransition {
+    previous: System,
+    elapsed_frames: u64,
+    fade_in_frames: u64,
+    tail_frames: u64,
 }
 
 /// A note event waiting for its frame. Ordered as a min-heap entry by
@@ -50,6 +62,7 @@ impl Ord for Entry {
 pub struct EventScheduler {
     heap: BinaryHeap<Entry>,
     next_seq: u64,
+    transition: Option<GraphTransition>,
 }
 
 impl EventScheduler {
@@ -70,12 +83,22 @@ impl EventScheduler {
 
     /// Queue a graph generation change. Future events already present belong
     /// to the old generation and must not leak into the replacement graph.
-    pub fn schedule_graph_swap(&mut self, at_frame: u64, system: System) {
+    pub fn schedule_graph_swap(
+        &mut self,
+        at_frame: u64,
+        system: System,
+        fade_in_frames: u64,
+        tail_frames: u64,
+    ) {
         self.heap.retain(|entry| entry.at_frame < at_frame);
         self.heap.push(Entry {
             at_frame,
             seq: self.next_seq,
-            action: ScheduledAction::GraphSwap(system),
+            action: ScheduledAction::GraphSwap {
+                system,
+                fade_in_frames,
+                tail_frames,
+            },
         });
         self.next_seq += 1;
     }
@@ -126,6 +149,55 @@ impl EventScheduler {
     /// Drop all pending events (e.g. when the graph is cleared).
     pub fn clear(&mut self) {
         self.heap.clear();
+        self.transition = None;
+    }
+}
+
+fn consume_frames(system: &mut System, frames: usize) -> Block {
+    system.run_frames(frames);
+    let Ok(sink) = system.get_sink(0) else {
+        return silent_block(frames);
+    };
+    let mut block = sink.consume();
+    block.resize(frames, [0.0; crate::core::audio::CHANNELS]);
+    block
+}
+
+fn render_segment(
+    system: &mut System,
+    scheduler: &mut EventScheduler,
+    frames: usize,
+    out: &mut Vec<f32>,
+) {
+    let current = consume_frames(system, frames);
+    let Some(transition) = scheduler.transition.as_mut() else {
+        for frame in current {
+            out.extend(frame);
+        }
+        return;
+    };
+
+    let previous = consume_frames(&mut transition.previous, frames);
+    for (offset, (old, new)) in previous.iter().zip(&current).enumerate() {
+        let age = transition.elapsed_frames + offset as u64;
+        let new_gain = if transition.fade_in_frames == 0 {
+            1.0
+        } else {
+            (age as f32 / transition.fade_in_frames as f32).clamp(0.0, 1.0)
+        };
+        let tail_progress = if transition.tail_frames == 0 {
+            1.0
+        } else {
+            (age as f32 / transition.tail_frames as f32).clamp(0.0, 1.0)
+        };
+        let old_gain = (-6.0 * tail_progress).exp() * (1.0 - tail_progress);
+        for channel in 0..crate::core::audio::CHANNELS {
+            out.push(old[channel] * old_gain + new[channel] * new_gain);
+        }
+    }
+    transition.elapsed_frames += frames as u64;
+    if transition.elapsed_frames >= transition.tail_frames {
+        scheduler.transition = None;
     }
 }
 
@@ -167,7 +239,19 @@ pub fn render_block(
                 ScheduledAction::Instrument(command) => {
                     apply_instrument_message(system, command);
                 }
-                ScheduledAction::GraphSwap(new_system) => *system = new_system,
+                ScheduledAction::GraphSwap {
+                    system: new_system,
+                    fade_in_frames,
+                    tail_frames,
+                } => {
+                    let previous = std::mem::replace(system, new_system);
+                    scheduler.transition = Some(GraphTransition {
+                        previous,
+                        elapsed_frames: 0,
+                        fade_in_frames,
+                        tail_frames,
+                    });
+                }
             }
         }
 
@@ -178,13 +262,7 @@ pub fn render_block(
             .map(|f| f.max(current + 1)) // guard against same-frame loop
             .unwrap_or(block_end);
 
-        system.run_frames((segment_end - current) as usize);
-        if let Ok(sink) = system.get_sink(0) {
-            for frame in sink.consume() {
-                out.push(frame[0]);
-                out.push(frame[1]);
-            }
-        }
+        render_segment(system, scheduler, (segment_end - current) as usize, out);
         current = segment_end;
     }
 
