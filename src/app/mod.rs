@@ -496,6 +496,11 @@ impl App {
             .map(|h| h.shared_state().current_frame.load(Ordering::Relaxed))
     }
 
+    /// Current device rate and callback underrun count, if audio is running.
+    pub fn audio_metrics(&self) -> Option<crate::audio::AudioMetrics> {
+        self.handle.as_ref().map(AudioHandle::get_metrics)
+    }
+
     /// Dispatch a frontend [`Command`].
     ///
     /// `AudioCommand`s are translated to source-index `AudioMessage`s internally.
