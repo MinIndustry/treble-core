@@ -52,3 +52,9 @@ windows = []
 
 # Default features
 default = []
+
+[patch."https://github.com/MinIndustry/treble-meta.git"]
+treble-meta = { path = "../treble-meta" }
+
+[patch."https://github.com/MinIndustry/treble-derive.git"]
+treble-derive = { path = "../treble-derive" }
