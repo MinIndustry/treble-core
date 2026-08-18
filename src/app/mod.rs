@@ -336,22 +336,25 @@ impl App {
         cpal_config.buffer_size = cpal::BufferSize::Fixed(config.cpal_buffer_size as u32);
 
         let sample_rate = cpal_config.sample_rate.0;
-        self.config.system.sample_rate = sample_rate;
+        let engine_sample_rate = self.config.system.sample_rate;
         shared_state
             .sample_rate
             .store(sample_rate, Ordering::Relaxed);
+        shared_state
+            .engine_sample_rate
+            .store(engine_sample_rate, Ordering::Relaxed);
         shared_state
             .master_volume
             .store(self.config.system.master_volume, Ordering::Relaxed);
 
         info!(
-            "Audio config: sample_rate={sample_rate}, buffer_size={}, ring_buffer={}",
+            "Audio config: engine_rate={engine_sample_rate}, output_rate={sample_rate}, buffer_size={}, ring_buffer={}",
             config.cpal_buffer_size, config.audio_ring_buffer_size
         );
 
         let compiled = self
             .audio_graph
-            .compile(sample_rate as f32)
+            .compile(engine_sample_rate as f32)
             .map_err(|e| AudioError::StreamError(format!("Graph compile error: {:?}", e)))?;
 
         let render_thread = crate::audio::render_thread::spawn_audio_render_thread(

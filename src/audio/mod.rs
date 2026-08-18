@@ -12,6 +12,7 @@ pub mod events;
 mod handle;
 pub mod messages;
 pub(crate) mod render_thread;
+pub(crate) mod resampler;
 pub mod scheduler;
 pub mod shared_state;
 

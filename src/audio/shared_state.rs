@@ -8,6 +8,7 @@ pub struct SharedAudioState {
     pub shutdown: AtomicBool,
     pub buffer_underruns: AtomicU64,
     pub sample_rate: AtomicU32,
+    pub engine_sample_rate: AtomicU32,
     pub master_volume: AtomicF32,
     /// Engine frame clock: total frames rendered since the engine started.
     /// Written by the render thread after each block; read by senders to
@@ -21,6 +22,7 @@ impl SharedAudioState {
             shutdown: AtomicBool::new(false),
             buffer_underruns: AtomicU64::new(0),
             sample_rate: AtomicU32::new(44100),
+            engine_sample_rate: AtomicU32::new(44100),
             master_volume: AtomicF32::new(1.0),
             current_frame: AtomicU64::new(0),
         }

@@ -53,6 +53,7 @@ impl AudioHandle {
         AudioMetrics {
             buffer_underruns: self.shared_state.buffer_underruns.load(Ordering::Relaxed),
             sample_rate: self.shared_state.sample_rate.load(Ordering::Relaxed),
+            engine_sample_rate: self.shared_state.engine_sample_rate.load(Ordering::Relaxed),
         }
     }
 }
@@ -61,4 +62,5 @@ impl AudioHandle {
 pub struct AudioMetrics {
     pub buffer_underruns: u64,
     pub sample_rate: u32,
+    pub engine_sample_rate: u32,
 }

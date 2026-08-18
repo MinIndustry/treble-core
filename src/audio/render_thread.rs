@@ -12,6 +12,7 @@ use petgraph::graph::NodeIndex;
 use super::config::AudioConfig;
 use super::events::{AudioEvent, BackendEvent, ErrorEvent, EventCategory, EventSender};
 use super::messages::{AudioMessage, GraphAudioMessage};
+use super::resampler::LinearResampler;
 use super::scheduler::{EventScheduler, apply_instrument_message, render_block};
 use super::shared_state::SharedAudioState;
 use crate::core::graph::System;
@@ -75,10 +76,19 @@ fn render_loop(
 ) {
     let mut chunk_buffer =
         Vec::with_capacity(config.render_chunk_size * crate::core::audio::CHANNELS);
+    let engine_sample_rate = shared_state.engine_sample_rate.load(Ordering::Relaxed);
+    let output_sample_rate = shared_state.sample_rate.load(Ordering::Relaxed);
+    let mut resampler = LinearResampler::new(engine_sample_rate, output_sample_rate);
+    let mut output_buffer = Vec::with_capacity(
+        ((config.render_chunk_size as f64 * output_sample_rate as f64
+            / engine_sample_rate.max(1) as f64)
+            .ceil() as usize
+            + 2)
+            * crate::core::audio::CHANNELS,
+    );
 
-    let sample_rate = shared_state.sample_rate.load(Ordering::Relaxed);
     let target_samples =
-        config.calculate_ring_buffer_size(sample_rate) * crate::core::audio::CHANNELS;
+        config.calculate_ring_buffer_size(output_sample_rate) * crate::core::audio::CHANNELS;
 
     let mut block_count: u64 = 0;
     let mut scheduler = EventScheduler::new();
@@ -114,20 +124,23 @@ fn render_loop(
             .current_frame
             .store(current_frame, Ordering::Relaxed);
 
-        // Write to ring buffer
+        // Convert stable engine-rate audio to the active output-device rate.
+        resampler.process(&chunk_buffer, &mut output_buffer);
+
+        // Write device-rate audio to the ring buffer.
         let mut written = 0;
-        for &sample in chunk_buffer.iter() {
+        for &sample in &output_buffer {
             if audio_queue.push(sample).is_ok() {
                 written += 1;
             } else {
                 break;
             }
         }
-        if written != chunk_buffer.len() {
+        if written != output_buffer.len() {
             log::warn!(
                 "Failed to write full chunk: {} / {}",
                 written,
-                chunk_buffer.len()
+                output_buffer.len()
             );
         }
 
