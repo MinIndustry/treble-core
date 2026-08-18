@@ -13,7 +13,6 @@ use crate::core::generator::prelude::{
 };
 use crate::core::graph::sources::{PolyphonicAllocationStrategy, PolyphonicSource};
 use crate::core::graph::{SimpleSink, System};
-use crate::core::utils::tones::TONES_FREQ;
 use crate::instruments::Instrument;
 use crate::instruments::voices::{PolyVoiceAllocator, PolyphonicVoice};
 
@@ -116,7 +115,7 @@ impl Instrument for Keyboard {
             // If there is a free generator, we use it
             self.generators[position]
                 .0
-                .set_base_frequency(TONES_FREQ[note.0 as usize][note.1 as usize]);
+                .set_base_frequency(note.frequency());
             self.generators[position].0.start();
             self.generators[position].1 = true;
             self.note_indices.insert(note, position);
