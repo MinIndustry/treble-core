@@ -1,9 +1,12 @@
 name: Tests
 
-# Required gate for merging into main. The `test` job must pass; the `lint`
-# job (fmt + clippy -D warnings) is informative only until the existing
-# 7 clippy warnings and rustfmt drift are cleaned up — then add "lint" to the
-# required status checks alongside "test".
+# Required gate for merging into main. The `test` job must pass.
+#
+# The `lint` job (fmt + clippy -D warnings) is still informative, but the
+# backlog it was waiting on is gone: `cargo fmt --check` and clippy across
+# all targets and features are both clean, and the pre-commit hook keeps
+# them that way. It is ready to be added to the required status checks
+# alongside "test" whenever branch protection is next edited.
 
 on:
   pull_request:

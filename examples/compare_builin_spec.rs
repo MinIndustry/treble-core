@@ -38,7 +38,7 @@ fn main() {
     let _ = kick_system.save_to_file(Path::new("kick_system.toml"));
 
     let og_kick_samples = (0..200)
-        .map(|_| {
+        .flat_map(|_| {
             og_kick.run();
             match og_kick.get_sink(0) {
                 Ok(s) => s.consume(),
@@ -48,11 +48,10 @@ fn main() {
                 }
             }
         })
-        .flatten()
         .collect::<Vec<[f32; 2]>>();
 
     let kick_system_samples = (0..200)
-        .map(|_| {
+        .flat_map(|_| {
             kick_system.run();
             match kick_system.get_sink(0) {
                 Ok(s) => s.consume(),
@@ -62,7 +61,6 @@ fn main() {
                 }
             }
         })
-        .flatten()
         .collect::<Vec<[f32; 2]>>();
 
     println!(
