@@ -24,6 +24,11 @@ impl AudioNode {
         }
     }
 
+    /// Forward the engine frame to the filter — see [`Filter::on_transport`].
+    pub(super) fn on_transport(&mut self, frame: u64) {
+        self.filter.on_transport(frame);
+    }
+
     /// Accumulate an incoming block on `port`.
     pub(super) fn push(&mut self, block: Arc<Block>, port: usize) {
         if port >= self.inputs.len() {

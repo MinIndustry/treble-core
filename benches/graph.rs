@@ -202,5 +202,90 @@ fn bench_complex_graph(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, bench_simple_graph, bench_complex_graph);
+/// A realistic Treble Live performance: six built-in instruments compiled
+/// through the production path (`compile_spec`), several notes held on each.
+/// This is what the render thread actually pays for per block.
+fn bench_session(c: &mut Criterion) {
+    use treble::core::utils::Note;
+    use treble::instruments::registry::InstrumentRegistry;
+    use treble::instruments::spec::compile_spec;
+
+    let registry = InstrumentRegistry::built_in();
+    let names = ["kick", "snare", "hihat", "bass", "pluck", "pad"];
+    let mut systems: Vec<System> = names
+        .iter()
+        .map(|name| {
+            let spec = registry.get(name).expect("built-in exists");
+            let mut system = compile_spec(spec, SAMPLE_RATE).expect("built-in spec compiles");
+            // Hold a small chord per instrument so poly voices are live.
+            for midi in [48u8, 55, 60] {
+                system.start_note(0, Note::from_midi(midi), 0.9);
+            }
+            system
+        })
+        .collect();
+
+    c.bench_function("session_6_instruments", |b| {
+        b.iter(|| {
+            // 256 blocks x 512 frames = ~3s of audio per iteration.
+            for _ in 0..256 {
+                for system in systems.iter_mut() {
+                    system.run();
+                    let _ = system.get_sink(0).map(|s| black_box(s.consume()));
+                }
+            }
+        })
+    });
+}
+
+/// Per-block filter cost: the shipped Gain/Pan filters against inline serial
+/// closures on the same 512-frame block. Historical note: the shipped versions
+/// used rayon `par_iter` until 2026-08-24, measured here at ~1,300x slower
+/// than serial (125 us vs 96 ns) — keep these benches so a regression shows.
+fn bench_filter_parallelism(c: &mut Criterion) {
+    use std::sync::Arc;
+    use treble::core::Block;
+    use treble::core::graph::{Entry, Filter};
+
+    let block: Arc<Block> = Arc::new(vec![[0.25f32, -0.25f32]; BLOCK_SIZE]);
+
+    let mut gain = GainFilter::new(0.8);
+    c.bench_function("gain_filter_shipped", |b| {
+        b.iter(|| {
+            gain.push(Arc::clone(&block), 0);
+            black_box(gain.transform())
+        })
+    });
+
+    let mut pan = PanFilter::new(-0.3);
+    c.bench_function("pan_filter_shipped", |b| {
+        b.iter(|| {
+            pan.push(Arc::clone(&block), 0);
+            black_box(pan.transform())
+        })
+    });
+
+    c.bench_function("gain_serial_equivalent", |b| {
+        b.iter(|| {
+            let out: Block = block.iter().map(|[l, r]| [l * 0.8, r * 0.8]).collect();
+            black_box(out)
+        })
+    });
+
+    c.bench_function("pan_serial_equivalent", |b| {
+        let (lg, rg) = ((1.0 - (-0.3f32)) * 0.5, (1.0 + (-0.3f32)) * 0.5);
+        b.iter(|| {
+            let out: Block = block.iter().map(|[l, r]| [l * lg, r * rg]).collect();
+            black_box(out)
+        })
+    });
+}
+
+criterion_group!(
+    benches,
+    bench_simple_graph,
+    bench_complex_graph,
+    bench_session,
+    bench_filter_parallelism
+);
 criterion_main!(benches);

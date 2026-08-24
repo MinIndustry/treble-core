@@ -345,7 +345,10 @@ pub fn validate_spec(spec: &InstrumentSpec) -> Result<(), SpecError> {
     Ok(())
 }
 
-fn create_filter(node_type: &str, sample_rate: f32) -> Result<Box<dyn Filter>, SpecError> {
+pub(crate) fn create_filter(
+    node_type: &str,
+    sample_rate: f32,
+) -> Result<Box<dyn Filter>, SpecError> {
     for entry in inventory::iter::<crate::meta::FilterRegistration>() {
         let info = (entry.info)();
         if info.type_id == node_type {

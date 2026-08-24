@@ -36,7 +36,7 @@ use prelude::*;
 pub mod prelude {
     pub use super::App;
     pub use super::audio_graph::{
-        AudioGraph, AudioGraphCompileError, InstrumentDefinition, InstrumentSlot,
+        AudioGraph, AudioGraphCompileError, BusSpec, InstrumentDefinition, InstrumentSlot,
     };
     pub use super::commands::{AppCommand, AudioCommand, Command};
     pub use super::filesystem::FSConfig;
@@ -207,7 +207,26 @@ impl App {
     }
 
     /// Register or replace a spec and rebuild every live instance that uses it.
+    /// Register a spec and update any live instances, then rebuild the graph.
+    ///
+    /// The rebuild is immediate, which cuts sounding voices. Prefer
+    /// [`Self::register_spec_deferred`] while audio is playing and schedule the
+    /// rebuild on a cycle boundary instead.
     pub fn register_spec(&mut self, spec: InstrumentSpec) -> Result<(), AppError> {
+        self.register_spec_deferred(spec)?;
+        if self.message_tx.is_some() {
+            self.recompile()?;
+        }
+        Ok(())
+    }
+
+    /// Register a spec and update any live instances **without** rebuilding the
+    /// graph, leaving the caller to choose when that happens.
+    ///
+    /// A rebuild mid-cycle silences whatever is sounding until the next one, so
+    /// a caller that is already scheduling a boundary swap wants this and its
+    /// own `recompile_at`.
+    pub fn register_spec_deferred(&mut self, spec: InstrumentSpec) -> Result<(), AppError> {
         let name = spec.name.clone();
         self.registry
             .register(spec.clone())
@@ -226,15 +245,34 @@ impl App {
                 .replace_spec(slot, spec.clone())
                 .map_err(|error| AppError::InvalidParameter(error.to_string()))?;
         }
-        if self.message_tx.is_some() {
-            self.recompile()?;
-        }
         Ok(())
     }
 
     /// Slot index of an instantiated spec, by registry name.
     pub fn instrument_idx(&self, name: &str) -> Option<usize> {
         self.spec_slots.get(name).copied()
+    }
+
+    /// Replace the shared bus chains applied at the next graph build.
+    ///
+    /// Members are instance names as passed to the register calls; names with
+    /// no live slot are skipped. Takes effect on the next `recompile*`.
+    pub fn set_buses(
+        &mut self,
+        buses: Vec<(String, Vec<crate::instruments::spec::FxSpec>, Vec<String>)>,
+    ) {
+        let resolved = buses
+            .into_iter()
+            .map(|(name, fx, members)| crate::app::audio_graph::BusSpec {
+                name,
+                fx,
+                members: members
+                    .iter()
+                    .filter_map(|member| self.spec_slots.get(member).copied())
+                    .collect(),
+            })
+            .collect();
+        self.audio_graph.set_buses(resolved);
     }
 
     /// Recompile the audio graph and hot-swap it into the running render thread.

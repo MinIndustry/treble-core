@@ -7,12 +7,11 @@ edition = "2024"
 [dependencies]
 atomic_float = "0.1"
 chrono = "0.4.38"
-clap = { version = "4.5.15", features = ["derive"] }
 cpal = "0.15.3"
 crossbeam = "0.8"
 directories = "6.0.0"
 dyn-clone = "1.0.18"
-log = "0.4.22"
+log = { version = "0.4.22", features = ["release_max_level_warn"] }
 petgraph = "0.6.5"
 rand = { version = "0.8.5", features = ["small_rng"] }
 serde = { version = "1.0.205", features = ["derive", "serde_derive"] }
@@ -25,7 +24,6 @@ treble-derive = { git = "https://github.com/MinIndustry/treble-derive.git", tag 
 treble-meta = { git = "https://github.com/MinIndustry/treble-meta.git", tag = "0.1.0" }
 evdev = { version = "0.12.2", optional = true }
 plotters = { version = "0.3.7", optional = true }
-rayon = "1.11.0"
 hound = "3.5.1"
 
 [dev-dependencies]

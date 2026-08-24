@@ -100,9 +100,17 @@ fn render_loop(
             process_audio_message(system, &mut scheduler, msg, event_tx);
         }
 
-        // Throttle to target latency
-        if audio_queue.len() >= target_samples {
-            thread::sleep(Duration::from_micros(100));
+        // Throttle to target latency. Sleep for most of the time the device
+        // callback will take to drain back to the watermark, instead of
+        // spin-polling at 100us (~10,000 wakeups/s of idle CPU — BN-006).
+        // The clamp keeps control-message latency bounded: 8ms is well under
+        // the ring's ~93ms capacity, and note events are frame-scheduled ahead
+        // of time so they do not depend on this loop's reaction speed.
+        let queued = audio_queue.len();
+        if queued >= target_samples {
+            let surplus_frames = (queued - target_samples) / crate::core::audio::CHANNELS;
+            let drain_micros = surplus_frames as u64 * 1_000_000 / output_sample_rate.max(1) as u64;
+            thread::sleep(Duration::from_micros(drain_micros.clamp(1_000, 8_000)));
             continue;
         }
 

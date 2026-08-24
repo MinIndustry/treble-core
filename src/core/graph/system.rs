@@ -437,6 +437,17 @@ impl System {
         Ok(())
     }
 
+    /// Tell every filter where the transport is — see [`Filter::on_transport`].
+    ///
+    /// Called by the render thread once per rendered block, before `run`.
+    /// A plain node walk: no allocation, and a no-op for filters that do not
+    /// override the hook.
+    pub fn broadcast_transport(&mut self, frame: u64) {
+        for node in self.graph.node_weights_mut() {
+            node.on_transport(frame);
+        }
+    }
+
     // Performs one full run of the system, running every filter once in an order such that data
     // that entered the system this run can exit it this run as well.
     pub fn run(&mut self) {

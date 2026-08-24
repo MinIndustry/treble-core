@@ -1,7 +1,21 @@
 use core::f32;
-use rand::{self, Rng};
+use rand::rngs::SmallRng;
+use rand::{self, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use std::ops::Rem;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+/// Seed source for per-generator noise RNGs.
+///
+/// Each generator gets its own stream: `thread_rng` per sample was a
+/// thread-local lookup in the hottest loop (BN-003), and a shared seed would
+/// make cloned poly voices emit identical noise — correlated noise sums to a
+/// +6 dB doubling instead of a thicker texture.
+static NOISE_SEED: AtomicU64 = AtomicU64::new(0x9E37_79B9_7F4A_7C15);
+
+fn fresh_noise_rng() -> SmallRng {
+    SmallRng::seed_from_u64(NOISE_SEED.fetch_add(0x9E37_79B9_7F4A_7C15, Ordering::Relaxed))
+}
 
 use crate::core::{envelope::Envelope, generator::prelude::*};
 
@@ -36,7 +50,7 @@ fn poly_blamp(t: f32, dt: f32) -> f32 {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SingleToneGenerator {
     waveform: Waveform,
     frequency_relation: Option<FrequencyRelation>,
@@ -47,6 +61,27 @@ pub struct SingleToneGenerator {
     time: f32,
     current_frequency: f32,
     pink_b: [f32; 7], // IIR filter state for pink noise (Paul Kellet algorithm)
+    #[serde(skip, default = "fresh_noise_rng")]
+    rng: SmallRng,
+}
+
+/// Hand-written so a cloned voice reseeds its noise stream — see
+/// [`NOISE_SEED`]. Everything else copies verbatim.
+impl Clone for SingleToneGenerator {
+    fn clone(&self) -> Self {
+        Self {
+            waveform: self.waveform.clone(),
+            frequency_relation: self.frequency_relation.clone(),
+            pitch_envelope: self.pitch_envelope.clone(),
+            amplitude_envelope: self.amplitude_envelope.clone(),
+            phase: self.phase,
+            note_off: self.note_off,
+            time: self.time,
+            current_frequency: self.current_frequency,
+            pink_b: self.pink_b,
+            rng: fresh_noise_rng(),
+        }
+    }
 }
 
 impl SingleToneGenerator {
@@ -67,6 +102,7 @@ impl SingleToneGenerator {
             note_off: None,
             current_frequency: frequency,
             pink_b: [0.0; 7],
+            rng: fresh_noise_rng(),
         }
     }
 
@@ -113,7 +149,7 @@ impl SingleToneGenerator {
         let tone_value = match self.waveform {
             Waveform::Blank | Waveform::Err(_) => 1.0, // Returns 1.0 that will be mapped to the amplitude envelope
             Waveform::PinkNoise => {
-                let white = rand::thread_rng().gen_range(-1.0_f32..1.0);
+                let white = self.rng.gen_range(-1.0_f32..1.0);
                 self.pink_b[0] = 0.99886 * self.pink_b[0] + white * 0.0555179;
                 self.pink_b[1] = 0.99332 * self.pink_b[1] + white * 0.0750759;
                 self.pink_b[2] = 0.96900 * self.pink_b[2] + white * 0.153852;
@@ -152,7 +188,7 @@ impl SingleToneGenerator {
             Waveform::TriangleRaw => {
                 1.0 - 2.0 * ((self.phase * f32::consts::FRAC_1_PI) - 1.0).abs()
             }
-            Waveform::WhiteNoise => rand::thread_rng().gen_range(-1.0..1.0),
+            Waveform::WhiteNoise => self.rng.gen_range(-1.0..1.0),
         };
 
         tone_value

@@ -15,6 +15,15 @@ pub trait Filter: Entry + fmt::Display + treble_meta::MetaFilter + Send + Sync {
         false
     }
 
+    /// Called at the start of each rendered block with the engine frame.
+    ///
+    /// Time-anchored filters (LFOs such as auto-pan and tremolo) derive their
+    /// phase from this instead of from instance age, so a hot-swapped
+    /// replacement filter continues at exactly the phase its predecessor had —
+    /// editing a parameter mid-performance must not restart the sweep.
+    /// Stateless filters ignore it.
+    fn on_transport(&mut self, _frame: u64) {}
+
     /// Enables downcasting from trait object to concrete type.
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 }
