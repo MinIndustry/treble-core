@@ -289,6 +289,9 @@ impl AudioGraph {
             for (fx_idx, fx) in bus.fx.iter().enumerate() {
                 let mut filter = create_filter(&fx.type_id, sample_rate)?;
                 for (param, value) in fx.params.iter() {
+                    if crate::instruments::spec::ENGINE_OWNED_PARAMS.contains(&param.as_str()) {
+                        continue;
+                    }
                     if !filter.set_parameter(param, *value) {
                         return Err(AudioGraphCompileError::Spec(SpecError::UnknownParameter {
                             filter: fx.type_id.clone(),

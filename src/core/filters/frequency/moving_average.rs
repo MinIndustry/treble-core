@@ -10,7 +10,9 @@ use crate::core::{Block, CHANNELS};
 /// Based only on the previous samples
 #[derive(FilterMetaData, Debug, Clone)]
 pub struct MovingAverage {
-    #[filter_parameter(val, 3, 0)]
+    // Minimum 1: a zero-length window trims its own buffer away and sums to
+    // nothing, so it silences the signal rather than averaging it.
+    #[filter_parameter(val, 3, 1)]
     size: usize,
     /// Per-channel circular buffers
     buffers: [VecDeque<f32>; CHANNELS],

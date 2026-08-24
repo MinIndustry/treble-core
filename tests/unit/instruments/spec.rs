@@ -252,6 +252,54 @@ fn fx_chains_are_fully_connected() {
 }
 
 /// A sine tone with a constant envelope: always audible right after start.
+#[test]
+fn a_spec_cannot_override_the_engine_sample_rate() {
+    // The visual editor seeded every registry parameter into saved specs,
+    // `sample_rate` included, and spec parameters were applied after the engine
+    // injected the real rate — so a saved instrument pinned whatever rate its
+    // author happened to be running at. A tremolo is the clearest witness: its
+    // LFO speed is derived from the rate, so a stale value retunes the
+    // modulation. Here 8 kHz against a 44.1 kHz engine would run it 5.5x fast.
+    //
+    // Measured as a rate rather than by comparing two renders: a generator
+    // reseeds per construction, so two compiles of the same spec do not
+    // produce identical samples.
+    const LFO_HZ: f32 = 4.0;
+    let mut spec = minimal_spec();
+    spec.fx = vec![FxSpec {
+        type_id: "Tremolo".into(),
+        params: std::collections::HashMap::from([
+            ("frequency".to_string(), LFO_HZ),
+            ("depth".to_string(), 1.0),
+            ("sample_rate".to_string(), 8_000.0),
+        ]),
+    }];
+
+    let mut system = compile_spec(&spec, SAMPLE_RATE).expect("compiles");
+    let samples = render(&mut system, 120);
+
+    // Coarse envelope, then count how often full-depth modulation pulls it down.
+    const WINDOW: usize = 256;
+    let envelope: Vec<f32> = samples.chunks(WINDOW).map(rms).collect();
+    let peak = envelope.iter().copied().fold(0.0f32, f32::max);
+    assert!(peak > 1e-3, "no signal to measure");
+    let threshold = peak * 0.2;
+    // Skip the attack/decay stretch so only the sustained portion is counted.
+    let sustained = &envelope[envelope.len() / 6..];
+    let troughs = sustained
+        .windows(2)
+        .filter(|pair| pair[0] >= threshold && pair[1] < threshold)
+        .count();
+
+    let seconds = (sustained.len() * WINDOW) as f32 / SAMPLE_RATE;
+    let measured_hz = troughs as f32 / seconds;
+    assert!(
+        (measured_hz - LFO_HZ).abs() < 1.5,
+        "tremolo ran at {measured_hz:.1} Hz against a requested {LFO_HZ} Hz: \
+         the spec's stale sample_rate reached the filter"
+    );
+}
+
 fn minimal_spec() -> InstrumentSpec {
     InstrumentSpec {
         name: "test-sine".into(),
