@@ -36,11 +36,13 @@ use prelude::*;
 pub mod prelude {
     pub use super::App;
     pub use super::audio_graph::{
-        AudioGraph, AudioGraphCompileError, BusSpec, InstrumentDefinition, InstrumentSlot,
+        AudioGraph, AudioGraphCompileError, AutomationSpec, AutomationTarget, BusSpec,
+        InstrumentDefinition, InstrumentSlot, ParameterRamp,
     };
     pub use super::commands::{AppCommand, AudioCommand, Command};
     pub use super::filesystem::FSConfig;
     pub use super::system::SystemConfig;
+    pub use crate::core::graph::RampCurve;
 }
 
 /// Application meta-object.
@@ -273,6 +275,60 @@ impl App {
             })
             .collect();
         self.audio_graph.set_buses(resolved);
+    }
+
+    /// Declare a parameter sweep on a filter in an instrument instance's own
+    /// fx chain. `fx_index` indexes the instance's `InstrumentSpec::fx`.
+    ///
+    /// The sweep is stored as declarative data and re-applied by every
+    /// `recompile*`, so it survives the rebuild a live edit causes. Its frames
+    /// are absolute engine frames (see [`current_frame`](Self::current_frame)),
+    /// which is what lets the replacement filter continue the ramp instead of
+    /// restarting it. Takes effect at the next graph build.
+    pub fn automate_instrument_fx(
+        &mut self,
+        instance: &str,
+        fx_index: usize,
+        ramp: ParameterRamp,
+    ) -> Result<(), AppError> {
+        let slot = self
+            .instrument_idx(instance)
+            .ok_or_else(|| AppError::UnknownInstrument(instance.to_string()))?;
+        self.audio_graph.add_automation(AutomationSpec {
+            target: AutomationTarget::InstrumentFx { slot, fx_index },
+            ramp,
+        });
+        Ok(())
+    }
+
+    /// Declare a parameter sweep on a filter in a named bus chain, as passed to
+    /// [`set_buses`](Self::set_buses). A name or index that the compiled graph
+    /// has no filter for is dropped at build time, like an out-of-range bus
+    /// member, so bus and sweep declarations may arrive in either order.
+    pub fn automate_bus_fx(&mut self, bus: &str, fx_index: usize, ramp: ParameterRamp) {
+        self.audio_graph.add_automation(AutomationSpec {
+            target: AutomationTarget::BusFx {
+                bus: bus.to_string(),
+                fx_index,
+            },
+            ramp,
+        });
+    }
+
+    /// Replace the whole declared sweep set, in the graph's own addressing.
+    pub fn set_automations(&mut self, automations: Vec<AutomationSpec>) {
+        self.audio_graph.set_automations(automations);
+    }
+
+    /// Drop every declared sweep. Callers that re-declare their whole set per
+    /// evaluation clear first, mirroring how they replace the bus set.
+    pub fn clear_automations(&mut self) {
+        self.audio_graph.clear_automations();
+    }
+
+    /// The declared sweeps, in declaration order.
+    pub fn automations(&self) -> &[AutomationSpec] {
+        self.audio_graph.automations()
     }
 
     /// Recompile the audio graph and hot-swap it into the running render thread.

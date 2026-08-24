@@ -136,6 +136,15 @@ fn render_loop(
             .current_frame
             .store(current_frame, Ordering::Relaxed);
 
+        // A sweep is applied every block, so the System reports a filter that
+        // refuses the parameter once per graph instead of once per block.
+        for message in system.take_automation_warnings() {
+            event_tx.send(BackendEvent::Error(ErrorEvent::CommandFailed {
+                command: "Automation".into(),
+                message,
+            }));
+        }
+
         // Convert stable engine-rate audio to the active output-device rate.
         resampler.process(&chunk_buffer, &mut output_buffer);
 

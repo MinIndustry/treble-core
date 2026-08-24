@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
@@ -11,6 +11,7 @@ use petgraph::{Direction, algo::toposort};
 use treble_meta::MixMode;
 
 use super::audio_node::AudioNode;
+use super::automation::ParameterAutomation;
 use super::{Filter, Sink, Source};
 use crate::core::audio::Block;
 use crate::core::graph::error::AudioGraphError;
@@ -75,8 +76,24 @@ pub struct System {
     source_sink_wires: Vec<(usize, usize)>,
     /// Live modulation wires: a source's block-mean drives a named parameter.
     mod_wires: Vec<ModWire>,
+    /// Timed parameter sweeps — see [`System::apply_automations`].
+    automation: Box<AutomationState>,
     /// Number of frames to produce per `run()` call
     block_size: usize,
+}
+
+/// Sweep bookkeeping, boxed: a whole `System` travels by value inside the
+/// render-thread message enums, so keeping it out of the struct body keeps
+/// those messages from growing a hundred bytes for state used once a block.
+#[derive(Debug, Clone, Default)]
+struct AutomationState {
+    automations: Vec<ParameterAutomation>,
+    /// (node, parameter) pairs already reported as refused. A sweep is applied
+    /// every block, so without this a single bad parameter name would emit a
+    /// backend event per block for as long as the graph lives.
+    reported: HashSet<(NodeIndex<u32>, String)>,
+    /// Rejection messages not yet drained by the render thread.
+    pending: Vec<String>,
 }
 
 impl Default for System {
@@ -88,6 +105,7 @@ impl Default for System {
             sinks: Vec::new(),
             source_sink_wires: Vec::new(),
             mod_wires: Vec::new(),
+            automation: Box::default(),
             block_size: 512,
         }
     }
@@ -448,6 +466,61 @@ impl System {
         }
     }
 
+    /// Replace the sweep set. Node indices belong to this compiled graph only,
+    /// so callers that survive a rebuild keep their sweeps as declarative data
+    /// and resolve them again for every new `System`.
+    pub fn set_automations(&mut self, automations: Vec<ParameterAutomation>) {
+        self.automation.automations = automations;
+        self.automation.reported.clear();
+    }
+
+    /// Add one sweep to the set.
+    pub fn add_automation(&mut self, automation: ParameterAutomation) {
+        self.automation.automations.push(automation);
+    }
+
+    /// The active sweeps.
+    pub fn automations(&self) -> &[ParameterAutomation] {
+        &self.automation.automations
+    }
+
+    /// Evaluate every sweep at `frame` and push the values into their filters.
+    ///
+    /// Called by the render thread once per rendered block, alongside
+    /// [`broadcast_transport`](Self::broadcast_transport): both anchor to the
+    /// engine timeline so a hot-swap mid-performance continues rather than
+    /// restarts.
+    pub fn apply_automations(&mut self, frame: u64) {
+        // Empty until something is actually refused, so the normal path stays
+        // allocation-free.
+        let mut refused: Vec<(NodeIndex<u32>, String)> = Vec::new();
+        for automation in &self.automation.automations {
+            let value = automation.value_at(frame);
+            let applied = self
+                .graph
+                .node_weight_mut(automation.node)
+                .is_some_and(|node| node.filter_mut().set_parameter(&automation.param, value));
+            if !applied {
+                refused.push((automation.node, automation.param.clone()));
+            }
+        }
+        for (node, param) in refused {
+            if self.automation.reported.insert((node, param.clone())) {
+                self.automation.pending.push(format!(
+                    "filter node {} refused automated parameter '{param}'",
+                    node.index()
+                ));
+            }
+        }
+    }
+
+    /// Drain the sweep rejections reported since the last call, for the render
+    /// thread to forward as backend errors. Each (node, parameter) pair is
+    /// reported once per graph.
+    pub fn take_automation_warnings(&mut self) -> Vec<String> {
+        std::mem::take(&mut self.automation.pending)
+    }
+
     // Performs one full run of the system, running every filter once in an order such that data
     // that entered the system this run can exit it this run as well.
     pub fn run(&mut self) {
@@ -684,6 +757,18 @@ impl System {
     /// `other`'s sinks are intentionally **not** imported; the caller is responsible
     /// for providing a master sink and connecting to the returned output node.
     pub fn absorb(&mut self, other: System) -> Result<NodeIndex<u32>, AudioGraphError> {
+        self.absorb_mapped(other).map(|(output, _)| output)
+    }
+
+    /// [`absorb`](Self::absorb), additionally reporting the old → new node
+    /// index mapping. Parameter automation addresses a filter by its position
+    /// in an instrument spec's chain, which is only known while building the
+    /// sub-graph, so the caller needs the remap to keep that address usable.
+    #[allow(clippy::type_complexity)]
+    pub fn absorb_mapped(
+        &mut self,
+        other: System,
+    ) -> Result<(NodeIndex<u32>, HashMap<NodeIndex<u32>, NodeIndex<u32>>), AudioGraphError> {
         if other.sinks.is_empty() {
             return Err(AudioGraphError::InvalidMerging);
         }
@@ -722,9 +807,10 @@ impl System {
         }
 
         // Return the remapped output node so the caller can connect it
-        remap
+        let output = remap
             .get(&other_output_node)
             .copied()
-            .ok_or(AudioGraphError::InvalidNode)
+            .ok_or(AudioGraphError::InvalidNode)?;
+        Ok((output, remap))
     }
 }
