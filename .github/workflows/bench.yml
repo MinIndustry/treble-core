@@ -34,7 +34,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
+      # A baseline that will not build is not a regression. It happens when the
+      # base is broken, or when a bench only exists on the PR, and failing here
+      # would deadlock exactly the PR that repairs the base. Record it and skip
+      # the comparison instead.
       - name: Bench base
+        id: bench_base
+        continue-on-error: true
         run: cargo bench --bench graph -- --save-baseline base --noplot
 
       - name: Checkout PR (preserve criterion baselines)
@@ -46,7 +52,12 @@ jobs:
         run: cargo bench --bench graph -- --save-baseline pr --noplot
 
       - name: Compare & enforce threshold
+        if: steps.bench_base.outcome == 'success'
         run: python3 .github/scripts/bench_compare.py --base base --new pr --max-regression-pct 15
+
+      - name: Report a missing baseline
+        if: steps.bench_base.outcome != 'success'
+        run: echo "::notice::The base commit did not bench, so there is no baseline to compare against. The PR's own benches ran; the regression gate is skipped for this run."
 
       - name: Comment results on PR
         if: always()

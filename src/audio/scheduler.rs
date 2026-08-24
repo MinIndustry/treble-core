@@ -232,6 +232,13 @@ pub fn render_block(
     let block_end = start_frame + system.block_size() as u64;
     let mut current = start_frame;
 
+    // Anchor time-based filters (LFOs) to the engine timeline, so a graph
+    // hot-swap mid-performance resumes sweeps at the correct phase.
+    system.broadcast_transport(start_frame);
+    // Parameter ramps are evaluated once per block (design decision D3), at
+    // the same engine frame the LFOs are anchored to.
+    system.apply_automations(start_frame);
+
     while current < block_end {
         // Apply everything due now (including late events).
         while let Some(action) = scheduler.pop_due_action(current) {
@@ -245,6 +252,11 @@ pub fn render_block(
                     tail_frames,
                 } => {
                     let previous = std::mem::replace(system, new_system);
+                    // The replacement's filters carry their build-time
+                    // parameters; a sweep in flight must land before the new
+                    // graph renders its first sample, or the swap is audible
+                    // as the ramp jumping back to its declared start.
+                    system.apply_automations(current);
                     scheduler.transition = Some(GraphTransition {
                         previous,
                         elapsed_frames: 0,

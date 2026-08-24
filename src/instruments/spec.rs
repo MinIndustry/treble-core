@@ -345,7 +345,10 @@ pub fn validate_spec(spec: &InstrumentSpec) -> Result<(), SpecError> {
     Ok(())
 }
 
-fn create_filter(node_type: &str, sample_rate: f32) -> Result<Box<dyn Filter>, SpecError> {
+pub(crate) fn create_filter(
+    node_type: &str,
+    sample_rate: f32,
+) -> Result<Box<dyn Filter>, SpecError> {
     for entry in inventory::iter::<crate::meta::FilterRegistration>() {
         let info = (entry.info)();
         if info.type_id == node_type {
@@ -564,6 +567,16 @@ impl Source for SampleSource {
 }
 
 pub fn compile_spec(spec: &InstrumentSpec, sample_rate: f32) -> Result<System, SpecError> {
+    compile_spec_with_fx_nodes(spec, sample_rate).map(|(system, _)| system)
+}
+
+/// [`compile_spec`], additionally reporting the graph node built for each entry
+/// of `spec.fx`, in chain order. Parameter automation addresses a filter by
+/// that index, since it is the only stable name a consumer has for one.
+pub fn compile_spec_with_fx_nodes(
+    spec: &InstrumentSpec,
+    sample_rate: f32,
+) -> Result<(System, Vec<NodeIndex<u32>>), SpecError> {
     validate_spec(spec)?;
     let (voice_source, release_after, release_duration): (Box<dyn Source>, f32, f32) =
         if let Some(sample) = &spec.sample {
@@ -656,6 +669,7 @@ pub fn compile_spec(spec: &InstrumentSpec, sample_rate: f32) -> Result<System, S
     // Serial fx chain: source → fx[0] → … → fx[n-1] → gain → sink.
     // The gain stage is always present, so there is a single wiring shape.
     let mut previous: Option<NodeIndex<u32>> = None;
+    let mut fx_nodes = Vec::with_capacity(spec.fx.len());
     for fx in spec.fx.iter() {
         let mut filter = create_filter(&fx.type_id, sample_rate)?;
         for (param, value) in fx.params.iter() {
@@ -674,6 +688,7 @@ pub fn compile_spec(spec: &InstrumentSpec, sample_rate: f32) -> Result<System, S
                 compiled_system.connect(previous_index, filter_index, 0, 0);
             }
         }
+        fx_nodes.push(filter_index);
         previous = Some(filter_index);
     }
 
@@ -690,5 +705,5 @@ pub fn compile_spec(spec: &InstrumentSpec, sample_rate: f32) -> Result<System, S
         .compute()
         .map_err(|e| SpecError::Compute(format!("{e:?}")))?;
 
-    Ok(compiled_system)
+    Ok((compiled_system, fx_nodes))
 }

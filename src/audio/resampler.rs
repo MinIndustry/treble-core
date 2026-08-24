@@ -24,8 +24,9 @@ impl LinearResampler {
             output.extend_from_slice(input);
             return;
         }
-        self.frames
-            .extend(input.chunks_exact(2).map(|frame| [frame[0], frame[1]]));
+        // as_chunks yields [f32; 2] directly, which is already a Frame; the
+        // trailing remainder (an odd sample) is discarded as before.
+        self.frames.extend(input.as_chunks::<2>().0.iter().copied());
 
         while self.position + 1.0 < self.frames.len() as f64 {
             let index = self.position.floor() as usize;

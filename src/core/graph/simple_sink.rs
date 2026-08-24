@@ -24,8 +24,9 @@ impl Entry for SimpleSink {
 
 impl Sink for SimpleSink {
     fn consume(&mut self) -> Block {
-        // let amount = std::cmp::min(amount, self.values.len());
-        self.values.drain(..).collect()
+        // Move the buffer out rather than draining into a fresh allocation:
+        // this runs once per block per sink.
+        std::mem::take(&mut self.values)
     }
 
     fn discard(&mut self) {

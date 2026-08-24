@@ -1,4 +1,3 @@
-use rayon::prelude::*;
 use std::fmt;
 use std::sync::Arc;
 
@@ -44,13 +43,17 @@ impl fmt::Debug for PanFilter {
 
 impl Filter for PanFilter {
     fn transform(&mut self) -> Vec<Block> {
-        let left_gain = (1.0 - self.direction) * 0.5;
-        let right_gain = (1.0 + self.direction) * 0.5;
+        // Equal-power law: constant perceived loudness across the sweep.
+        // The old linear law put the centre at -6 dB per channel, so panned
+        // material audibly dipped through the middle.
+        let theta = (self.direction.clamp(-1.0, 1.0) + 1.0) * std::f32::consts::FRAC_PI_4;
+        let (right_gain, left_gain) = theta.sin_cos();
 
-        // Use rayon for // execution
+        // Serial on purpose — see GainFilter: rayon per tiny block is a
+        // ~1000x pessimization, measured in benches/graph.rs.
         vec![
             self.source
-                .par_iter()
+                .iter()
                 .map(|[l, r]| [*l * left_gain, *r * right_gain])
                 .collect(),
         ]

@@ -1,0 +1,20 @@
+# Local development overrides — copy to `.cargo/config.toml` (git-ignored).
+#
+# The committed `Cargo.toml` pins `treble-meta` and `treble-derive` by git tag
+# so CI and fresh clones build without any sibling checkout. This file
+# redirects those same URLs to the checkouts next to this repository, so edits
+# there are picked up without a tag round-trip.
+#
+# Paths are relative to the directory holding `.cargo/`, i.e. the repo root.
+#
+# Spell a shared dependency identically everywhere — same URL including the
+# `.git` suffix, same tag. Cargo keys a git source on URL + ref, not on the
+# commit it resolves to, so two spellings build the crate twice and a trait
+# implemented against one instance vanishes for the other. Verify with
+# `grep -c 'name = "treble-meta"' Cargo.lock` — it must print `1`.
+
+[patch."https://github.com/MinIndustry/treble-meta.git"]
+treble-meta = { path = "../treble-meta" }
+
+[patch."https://github.com/MinIndustry/treble-derive.git"]
+treble-derive = { path = "../treble-derive" }

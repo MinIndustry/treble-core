@@ -1,9 +1,16 @@
 name: Tests
 
-# Required gate for merging into main. The `test` job must pass; the `lint`
-# job (fmt + clippy -D warnings) is informative only until the existing
-# 7 clippy warnings and rustfmt drift are cleaned up — then add "lint" to the
-# required status checks alongside "test".
+# Required gate for merging into main. Branch protection requires `test`,
+# `lint (informative)` and `bench-regression`. Despite the name, that job is
+# enforced, not advisory — and the name must stay exactly as it is, because
+# branch protection matches required checks by name. Renaming it silently
+# blocks every PR on a check that never reports.
+#
+# `lint` runs fmt + clippy -D warnings across all targets and features. Note
+# that CI's toolchain may be newer than a local one and so carry lints a local
+# run never emits (1.98 added `drain_collect` and
+# `chunks_exact_to_as_chunks`, both of which were clean locally on 1.97), so a
+# green local run is not proof this job passes.
 
 on:
   pull_request:

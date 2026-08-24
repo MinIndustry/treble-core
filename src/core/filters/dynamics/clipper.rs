@@ -1,7 +1,6 @@
 use std::fmt;
 use std::sync::Arc;
 
-use rayon::prelude::*;
 use treble_derive::FilterMetaData;
 
 use crate::core::Block;
@@ -39,9 +38,11 @@ impl Entry for Clipper {
 impl Filter for Clipper {
     fn transform(&mut self) -> Vec<Block> {
         let max = self.max_ampl;
+        // Serial on purpose — see GainFilter: rayon per tiny block is a
+        // ~1000x pessimization, measured in benches/graph.rs.
         let output: Block = self
             .source
-            .par_iter()
+            .iter()
             .map(|frame| std::array::from_fn(|ch| frame[ch].clamp(-max, max)))
             .collect();
         vec![output]

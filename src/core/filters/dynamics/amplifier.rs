@@ -1,7 +1,6 @@
 use std::fmt;
 use std::sync::Arc;
 
-use rayon::prelude::*;
 use treble_derive::FilterMetaData;
 
 use crate::core::Block;
@@ -42,9 +41,12 @@ impl fmt::Display for GainFilter {
 impl Filter for GainFilter {
     fn transform(&mut self) -> Vec<Block> {
         let factor = self.factor;
+        // Serial on purpose: a 512-frame multiply is ~100ns of work, and
+        // rayon's fork-join costs ~1000x that per block (measured in
+        // benches/graph.rs) — on the audio render thread, no less.
         let output: Block = self
             .source
-            .par_iter()
+            .iter()
             .map(|frame| std::array::from_fn(|ch| frame[ch] * factor))
             .collect();
         vec![output]

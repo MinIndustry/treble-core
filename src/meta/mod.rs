@@ -1,4 +1,9 @@
-use treble_meta::{FilterInfo, MetaGenerator, MetaSink, Parameter};
+use treble_meta::{MetaGenerator, MetaSink};
+
+// Re-exported because these appear in this module's public signatures:
+// `get_filters` hands back `FilterInfo`, whose ports carry `Parameter`, and
+// callers cannot inspect either without being able to name them.
+pub use treble_meta::{FilterInfo, Parameter};
 
 pub mod traits;
 

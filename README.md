@@ -1,4 +1,11 @@
-# Treble
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
+    <img src="assets/logo-light.svg" alt="Treble" width="140">
+  </picture>
+</p>
+
+<h1 align="center">Treble</h1>
 
 <div align="center">
     <img alt="CI badge" src="https://github.com/minindustry/treble-core/actions/workflows/test.yml/badge.svg" />
@@ -140,3 +147,36 @@ pub trait Instrument: Debug + Send + Sync {
 `into_system()` converts the instrument into a self-contained `System` sub-graph. `AudioGraph::compile()` calls this for each loaded instrument and assembles the sub-graphs into one unified `System` for the render thread.
 
 Built-in instruments: `Kick`, `Snare`, `HiHat` (percussive, fixed pitch), `Keyboard` (polyphonic, pitch-tracked).
+
+## Development
+
+`treble-meta` and `treble-derive` are separate repositories, pinned in
+`Cargo.toml` by git tag so a bare checkout builds straight from GitHub.
+
+To work against sibling checkouts instead, copy the example override:
+
+```sh
+cp .cargo/config.toml.example .cargo/config.toml
+```
+
+`.cargo/config.toml` is git-ignored, so CI and fresh clones never see it. The
+example assumes the umbrella layout — `treble-core`, `treble-meta` and
+`treble-derive` checked out side by side.
+
+Two things to know while that override is active:
+
+- **Building rewrites `Cargo.lock`**, because cargo records a patched crate
+  without its `source` line. The committed lockfile is the unpatched
+  resolution, which is what CI needs — leave that churn out of commits.
+- **A patch is silently ignored** when the sibling checkout's version does not
+  satisfy the pin, and cargo then quietly uses the tag instead, so you can
+  believe you are testing local changes that never get compiled. Check for
+  `[[patch.unused]]` in `Cargo.lock` if a local edit seems to have no effect.
+
+Every repository must spell a shared dependency identically (same URL, `.git`
+suffix included, same tag): cargo keys a git source on URL + ref, so two
+spellings build the crate twice and a trait implemented against one instance is
+invisible to the other. `grep -c 'name = "treble-meta"' Cargo.lock` must
+print `1`.
+
+Verify changes with `cargo test` and `cargo clippy --all-targets -- -D warnings`.

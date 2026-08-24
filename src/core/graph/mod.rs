@@ -4,6 +4,8 @@
 
 mod audio_node;
 mod audio_sink;
+/// Block-rate parameter sweeps applied by the render loop.
+mod automation;
 mod entry;
 pub mod error;
 mod filter;
@@ -19,6 +21,7 @@ pub mod sources;
 mod system;
 
 pub use audio_sink::AudioOutputSink;
+pub use automation::{ParameterAutomation, RampCurve};
 pub use error::AudioGraphError;
 
 pub use entry::Entry;
