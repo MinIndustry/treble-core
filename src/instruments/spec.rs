@@ -345,6 +345,14 @@ pub fn validate_spec(spec: &InstrumentSpec) -> Result<(), SpecError> {
     Ok(())
 }
 
+/// Parameters the engine owns, which a spec must never override.
+///
+/// `create_filter` injects the live engine rate; anything a saved spec carries
+/// for these is stale by definition, and letting it through detunes every
+/// rate-dependent filter — the same failure as a filter that never received a
+/// rate at all.
+pub(crate) const ENGINE_OWNED_PARAMS: &[&str] = &["sample_rate"];
+
 pub(crate) fn create_filter(
     node_type: &str,
     sample_rate: f32,
@@ -673,6 +681,9 @@ pub fn compile_spec_with_fx_nodes(
     for fx in spec.fx.iter() {
         let mut filter = create_filter(&fx.type_id, sample_rate)?;
         for (param, value) in fx.params.iter() {
+            if ENGINE_OWNED_PARAMS.contains(&param.as_str()) {
+                continue;
+            }
             if !filter.set_parameter(param, *value) {
                 return Err(SpecError::UnknownParameter {
                     filter: fx.type_id.clone(),
