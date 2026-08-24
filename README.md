@@ -1,4 +1,11 @@
-# Treble
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
+    <img src="assets/logo-light.svg" alt="Treble" width="140">
+  </picture>
+</p>
+
+<h1 align="center">Treble</h1>
 
 <div align="center">
     <img alt="CI badge" src="https://github.com/minindustry/treble-core/actions/workflows/test.yml/badge.svg" />
