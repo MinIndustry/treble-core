@@ -140,3 +140,26 @@ pub trait Instrument: Debug + Send + Sync {
 `into_system()` converts the instrument into a self-contained `System` sub-graph. `AudioGraph::compile()` calls this for each loaded instrument and assembles the sub-graphs into one unified `System` for the render thread.
 
 Built-in instruments: `Kick`, `Snare`, `HiHat` (percussive, fixed pitch), `Keyboard` (polyphonic, pitch-tracked).
+
+## Development
+
+`treble-meta` and `treble-derive` are separate repositories, pinned in
+`Cargo.toml` by git tag so a bare checkout builds straight from GitHub.
+
+To work against sibling checkouts instead, copy the example override:
+
+```sh
+cp .cargo/config.toml.example .cargo/config.toml
+```
+
+`.cargo/config.toml` is git-ignored, so CI and fresh clones never see it. The
+example assumes the umbrella layout — `treble-core`, `treble-meta` and
+`treble-derive` checked out side by side.
+
+Every repository must spell a shared dependency identically (same URL, `.git`
+suffix included, same tag): cargo keys a git source on URL + ref, so two
+spellings build the crate twice and a trait implemented against one instance is
+invisible to the other. `grep -c 'name = "treble-meta"' Cargo.lock` must
+print `1`.
+
+Verify changes with `cargo test` and `cargo clippy --all-targets -- -D warnings`.

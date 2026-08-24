@@ -51,8 +51,6 @@ windows = []
 # Default features
 default = []
 
-[patch."https://github.com/MinIndustry/treble-meta.git"]
-treble-meta = { path = "../treble-meta" }
-
-[patch."https://github.com/MinIndustry/treble-derive.git"]
-treble-derive = { path = "../treble-derive" }
+# The committed manifest pins the shared crates by tag so a bare checkout (CI,
+# fresh clone) resolves them from GitHub. Sibling-checkout redirection lives in
+# the git-ignored `.cargo/config.toml` — copy `.cargo/config.toml.example`.
