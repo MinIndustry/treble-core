@@ -22,6 +22,14 @@ pub enum RampCurve {
     /// logarithmically, so a linear sweep from 300 Hz to 9 kHz spends most of
     /// its time in the top octave and does not sound like an even sweep.
     Exponential,
+    /// A timeline-anchored triangle: `from → to → from` over one span, linear
+    /// both ways, wrapping forever. Unlike the other curves it never arrives —
+    /// the span is a period, not a destination. Phase is derived from absolute
+    /// engine frames, so a graph rebuild resumes the oscillation in place, the
+    /// same way [`Filter::on_transport`] anchors LFOs.
+    ///
+    /// [`Filter::on_transport`]: super::Filter::on_transport
+    Oscillate,
 }
 
 /// A parameter sweep against one compiled filter node.
@@ -51,8 +59,13 @@ impl ParameterAutomation {
     ///
     /// A ramp holds `from` before it starts and `to` once it has arrived:
     /// ramps in the language arrive and then hold, they do not wrap or decay
-    /// back. A zero-length ramp therefore reads as already arrived.
+    /// back. A zero-length ramp therefore reads as already arrived. The
+    /// exception is [`RampCurve::Oscillate`], which treats `start..end` as one
+    /// period and wraps on it forever.
     pub fn value_at(&self, frame: u64) -> f32 {
+        if self.curve == RampCurve::Oscillate {
+            return self.oscillate_at(frame);
+        }
         if frame >= self.end_frame {
             return self.to;
         }
@@ -71,6 +84,17 @@ impl ParameterAutomation {
             _ => self.from + (self.to - self.from) * progress,
         }
     }
+
+    /// Triangle oscillation between the endpoints, period `start..end`.
+    fn oscillate_at(&self, frame: u64) -> f32 {
+        if frame <= self.start_frame || self.end_frame <= self.start_frame {
+            return self.from;
+        }
+        let period = self.end_frame - self.start_frame;
+        let phase = ((frame - self.start_frame) % period) as f32 / period as f32;
+        let triangle = 1.0 - (2.0 * phase - 1.0).abs();
+        self.from + (self.to - self.from) * triangle
+    }
 }
 
 #[cfg(test)]
@@ -87,6 +111,20 @@ mod tests {
             end_frame: 3_000,
             curve,
         }
+    }
+
+    #[test]
+    fn an_oscillating_ramp_wraps_on_its_period_instead_of_arriving() {
+        let automation = ramp(300.0, 9_000.0, RampCurve::Oscillate);
+        // Before the window: from.
+        assert_eq!(automation.value_at(500), 300.0);
+        // Half a period in: at the far end.
+        assert!((automation.value_at(2_000) - 9_000.0).abs() < 1e-3);
+        // A full period in: back at from — and again a period later.
+        assert!((automation.value_at(3_000) - 300.0).abs() < 1e-3);
+        assert!((automation.value_at(5_000) - 300.0).abs() < 1e-3);
+        // A quarter period past the "end": still travelling, not held.
+        assert!((automation.value_at(3_500) - 4_650.0).abs() < 1e-3);
     }
 
     #[test]
