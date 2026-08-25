@@ -387,9 +387,12 @@ fn load_sample(spec: &SampleSpec) -> Result<Arc<SampleData>, SpecError> {
         ))
     })?;
     let cache = SAMPLE_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    // A poisoned lock only means a panic elsewhere while the map was held;
+    // the map of Weak handles is still valid, so recover it rather than
+    // propagating the panic into every instrument that plays a sample.
     if let Some(data) = cache
         .lock()
-        .expect("sample cache lock poisoned")
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .get(&path)
         .and_then(Weak::upgrade)
     {
@@ -444,7 +447,7 @@ fn load_sample(spec: &SampleSpec) -> Result<Arc<SampleData>, SpecError> {
     });
     cache
         .lock()
-        .expect("sample cache lock poisoned")
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .insert(path, Arc::downgrade(&data));
     Ok(data)
 }

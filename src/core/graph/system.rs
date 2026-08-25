@@ -787,9 +787,15 @@ impl System {
             remap.insert(old_idx, new_idx);
         }
 
-        // Re-add edges with remapped endpoints
+        // Re-add edges with remapped endpoints. An edge index from the
+        // graph's own iterator always has endpoints; skipping (with a coded
+        // log) rather than panicking keeps a hypothetical corruption from
+        // killing a live rebuild.
         for edge_idx in other.graph.edge_indices() {
-            let (from, to) = other.graph.edge_endpoints(edge_idx).unwrap();
+            let Some((from, to)) = other.graph.edge_endpoints(edge_idx) else {
+                log::warn!("TRBC-GRAPH-110: absorbed graph edge without endpoints; skipped");
+                continue;
+            };
             let weight = other.graph[edge_idx];
             self.graph.add_edge(remap[&from], remap[&to], weight);
         }

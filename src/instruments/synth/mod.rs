@@ -270,7 +270,13 @@ impl Instrument for Synth {
 
         let sink_idx = system.add_sink(Box::new(SimpleSink::new()));
         system.connect_sink(gain, sink_idx, 0);
-        system.compute().expect("Synth system compute failed");
+        if let Err(error) = system.compute() {
+            // A built-in voice graph is acyclic by construction; if it ever
+            // fails to compute, a silent voice beats a dead engine.
+            log::error!(
+                "TRBC-INST-001: the synth voice graph failed to compute ({error}); this voice will be silent"
+            );
+        }
         system
     }
 }

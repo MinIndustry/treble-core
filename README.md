@@ -148,6 +148,23 @@ pub trait Instrument: Debug + Send + Sync {
 
 Built-in instruments: `Kick`, `Snare`, `HiHat` (percussive, fixed pitch), `Keyboard` (polyphonic, pitch-tracked).
 
+## Error codes
+
+Engine failures carry stable, grep-able codes so a log line or a UI banner
+links straight back to its source. Codes are never reused or renumbered.
+
+| Code | Meaning |
+| --- | --- |
+| `TRBC-GRAPH-101..109` | [`AudioGraphError`](src/core/graph/error.rs) variants (invalid node/port, cycle, unknown parameter, …) |
+| `TRBC-GRAPH-110` | An absorbed graph edge had no endpoints; the edge was skipped |
+| `TRBC-RT-001` | Sink 0 refused `master_volume` — the master level is not reaching the output |
+| `TRBC-RT-002` | The audio render thread could not be spawned |
+| `TRBC-INST-001` | A built-in voice graph failed to compute; the voice plays silence |
+
+The audio path never panics on these: it degrades (silence, a skipped edge, a
+held level) and logs the code once. Debug builds additionally trip a
+`debug_assert` where the condition indicates a wiring bug.
+
 ## Development
 
 `treble-meta` and `treble-derive` are separate repositories, pinned in
