@@ -48,6 +48,67 @@ mod amplifier_tests {
 }
 
 #[cfg(test)]
+mod resonant_bandpass_tests {
+    use super::*;
+    use treble::core::filters::prelude::ResonantBandpassFilter;
+
+    /// RMS gain of the filter for a sine at `freq`, transient skipped.
+    fn sine_gain(filter: &mut ResonantBandpassFilter, freq: f32, sample_rate: f32) -> f32 {
+        let n = sample_rate as usize;
+        let input: Arc<Block> = Arc::new(
+            (0..n)
+                .map(|i| {
+                    let s = (std::f32::consts::TAU * freq * i as f32 / sample_rate).sin();
+                    [s; CHANNELS]
+                })
+                .collect(),
+        );
+        filter.push(input, 0);
+        let out = &filter.transform()[0];
+        let rms = |frames: &[[f32; CHANNELS]]| {
+            (frames.iter().map(|f| f[0] * f[0]).sum::<f32>() / frames.len() as f32).sqrt()
+        };
+        // Skip the first half: the resonator's ring-in, and the input's own
+        // RMS over the same window for a fair ratio.
+        rms(&out[n / 2..]) / (0.5f32).sqrt()
+    }
+
+    /// The design normalizes the peak: a tone at the center frequency must
+    /// come out at unity, not merely "the loudest". This is the regression
+    /// test for the transposed-form state update feeding b2 a sample early,
+    /// which cost ~6 dB at the center and muffled everything else.
+    #[test]
+    fn test_unity_gain_at_the_center_frequency() {
+        for quality in [1.0, 8.0, 30.0] {
+            let mut f = ResonantBandpassFilter::new(1000.0, quality, 44100.0);
+            let gain = sine_gain(&mut f, 1000.0, 44100.0);
+            assert!(
+                (gain - 1.0).abs() < 0.05,
+                "Q={quality}: center-frequency gain {gain}, expected ~1.0"
+            );
+        }
+    }
+
+    /// Off-center content falls away — that is what makes it a bandpass —
+    /// and more steeply at higher quality.
+    #[test]
+    fn test_off_center_tones_attenuate_with_quality() {
+        let mut broad = ResonantBandpassFilter::new(1000.0, 1.0, 44100.0);
+        let mut narrow = ResonantBandpassFilter::new(1000.0, 8.0, 44100.0);
+        let at_broad = sine_gain(&mut broad, 250.0, 44100.0);
+        let at_narrow = sine_gain(&mut narrow, 250.0, 44100.0);
+        assert!(
+            at_broad < 0.7,
+            "a tone two octaves out should attenuate: {at_broad}"
+        );
+        assert!(
+            at_narrow < at_broad,
+            "higher Q must cut off-center harder: Q8 {at_narrow} vs Q1 {at_broad}"
+        );
+    }
+}
+
+#[cfg(test)]
 mod clipper_tests {
     use super::*;
     use treble::core::filters::prelude::Clipper;
