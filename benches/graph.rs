@@ -309,6 +309,15 @@ fn bench_shaping_filters(c: &mut Criterion) {
         })
     });
 
+    // Four combs, each with a one-pole in its feedback path.
+    let mut reverb = ReverbFilter::default();
+    c.bench_function("reverb_filter", |b| {
+        b.iter(|| {
+            reverb.push(Arc::clone(&block), 0);
+            black_box(reverb.transform())
+        })
+    });
+
     // A drive change recalibrates the output trim. Automation can do that
     // every block, so the recalibration must not dominate the block.
     let mut swept = Saturation::default();
