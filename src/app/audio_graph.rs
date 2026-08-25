@@ -362,6 +362,29 @@ mod tests {
 
     const BLOCK: usize = 512;
 
+    /// The render thread syncs master_volume to sink 0 every block, and it
+    /// must degrade rather than die on a system with no sink yet. These two
+    /// pin both halves of that contract (the TRBC-RT-001 regression).
+    #[test]
+    fn a_silent_system_refuses_master_volume_with_a_coded_error() {
+        let error = System::silent()
+            .set_sink_parameter(0, "master_volume", 0.5)
+            .expect_err("a silent system has no sink");
+        assert_eq!(error.code(), "TRBC-GRAPH-101");
+        assert!(error.to_string().contains("TRBC-GRAPH-101"), "{error}");
+    }
+
+    #[test]
+    fn the_compiled_graphs_sink_zero_accepts_master_volume() {
+        let registry = InstrumentRegistry::built_in();
+        let mut graph = AudioGraph::new();
+        graph
+            .add_spec(registry.get("kick").expect("built-in").clone())
+            .expect("kick compiles");
+        let mut system = graph.compile(44_100.0).expect("graph compiles");
+        assert!(system.set_sink_parameter(0, "master_volume", 0.5).is_ok());
+    }
+
     /// A gain stage, the cheapest filter whose parameter is audible.
     fn gain(factor: f32) -> FxSpec {
         FxSpec {

@@ -427,7 +427,12 @@ impl App {
             audio_queue.clone(),
             config.clone(),
             event_tx.clone(),
-        );
+        )
+        .map_err(|error| {
+            AudioError::StreamError(format!(
+                "TRBC-RT-002: could not spawn the audio render thread: {error}"
+            ))
+        })?;
 
         event_tx.send(BackendEvent::Status(StatusEvent::AudioStarted {
             sample_rate: stream_info.sample_rate,
