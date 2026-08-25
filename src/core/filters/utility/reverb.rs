@@ -27,6 +27,13 @@ const DEFAULT_DECAY: f32 = 0.655;
 /// no longer sounds like a room.
 const MAX_DECAY: f32 = 0.95;
 
+/// Highest damping coefficient the parameter permits.
+///
+/// The one-pole is stable for anything below 1.0, but past this the corner
+/// falls low enough that the tail is a thud with no room in it — at 44.1 kHz,
+/// 0.95 puts it near 350 Hz.
+const MAX_DAMPING: f32 = 0.95;
+
 /// Compact Schroeder-style ambience built from four parallel feedback combs.
 ///
 /// `amount` is the wet/dry mix. `size` scales the comb lengths, `decay` sets
@@ -151,7 +158,7 @@ impl Filter for ReverbFilter {
         self.ensure_buffers();
         let amount = self.amount.clamp(0.0, 1.0);
         let feedback = self.decay.clamp(0.0, MAX_DECAY);
-        let damping = self.damping.clamp(0.0, MAX_DECAY);
+        let damping = self.damping.clamp(0.0, MAX_DAMPING);
         let combs = Self::COMBS as f32;
 
         let source = std::mem::take(&mut self.source);
