@@ -1,0 +1,14 @@
+{
+  "simple_graph": {
+    "max_pct": 70,
+    "reason": "two of its four nodes are low-pass filters, and those went from one-pole to a 2-pole resonant SVF; measured +57% locally against main"
+  },
+  "complex_graph": {
+    "max_pct": 55,
+    "reason": "five low-pass nodes, same SVF re-baseline; measured +38% locally against main"
+  },
+  "session_6_instruments": {
+    "max_pct": 45,
+    "reason": "resonant filters plus a damped reverb across six instruments; measured +29% locally (10.78 -> 13.87 ms per ~3 s of audio, 0.46% of one core)"
+  }
+}

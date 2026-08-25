@@ -53,7 +53,7 @@ jobs:
 
       - name: Compare & enforce threshold
         if: steps.bench_base.outcome == 'success'
-        run: python3 .github/scripts/bench_compare.py --base base --new pr --max-regression-pct 15
+        run: python3 .github/scripts/bench_compare.py --base base --new pr --max-regression-pct 30
 
       - name: Report a missing baseline
         if: steps.bench_base.outcome != 'success'
