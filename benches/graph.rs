@@ -281,10 +281,11 @@ fn bench_filter_parallelism(c: &mut Criterion) {
     });
 }
 
-/// Per-block cost of the shaping filters, against the Gain benches above as
-/// the floor. These do real per-sample-per-channel work — `Chorus` two `sin`
-/// and two interpolated ring reads — so this is where a claim that they are
-/// affordable has to be checked rather than assumed.
+/// Per-block cost of the two modulated/nonlinear filters, against the Gain
+/// benches above as the floor. Both do real per-sample-per-channel work —
+/// `Chorus` two `sin` and two interpolated ring reads, `Saturation` two `tanh`
+/// — so this is where a claim that they are affordable has to be checked
+/// rather than assumed.
 fn bench_shaping_filters(c: &mut Criterion) {
     use std::sync::Arc;
     use treble::core::Block;
@@ -297,6 +298,27 @@ fn bench_shaping_filters(c: &mut Criterion) {
         b.iter(|| {
             chorus.push(Arc::clone(&block), 0);
             black_box(chorus.transform())
+        })
+    });
+
+    let mut saturation = Saturation::default();
+    c.bench_function("saturation_filter", |b| {
+        b.iter(|| {
+            saturation.push(Arc::clone(&block), 0);
+            black_box(saturation.transform())
+        })
+    });
+
+    // A drive change recalibrates the output trim. Automation can do that
+    // every block, so the recalibration must not dominate the block.
+    let mut swept = Saturation::default();
+    c.bench_function("saturation_filter_swept_drive", |b| {
+        let mut drive = 1.0f32;
+        b.iter(|| {
+            drive = if drive > 30.0 { 1.0 } else { drive + 0.5 };
+            treble_meta::MetaFilter::set_parameter(&mut swept, "drive", drive);
+            swept.push(Arc::clone(&block), 0);
+            black_box(swept.transform())
         })
     });
 }
