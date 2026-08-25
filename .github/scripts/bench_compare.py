@@ -7,7 +7,13 @@ regression.
 
 A regression needs two things to be true, not one: the mean must be more than
 --max-regression-pct slower, **and** the two confidence intervals must not
-overlap. A percentage alone cannot distinguish a real slowdown from runner
+overlap.
+
+The default threshold is 30% because this harness cannot resolve less. The same
+`main` commit, benched as the base in two different runs, measured 77.67 ms and
+62.26 ms for `complex_graph` — a 20% swing on identical code, above the old 15%
+threshold. Base and PR are measured in one job so intra-run comparison is
+tighter than that, but not by enough to justify a tighter number. A percentage alone cannot distinguish a real slowdown from runner
 jitter, and jitter is worst in relative terms exactly where it matters least —
 the nanosecond-scale microbenchmarks. A 100 ns bench swinging 20% on a shared
 runner failed this gate while every macro benchmark sat inside 3%, which is
@@ -51,14 +57,25 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", required=True, help="baseline name for the base commit")
     ap.add_argument("--new", required=True, help="baseline name for the PR commit")
-    ap.add_argument("--max-regression-pct", type=float, default=15.0)
+    ap.add_argument("--max-regression-pct", type=float, default=30.0)
+    ap.add_argument(
+        "--waivers",
+        default=".github/bench-waivers.json",
+        help="per-benchmark ceilings for deliberate re-baselines",
+    )
     args = ap.parse_args()
 
     if not CRITERION_DIR.is_dir():
         print(f"error: {CRITERION_DIR} not found — did the benches run?", file=sys.stderr)
         return 2
 
-    rows, failures, missing, noisy = [], [], [], []
+    waivers = {}
+    waiver_file = Path(args.waivers)
+    if waiver_file.is_file():
+        with open(waiver_file) as fh:
+            waivers = json.load(fh)
+
+    rows, failures, missing, noisy, waived = [], [], [], [], []
     for bench_dir in sorted(CRITERION_DIR.iterdir()):
         if not bench_dir.is_dir() or bench_dir.name == "report":
             continue
@@ -70,7 +87,12 @@ def main() -> int:
         base, _, base_high = base_est
         new, new_low, _ = new_est
         delta_pct = (new - base) / base * 100.0
-        over_threshold = delta_pct > args.max_regression_pct
+        # A waiver raises the ceiling for one named benchmark and no other, so a
+        # deliberate re-baseline passes while a later surprise on the same
+        # benchmark still fails.
+        waiver = waivers.get(bench_dir.name)
+        ceiling = float(waiver["max_pct"]) if waiver else args.max_regression_pct
+        over_threshold = delta_pct > ceiling
         # Disjoint intervals: the PR's best case is still worse than the base's
         # worst case. Overlapping intervals mean the run cannot tell them apart.
         separated = new_low > base_high
@@ -79,7 +101,13 @@ def main() -> int:
             failures.append(bench_dir.name)
         elif over_threshold:
             noisy.append(f"{bench_dir.name} ({delta_pct:+.1f}%, intervals overlap)")
-        icon = "❌" if regressed else ("🟡" if delta_pct > 0 else "✅")
+        elif waiver and delta_pct > args.max_regression_pct:
+            waived.append(f"{bench_dir.name} ≤{waiver['max_pct']}%: {waiver['reason']}")
+        icon = (
+            "❌"
+            if regressed
+            else ("🟠" if waiver and delta_pct > args.max_regression_pct else "🟡" if delta_pct > 0 else "✅")
+        )
         rows.append(f"| `{bench_dir.name}` | {fmt_ns(base)} | {fmt_ns(new)} | {delta_pct:+.1f}% | {icon} |")
 
     if not rows:
@@ -108,6 +136,8 @@ def main() -> int:
             "of that lands on the nanosecond-scale benches.</sub>",
         ]
     )
+    if waived:
+        report += "\n\n<sub>🟠 waived by `.github/bench-waivers.json`: " + "; ".join(waived) + "</sub>"
     if noisy:
         report += (
             "\n\n<sub>ℹ over the threshold but not separable from noise, so not "
