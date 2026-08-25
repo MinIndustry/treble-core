@@ -281,11 +281,32 @@ fn bench_filter_parallelism(c: &mut Criterion) {
     });
 }
 
+/// Per-block cost of the shaping filters, against the Gain benches above as
+/// the floor. These do real per-sample-per-channel work — `Chorus` two `sin`
+/// and two interpolated ring reads — so this is where a claim that they are
+/// affordable has to be checked rather than assumed.
+fn bench_shaping_filters(c: &mut Criterion) {
+    use std::sync::Arc;
+    use treble::core::Block;
+    use treble::core::graph::{Entry, Filter};
+
+    let block: Arc<Block> = Arc::new(vec![[0.25f32, -0.25f32]; BLOCK_SIZE]);
+
+    let mut chorus = Chorus::default();
+    c.bench_function("chorus_filter", |b| {
+        b.iter(|| {
+            chorus.push(Arc::clone(&block), 0);
+            black_box(chorus.transform())
+        })
+    });
+}
+
 criterion_group!(
     benches,
     bench_simple_graph,
     bench_complex_graph,
     bench_session,
-    bench_filter_parallelism
+    bench_filter_parallelism,
+    bench_shaping_filters
 );
 criterion_main!(benches);
