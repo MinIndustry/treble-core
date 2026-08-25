@@ -120,9 +120,15 @@ impl Filter for ResonantBandpassFilter {
             .map(|frame| {
                 std::array::from_fn(|ch| {
                     let input = frame[ch] as f64;
+                    // Direct form 2 transposed. The b taps must land in their
+                    // own stages: b2 fed into the first stage arrives a sample
+                    // early, which moves the numerator zeros and costs ~6 dB
+                    // at the very center frequency the filter should pass at
+                    // unity. b1 is zero for this design, so the first stage
+                    // carries no input term.
                     let out = self.b[0] * input + self.zs[ch][0];
-                    self.zs[ch][0] = self.b[2] * input - self.a[1] * out + self.zs[ch][1];
-                    self.zs[ch][1] = -self.a[2] * out;
+                    self.zs[ch][0] = -self.a[1] * out + self.zs[ch][1];
+                    self.zs[ch][1] = self.b[2] * input - self.a[2] * out;
                     out as f32
                 })
             })
