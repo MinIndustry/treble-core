@@ -144,18 +144,23 @@ impl Instrument for HiHat {
         system.connect_source(source_id, bandpass, 0);
         let sink_id = system.add_sink(Box::from(SimpleSink::new()));
         system.connect_sink(bandpass, sink_id, 0);
-        system.compute().expect("HiHat system compute failed");
+        if let Err(error) = system.compute() {
+            // A built-in voice graph is acyclic by construction; if it ever
+            // fails to compute, a silent voice beats a dead engine.
+            log::error!(
+                "TRBC-INST-001: the hihat voice graph failed to compute ({error}); this voice will be silent"
+            );
+        }
         system
     }
 
     fn get_output(&mut self) -> f32 {
-        self.graph
-            .get_sink(0)
-            .unwrap()
-            .consume()
-            .first()
-            .map(|frame| frame[0])
-            .unwrap_or(0.0)
+        // The baked voice graph always has its sink; silence, not a panic on
+        // the audio thread, is the right degradation if it ever does not.
+        let Ok(sink) = self.graph.get_sink(0) else {
+            return 0.0;
+        };
+        sink.consume().first().map(|frame| frame[0]).unwrap_or(0.0)
     }
 
     fn tick(&mut self) {

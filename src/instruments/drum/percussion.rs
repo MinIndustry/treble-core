@@ -216,6 +216,12 @@ fn percussive_system(generator: MultiToneGenerator, sample_rate: f32, gain: f32)
     system.connect_source(source_idx, gain_idx, 0);
     let sink_idx = system.add_sink(Box::new(SimpleSink::new()));
     system.connect_sink(gain_idx, sink_idx, 0);
-    system.compute().expect("percussive system compute failed");
+    if let Err(error) = system.compute() {
+        // A built-in voice graph is acyclic by construction; if it ever
+        // fails to compute, a silent voice beats a dead engine.
+        log::error!(
+            "TRBC-INST-001: the percussion voice graph failed to compute ({error}); this voice will be silent"
+        );
+    }
     system
 }

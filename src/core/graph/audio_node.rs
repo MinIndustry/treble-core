@@ -87,10 +87,14 @@ impl std::fmt::Debug for AudioNode {
 }
 
 /// Reduce a collection of blocks arriving at the same port using the given mix strategy.
-fn mix_blocks(blocks: Vec<Arc<Block>>, mode: &MixMode, block_size: usize) -> Arc<Block> {
+fn mix_blocks(mut blocks: Vec<Arc<Block>>, mode: &MixMode, block_size: usize) -> Arc<Block> {
     match blocks.len() {
         0 => Arc::new(silent_block(block_size)),
-        1 => blocks.into_iter().next().unwrap(),
+        // pop() on a length-1 vec always succeeds; the fallback keeps this
+        // audio-path helper panic-free by construction.
+        1 => blocks
+            .pop()
+            .unwrap_or_else(|| Arc::new(silent_block(block_size))),
         _ => {
             let count = blocks.len();
             match mode {

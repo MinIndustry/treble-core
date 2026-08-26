@@ -117,11 +117,10 @@ impl EventScheduler {
         if matches!(
             self.heap.peek().map(|entry| &entry.action),
             Some(ScheduledAction::Instrument(_))
-        ) {
-            let entry = self.heap.pop().expect("peeked scheduler entry must exist");
-            if let ScheduledAction::Instrument(command) = entry.action {
-                return Some(command);
-            }
+        ) && let Some(entry) = self.heap.pop()
+            && let ScheduledAction::Instrument(command) = entry.action
+        {
+            return Some(command);
         }
         None
     }
@@ -130,12 +129,9 @@ impl EventScheduler {
         self.heap
             .peek()
             .is_some_and(|entry| entry.at_frame <= frame)
-            .then(|| {
-                self.heap
-                    .pop()
-                    .expect("peeked scheduler entry must exist")
-                    .action
-            })
+            .then(|| self.heap.pop())
+            .flatten()
+            .map(|entry| entry.action)
     }
 
     pub fn len(&self) -> usize {

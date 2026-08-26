@@ -32,7 +32,7 @@ pub(crate) fn spawn_audio_render_thread(
     audio_queue: Arc<ArrayQueue<f32>>,
     config: AudioConfig,
     event_tx: EventSender,
-) -> JoinHandle<()> {
+) -> std::io::Result<JoinHandle<()>> {
     thread::Builder::new()
         .name("audio-render".to_string())
         .spawn(move || {
@@ -63,7 +63,6 @@ pub(crate) fn spawn_audio_render_thread(
 
             log::info!("Audio render thread shut down");
         })
-        .expect("Failed to spawn audio render thread")
 }
 
 fn render_loop(
@@ -93,6 +92,8 @@ fn render_loop(
     let mut block_count: u64 = 0;
     let mut scheduler = EventScheduler::new();
     let mut current_frame: u64 = 0;
+    // Edge-triggered so TRBC-RT-001 logs once per failure, not per block.
+    let mut volume_sync_failed = false;
 
     while !shared_state.shutdown.load(Ordering::Relaxed) {
         // Process all pending control messages
@@ -117,15 +118,33 @@ fn render_loop(
         // Sync master volume to the sink each block (cheap atomic read).
         // The sink applies it before limiting, so the limiter always acts as
         // a hard ceiling regardless of the volume setting.
-        debug_assert!(
-            system
+        //
+        // The set must happen outside any debug_assert — a side effect inside
+        // one vanishes from release builds, taking the volume control with
+        // it. A silent system has no sink yet and nothing to apply the volume
+        // to (the next compiled graph picks it up), but a *present* sink 0
+        // refusing the parameter is a wiring bug: log it once (this runs per
+        // block) and trip debug builds.
+        if system.sinks_len() > 0
+            && system
                 .set_sink_parameter(
                     0,
                     "master_volume",
                     shared_state.master_volume.load(Ordering::Relaxed),
                 )
-                .is_ok()
-        );
+                .is_err()
+        {
+            if !volume_sync_failed {
+                volume_sync_failed = true;
+                log::error!(
+                    "TRBC-RT-001: sink 0 refused master_volume — the master level control \
+                     is not reaching the audio output"
+                );
+            }
+            debug_assert!(false, "TRBC-RT-001: sink 0 refused master_volume");
+        } else {
+            volume_sync_failed = false;
+        }
 
         // Run the graph for one block, splitting at scheduled note events so
         // each event lands on exactly its frame. Master volume + limiting are
