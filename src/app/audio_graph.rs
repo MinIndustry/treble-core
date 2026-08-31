@@ -560,17 +560,25 @@ mod tests {
 
     #[test]
     fn a_sweep_on_an_instrument_fx_addresses_the_spec_chain() {
+        // The appended gain sits after whatever the instrument already carries,
+        // which is the whole point of the index: naming a raw chain position
+        // would sweep the kick's own filter instead. Read the offset from the
+        // spec rather than hard-coding it, so shaping an instrument's voice
+        // cannot silently re-point this sweep.
+        let own_fx = InstrumentRegistry::built_in()
+            .get("kick")
+            .expect("built-in")
+            .fx
+            .len();
         let closing = AutomationSpec {
             target: AutomationTarget::InstrumentFx {
                 slot: 0,
-                // The kick spec has no fx of its own, so the appended gain is
-                // the last entry of the chain.
-                fx_index: 0,
+                fx_index: own_fx,
             },
             ramp: ramp(1.0, 0.0, BLOCK as u64),
         };
         let (graph, mut swept) = struck_kick(vec![gain(1.0)], Vec::new(), vec![closing]);
-        assert!(graph.instrument_fx_map.contains_key(&(0, 0)));
+        assert!(graph.instrument_fx_map.contains_key(&(0, own_fx)));
         assert_eq!(swept.automations().len(), 1);
 
         let faded = swept_master_energy(&mut swept, 8);
