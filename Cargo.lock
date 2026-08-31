@@ -1665,7 +1665,7 @@ checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
 
 [[package]]
 name = "treble"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "atomic_float",
  "chrono",
@@ -1695,6 +1695,7 @@ dependencies = [
 [[package]]
 name = "treble-derive"
 version = "0.2.0"
+source = "git+https://github.com/MinIndustry/treble-derive.git?tag=0.2.0#c99839c3e84f0eeeba08aea503a62d08a284c4fb"
 dependencies = [
  "convert_case",
  "proc-macro2",
@@ -1706,6 +1707,7 @@ dependencies = [
 [[package]]
 name = "treble-meta"
 version = "0.2.0"
+source = "git+https://github.com/MinIndustry/treble-meta.git?tag=0.2.0#22c3f4933d24eaa814ee72c0e03045ed6dfcfce7"
 dependencies = [
  "proc-macro2",
  "quote",
