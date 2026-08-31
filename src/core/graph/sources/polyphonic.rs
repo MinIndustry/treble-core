@@ -159,9 +159,12 @@ impl Source for PolyphonicSource {
         let gen_index = if let Some(free) = self.find_free_slot() {
             free
         } else if self.generators.len() < self.max_voices {
-            // Grow the pool up to max_voices
-            self.generators
-                .push((self.generator_template.clone(), false, false, None));
+            // Grow the pool up to max_voices. The new voice is told which one
+            // it is, so its noise decorrelates from its siblings' without
+            // depending on how many generators the process built before it.
+            let mut voice = self.generator_template.clone();
+            voice.set_voice(self.generators.len() as u64);
+            self.generators.push((voice, false, false, None));
             self.generators.len() - 1
         } else {
             // Pool is full — apply replacement strategy

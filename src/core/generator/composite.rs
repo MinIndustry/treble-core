@@ -22,6 +22,16 @@ pub struct MultiToneGenerator {
 }
 
 impl MultiToneGenerator {
+    /// Point every tone at voice `voice`'s noise stream.
+    ///
+    /// A polyphonic pool calls this when it grows, so sibling voices get
+    /// uncorrelated noise deterministically rather than from a global counter.
+    pub fn set_voice(&mut self, voice: u64) {
+        for tone in &mut self.tone_generators {
+            tone.set_voice(voice);
+        }
+    }
+
     pub fn new(
         base_frequency: f32,
         mut tone_generators: Vec<SingleToneGenerator>,
