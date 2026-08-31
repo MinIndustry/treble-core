@@ -12,7 +12,7 @@ use petgraph::graph::NodeIndex;
 use super::config::AudioConfig;
 use super::events::{AudioEvent, BackendEvent, ErrorEvent, EventCategory, EventSender};
 use super::messages::{AudioMessage, GraphAudioMessage};
-use super::resampler::LinearResampler;
+use super::resampler::OutputResampler;
 use super::scheduler::{EventScheduler, apply_instrument_message, render_block};
 use super::shared_state::SharedAudioState;
 use crate::core::graph::System;
@@ -77,7 +77,7 @@ fn render_loop(
         Vec::with_capacity(config.render_chunk_size * crate::core::audio::CHANNELS);
     let engine_sample_rate = shared_state.engine_sample_rate.load(Ordering::Relaxed);
     let output_sample_rate = shared_state.sample_rate.load(Ordering::Relaxed);
-    let mut resampler = LinearResampler::new(engine_sample_rate, output_sample_rate);
+    let mut resampler = OutputResampler::new(engine_sample_rate, output_sample_rate);
     let mut output_buffer = Vec::with_capacity(
         ((config.render_chunk_size as f64 * output_sample_rate as f64
             / engine_sample_rate.max(1) as f64)
