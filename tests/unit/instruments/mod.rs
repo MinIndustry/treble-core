@@ -2,6 +2,8 @@
 //! Tests for instrument implementations including drums and keyboards
 
 pub mod drum;
+#[cfg(test)]
+pub mod headroom;
 pub mod keyboard;
 #[cfg(test)]
 pub mod registry;

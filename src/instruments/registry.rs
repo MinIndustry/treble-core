@@ -179,8 +179,18 @@ fn kick() -> InstrumentSpec {
             },
         }),
         base_frequency: Some(58.0),
-        fx: vec![],
-        gain: 1.0,
+        // The beater transient is white noise, which is flat to Nyquist until
+        // something shapes it. A kick has no content up there: unshaped it
+        // reads as a click of hiss, and it is exactly the band an output
+        // resampler folds back on itself.
+        fx: vec![FxSpec {
+            type_id: "LowPassFilter".into(),
+            params: HashMap::from([
+                ("cutoff_frequency".into(), 3_200.0),
+                ("resonance".into(), 0.2),
+            ]),
+        }],
+        gain: 0.246,
         velocity_sensitivity: 1.0,
         mods: vec![],
     }
@@ -237,8 +247,23 @@ fn snare() -> InstrumentSpec {
             },
         }),
         base_frequency: Some(155.0),
-        fx: vec![],
-        gain: 1.0,
+        fx: vec![
+            FxSpec {
+                type_id: "HighPassFilter".into(),
+                params: HashMap::from([
+                    ("cutoff_frequency".into(), 180.0),
+                    ("resonance".into(), 0.2),
+                ]),
+            },
+            FxSpec {
+                type_id: "LowPassFilter".into(),
+                params: HashMap::from([
+                    ("cutoff_frequency".into(), 9_500.0),
+                    ("resonance".into(), 0.2),
+                ]),
+            },
+        ],
+        gain: 0.511,
         velocity_sensitivity: 1.0,
         mods: vec![],
     }
@@ -306,8 +331,18 @@ fn hihat() -> InstrumentSpec {
                     ("quality".into(), 0.55),
                 ]),
             },
+            // A two-pole band-pass at Q 0.55 sheds only about 6 dB per octave,
+            // which left the top two octaves within a few dB of the peak band.
+            // The low-pass is what actually stops the hiss above the hat.
+            FxSpec {
+                type_id: "LowPassFilter".into(),
+                params: HashMap::from([
+                    ("cutoff_frequency".into(), 13_000.0),
+                    ("resonance".into(), 0.2),
+                ]),
+            },
         ],
-        gain: 0.72,
+        gain: 0.417,
         velocity_sensitivity: 1.0,
         mods: vec![],
     }
@@ -347,8 +382,25 @@ fn clap() -> InstrumentSpec {
         pitch_envelope: None,
         amplitude_envelope: None,
         base_frequency: None,
-        fx: vec![],
-        gain: 0.9,
+        // A clap is a burst of hands, not of hiss: band-limited the way the
+        // room and the hands themselves limit it.
+        fx: vec![
+            FxSpec {
+                type_id: "HighPassFilter".into(),
+                params: HashMap::from([
+                    ("cutoff_frequency".into(), 600.0),
+                    ("resonance".into(), 0.2),
+                ]),
+            },
+            FxSpec {
+                type_id: "LowPassFilter".into(),
+                params: HashMap::from([
+                    ("cutoff_frequency".into(), 7_500.0),
+                    ("resonance".into(), 0.2),
+                ]),
+            },
+        ],
+        gain: 0.353,
         velocity_sensitivity: 1.0,
         mods: vec![],
     }
@@ -389,7 +441,7 @@ fn rim() -> InstrumentSpec {
         }),
         base_frequency: Some(800.0),
         fx: vec![],
-        gain: 0.85,
+        gain: 0.251,
         velocity_sensitivity: 1.0,
         mods: vec![],
     }
@@ -435,7 +487,7 @@ fn tom() -> InstrumentSpec {
         }),
         base_frequency: Some(120.0),
         fx: vec![],
-        gain: 0.95,
+        gain: 0.252,
         velocity_sensitivity: 1.0,
         mods: vec![],
     }
@@ -453,14 +505,21 @@ type SynthPreset = (
 );
 
 const SYNTH_PRESETS: [SynthPreset; 9] = [
-    ("sine", Waveform::Sine, 8, (0.01, 0.1, 0.8, 0.2), None, 0.8),
+    (
+        "sine",
+        Waveform::Sine,
+        8,
+        (0.01, 0.1, 0.8, 0.2),
+        None,
+        0.251,
+    ),
     (
         "saw",
         Waveform::Sawtooth,
         8,
         (0.02, 0.15, 0.6, 0.15),
         Some(4000.0),
-        0.7,
+        0.242,
     ),
     (
         "square",
@@ -468,7 +527,7 @@ const SYNTH_PRESETS: [SynthPreset; 9] = [
         8,
         (0.01, 0.1, 0.5, 0.1),
         Some(3000.0),
-        0.6,
+        0.231,
     ),
     (
         "triangle",
@@ -476,7 +535,7 @@ const SYNTH_PRESETS: [SynthPreset; 9] = [
         8,
         (0.02, 0.2, 0.7, 0.25),
         None,
-        0.75,
+        0.252,
     ),
     (
         "piano",
@@ -484,7 +543,7 @@ const SYNTH_PRESETS: [SynthPreset; 9] = [
         8,
         (0.005, 0.25, 0.4, 0.35),
         Some(6500.0),
-        0.55,
+        0.156,
     ),
     (
         "bass",
@@ -492,7 +551,7 @@ const SYNTH_PRESETS: [SynthPreset; 9] = [
         4,
         (0.005, 0.08, 0.7, 0.1),
         Some(800.0),
-        0.9,
+        0.231,
     ),
     (
         "pad",
@@ -500,7 +559,7 @@ const SYNTH_PRESETS: [SynthPreset; 9] = [
         6,
         (0.4, 0.6, 0.75, 1.2),
         Some(1200.0),
-        0.55,
+        0.27,
     ),
     (
         "pluck",
@@ -508,7 +567,7 @@ const SYNTH_PRESETS: [SynthPreset; 9] = [
         6,
         (0.001, 0.08, 0.05, 0.15),
         Some(5000.0),
-        0.8,
+        0.257,
     ),
     (
         "bell",
@@ -516,7 +575,7 @@ const SYNTH_PRESETS: [SynthPreset; 9] = [
         4,
         (0.001, 0.6, 0.0, 0.8),
         Some(8000.0),
-        0.7,
+        0.25,
     ),
 ];
 

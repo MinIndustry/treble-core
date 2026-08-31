@@ -99,7 +99,11 @@ impl Instrument for Kick {
         );
         let mut system = System::new();
         let source_idx = system.add_source(Box::new(source));
-        let output = system.add_filter(Box::new(GainFilter::new(1.0)));
+        // Gain staging note: the spec in `instruments/registry.rs` is canonical and
+        // this mirrors it. Built-in voices are trimmed so one note at full
+        // velocity peaks near -12 dBFS, leaving room for a mix to sum without
+        // living on the master ceiling.
+        let output = system.add_filter(Box::new(GainFilter::new(0.246)));
         system.connect_source(source_idx, output, 0);
         let sink_idx = system.add_sink(Box::new(SimpleSink::new()));
         system.connect_sink(output, sink_idx, 0);
