@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::core::graph::{Entry, Sink};
+use crate::core::graph::{Entry, Sink, SinkTelemetry};
 use crate::core::{Block, CHANNELS, Frame};
 
 const DEFAULT_LIMITER_THRESHOLD: f32 = 0.95;
@@ -45,6 +45,7 @@ pub struct AudioOutputSink {
     /// no reduction until something asks for it.
     limiter_gain: [f32; CHANNELS],
     sample_rate: f32,
+    telemetry: SinkTelemetry,
 }
 
 impl AudioOutputSink {
@@ -58,6 +59,7 @@ impl AudioOutputSink {
             limiter_envelope: [0.0; CHANNELS],
             limiter_gain: [1.0; CHANNELS],
             sample_rate,
+            telemetry: SinkTelemetry::default(),
         }
     }
 }
@@ -92,43 +94,57 @@ impl Sink for AudioOutputSink {
 
         // iter() not par_iter(): limiter envelope is frame-sequential (each frame
         // depends on the previous frame's envelope value).
-        let output: Block = self
-            .accumulator
-            .iter()
-            .map(|frame| {
-                std::array::from_fn(|ch| {
-                    let sample = frame[ch] * self.master_volume;
-                    let input_abs = sample.abs();
+        let mut output = Block::with_capacity(self.accumulator.len());
+        let mut telemetry = SinkTelemetry::default();
+        let mut minimum_gain = 1.0f32;
+        for frame in &self.accumulator {
+            let rendered = std::array::from_fn(|ch| {
+                let sample = frame[ch] * self.master_volume;
+                let input_abs = sample.abs();
+                telemetry.pre_limiter_peak = telemetry.pre_limiter_peak.max(input_abs);
 
-                    // What this sample needs right now to sit under the ceiling.
-                    let required = if input_abs > self.limiter_threshold {
-                        self.limiter_threshold / input_abs
-                    } else {
-                        1.0
-                    };
+                // What this sample needs right now to sit under the ceiling.
+                let required = if input_abs > self.limiter_threshold {
+                    self.limiter_threshold / input_abs
+                } else {
+                    1.0
+                };
 
-                    // The envelope still tracks the peak, so the release stays
-                    // programme-dependent rather than per-sample twitchy.
-                    self.limiter_envelope[ch] = input_abs
-                        .max(release_coeff * (self.limiter_envelope[ch] - input_abs) + input_abs);
+                // The envelope still tracks the peak, so the release stays
+                // programme-dependent rather than per-sample twitchy.
+                self.limiter_envelope[ch] = input_abs
+                    .max(release_coeff * (self.limiter_envelope[ch] - input_abs) + input_abs);
 
-                    // Smooth the reduction going down (attack) and the recovery
-                    // coming back up (release), so a single transient does not
-                    // step the whole mix.
-                    let coeff = if required < self.limiter_gain[ch] {
-                        attack_coeff
-                    } else {
-                        release_coeff
-                    };
-                    self.limiter_gain[ch] = coeff * (self.limiter_gain[ch] - required) + required;
+                // Smooth the reduction going down (attack) and the recovery
+                // coming back up (release), so a single transient does not
+                // step the whole mix.
+                let coeff = if required < self.limiter_gain[ch] {
+                    attack_coeff
+                } else {
+                    release_coeff
+                };
+                self.limiter_gain[ch] = coeff * (self.limiter_gain[ch] - required) + required;
 
-                    // The smoothing may lag; `required` is the hard guarantee.
-                    // Taking the smaller of the two is what makes this a
-                    // ceiling rather than a suggestion.
-                    sample * self.limiter_gain[ch].min(required)
-                })
-            })
-            .collect();
+                // The smoothing may lag; `required` is the hard guarantee.
+                // Taking the smaller of the two is what makes this a
+                // ceiling rather than a suggestion.
+                let applied_gain = self.limiter_gain[ch].min(required);
+                if applied_gain < 1.0 - f32::EPSILON {
+                    telemetry.limited_samples += 1;
+                }
+                minimum_gain = minimum_gain.min(applied_gain);
+                let limited = sample * applied_gain;
+                telemetry.post_limiter_peak = telemetry.post_limiter_peak.max(limited.abs());
+                limited
+            });
+            output.push(rendered);
+        }
+        telemetry.max_gain_reduction_db = if minimum_gain > 0.0 {
+            -20.0 * minimum_gain.log10()
+        } else {
+            f32::INFINITY
+        };
+        self.telemetry = telemetry;
 
         self.accumulator.clear();
         output
@@ -152,6 +168,10 @@ impl Sink for AudioOutputSink {
             _ => return false,
         }
         true
+    }
+
+    fn telemetry(&self) -> Option<SinkTelemetry> {
+        Some(self.telemetry)
     }
 }
 
@@ -241,5 +261,17 @@ mod tests {
             worst <= DEFAULT_LIMITER_THRESHOLD + 1e-6,
             "peaked at {worst}"
         );
+    }
+
+    #[test]
+    fn telemetry_reports_the_signal_before_and_after_limiting() {
+        let mut sink = AudioOutputSink::new(44100.0);
+        let out = feed(&mut sink, &[2.0, 0.25]);
+        let telemetry = sink.telemetry().expect("audio output exposes telemetry");
+
+        assert!((telemetry.pre_limiter_peak - 2.0).abs() < 1e-6);
+        assert!((telemetry.post_limiter_peak - out[0].abs()).abs() < 1e-6);
+        assert!(telemetry.max_gain_reduction_db > 6.0);
+        assert!(telemetry.limited_samples >= CHANNELS);
     }
 }

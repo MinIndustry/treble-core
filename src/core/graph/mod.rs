@@ -27,7 +27,7 @@ pub use error::AudioGraphError;
 pub use entry::Entry;
 pub use filter::Filter;
 pub use note_lifecycle::NoteLifecycleSource;
-pub use sink::Sink;
+pub use sink::{Sink, SinkTelemetry};
 pub use source::Source;
 
 pub use simple_sink::SimpleSink;
@@ -37,4 +37,4 @@ pub use sources::{
 };
 
 /// The system module contains the implementation of the system element.
-pub use system::{ModTarget, ModWire, System};
+pub use system::{ModTarget, ModWire, RunStats, System};

@@ -7,13 +7,13 @@ use std::sync::Arc;
 use petgraph::Graph;
 use petgraph::dot::Dot;
 use petgraph::prelude::NodeIndex;
+use petgraph::visit::EdgeRef;
 use petgraph::{Direction, algo::toposort};
 use treble_meta::MixMode;
 
 use super::audio_node::AudioNode;
 use super::automation::ParameterAutomation;
 use super::{Filter, Sink, Source};
-use crate::core::audio::Block;
 use crate::core::graph::error::AudioGraphError;
 
 /// Target of a modulation wire.
@@ -34,6 +34,17 @@ pub struct ModWire {
     pub target: ModTarget,
     /// The parameter name forwarded to `set_parameter`.
     pub param_name: String,
+}
+
+/// Work performed by the most recent [`System::run_frames`] call.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct RunStats {
+    pub frames: usize,
+    pub active_sources: usize,
+    pub processed_nodes: usize,
+    pub source_routes: usize,
+    pub filter_routes: usize,
+    pub sink_routes: usize,
 }
 
 /// ## A Pipe & Filter system
@@ -64,6 +75,10 @@ pub struct System {
     graph: Graph<AudioNode, (usize, usize)>,
     // Each layer represents filters that can be run concurrently.
     layers: Vec<Vec<usize>>,
+    /// Precomputed filter and sink routes, indexed by the source node index.
+    /// Rebuilt by `compute()` so graph traversal and temporary route vectors
+    /// stay off the audio thread.
+    compiled: Box<CompiledState>,
     // The sources of the system and the filters they are connected to.
     // Each source may fan out to multiple (filter, port) pairs.
     sources: Vec<(Box<dyn Source>, Vec<(NodeIndex<u32>, usize)>)>,
@@ -80,6 +95,31 @@ pub struct System {
     automation: Box<AutomationState>,
     /// Number of frames to produce per `run()` call
     block_size: usize,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct FilterRoute {
+    target: NodeIndex<u32>,
+    output_port: usize,
+    input_port: usize,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SinkRoute {
+    sink: usize,
+    output_port: usize,
+}
+
+#[derive(Debug, Clone, Default)]
+struct NodeDispatch {
+    filters: Vec<FilterRoute>,
+    sinks: Vec<SinkRoute>,
+}
+
+#[derive(Debug, Clone, Default)]
+struct CompiledState {
+    dispatch: Vec<NodeDispatch>,
+    last_run_stats: RunStats,
 }
 
 /// Sweep bookkeeping, boxed: a whole `System` travels by value inside the
@@ -101,6 +141,7 @@ impl Default for System {
         System {
             graph: Graph::new(),
             layers: Vec::new(),
+            compiled: Box::default(),
             sources: Vec::new(),
             sinks: Vec::new(),
             source_sink_wires: Vec::new(),
@@ -141,6 +182,11 @@ impl System {
     /// Returns the current block size.
     pub fn block_size(&self) -> usize {
         self.block_size
+    }
+
+    /// Work counters from the most recent graph run.
+    pub fn last_run_stats(&self) -> RunStats {
+        self.compiled.last_run_stats
     }
 
     // Adds a filter to the system. Further references to this filter should be done using the returned uuid
@@ -411,6 +457,7 @@ impl System {
     #[allow(clippy::result_unit_err)]
     pub fn compute(&mut self) -> Result<(), AudioGraphError> {
         self.layers.clear();
+        self.compiled.dispatch.clear();
 
         // Makes the graph acyclic to be able to create a topology sort
         let acyclic_graph = self.graph.filter_map(
@@ -450,6 +497,35 @@ impl System {
         self.layers = vec![Vec::new(); max_depth + 1];
         for &node in &topo {
             self.layers[depth[&node]].push(node.index());
+        }
+
+        // Compile all static graph and sink routing once. Size by the largest
+        // node index rather than assuming indices are dense after mutations.
+        let dispatch_len = self
+            .graph
+            .node_indices()
+            .map(|node| node.index())
+            .max()
+            .map_or(0, |max_index| max_index + 1);
+        self.compiled
+            .dispatch
+            .resize_with(dispatch_len, NodeDispatch::default);
+        for edge in self.graph.edge_references() {
+            let (output_port, input_port) = *edge.weight();
+            self.compiled.dispatch[edge.source().index()]
+                .filters
+                .push(FilterRoute {
+                    target: edge.target(),
+                    output_port,
+                    input_port,
+                });
+        }
+        for (sink, (sources, _)) in self.sinks.iter().enumerate() {
+            for &(node, output_port) in sources {
+                self.compiled.dispatch[node.index()]
+                    .sinks
+                    .push(SinkRoute { sink, output_port });
+            }
         }
 
         Ok(())
@@ -533,114 +609,79 @@ impl System {
     /// block-size-agnostic so any `frames >= 1` is valid.
     pub fn run_frames(&mut self, frames: usize) {
         let block_size = frames;
+        let mut stats = RunStats {
+            frames,
+            ..RunStats::default()
+        };
 
         // Pull from all sources; push directly to connected AudioNodes (fan-out).
         // Two-step collect releases the borrow on self.sources before we touch self.graph.
-        let source_blocks: Vec<Arc<Block>> = self
-            .sources
-            .iter_mut()
-            .enumerate()
-            .map(|(i, (source, connections))| {
-                let block = source.pull(block_size);
-                log::trace!("[system::run] source[{i}] active={}", source.is_active());
-                (block, connections)
-            })
-            .collect::<Vec<_>>()
-            .into_iter()
-            .map(|(block, connections)| {
-                let block = Arc::from(block);
-                for (desc, port) in connections {
-                    if let Some(node) = self.graph.node_weight_mut(*desc) {
-                        node.push(Arc::clone(&block), *port);
-                    }
+        let mut source_blocks = Vec::with_capacity(self.sources.len());
+        for (i, (source, connections)) in self.sources.iter_mut().enumerate() {
+            let block = Arc::new(source.pull(block_size));
+            log::trace!("[system::run] source[{i}] active={}", source.is_active());
+            stats.active_sources += usize::from(source.is_active());
+            stats.source_routes += connections.len();
+            for &(target, port) in connections.iter() {
+                if let Some(node) = self.graph.node_weight_mut(target) {
+                    node.push(Arc::clone(&block), port);
                 }
-                block
-            })
-            .collect();
+            }
+            source_blocks.push(block);
+        }
 
         // Apply live modulation: drive target parameters from source block means.
-        let mod_actions: Vec<(ModTarget, String, f32)> = self
-            .mod_wires
-            .iter()
-            .filter_map(|wire| {
-                let block = source_blocks.get(wire.from_source)?;
-                let mean = if block.is_empty() {
-                    0.0
-                } else {
-                    block.iter().map(|f| (f[0] + f[1]) * 0.5).sum::<f32>() / block.len() as f32
-                };
-                Some((wire.target.clone(), wire.param_name.clone(), mean))
-            })
-            .collect();
-        for (target, param_name, value) in mod_actions {
-            match target {
+        for wire in &self.mod_wires {
+            let Some(block) = source_blocks.get(wire.from_source) else {
+                continue;
+            };
+            let value = if block.is_empty() {
+                0.0
+            } else {
+                block.iter().map(|f| (f[0] + f[1]) * 0.5).sum::<f32>() / block.len() as f32
+            };
+            match &wire.target {
                 ModTarget::Source(idx) => {
-                    if let Some((src, _)) = self.sources.get_mut(idx) {
-                        debug_assert!(src.set_parameter(&param_name, value));
+                    if let Some((src, _)) = self.sources.get_mut(*idx) {
+                        debug_assert!(src.set_parameter(&wire.param_name, value));
                     }
                 }
                 ModTarget::Filter(node_idx) => {
-                    if let Some(node) = self.graph.node_weight_mut(node_idx) {
-                        debug_assert!(node.filter_mut().set_parameter(&param_name, value));
+                    if let Some(node) = self.graph.node_weight_mut(*node_idx) {
+                        debug_assert!(node.filter_mut().set_parameter(&wire.param_name, value));
                     }
                 }
             }
         }
 
         // Process filters layer by layer.
-        // Hoisted outside the loop so the Vec is allocated once and reused each layer.
-        // TODO: parallelize Phase 1 with rayon::par_iter — requires either adding a
-        //       `Filter: Send` supertrait bound + extract-process-reinsert pattern,
-        //       or an unsafe split-borrow of the petgraph node vec.
-        let mut layer_outputs: Vec<(NodeIndex, Vec<Arc<Block>>)> = Vec::new();
         for layer in self.layers.iter() {
-            // Phase 1: process each node
-            layer_outputs.clear();
             for &f in layer.iter() {
                 let node_idx = NodeIndex::new(f);
                 let outputs = self.graph[node_idx].process(block_size);
-                layer_outputs.push((node_idx, outputs));
-            }
-
-            // Phase 2: distribute outputs to downstream nodes and sinks
-            for (node_idx, outputs) in &layer_outputs {
-                let node_idx = *node_idx;
-                // TODO: precomputed dispatch table — neighbour + edge lookups
-                //       allocate on the hot path; cache Vec<(neighbour, out_port,
-                //       in_port)> per node in compute() and invalidate on mutation.
-                let neighbours: Vec<NodeIndex> = self
-                    .graph
-                    .neighbors_directed(node_idx, Direction::Outgoing)
-                    .collect();
-                for neighbour in neighbours {
-                    let edges: Vec<(usize, usize)> = self
-                        .graph
-                        .edges_connecting(node_idx, neighbour)
-                        .map(|e| *e.weight())
-                        .collect();
-                    for (out_port, in_port) in edges {
-                        // TODO: block pool — Arc::new per output block allocates on
-                        //       the hot path; a fixed-size pool of recycled Blocks
-                        //       would eliminate per-block heap pressure.
-                        if let Some(block) = outputs.get(out_port)
-                            && let Some(node) = self.graph.node_weight_mut(neighbour)
-                        {
-                            node.push(Arc::clone(block), in_port);
-                        }
+                stats.processed_nodes += 1;
+                let Some(dispatch) = self.compiled.dispatch.get(f) else {
+                    continue;
+                };
+                for route in &dispatch.filters {
+                    stats.filter_routes += 1;
+                    if let Some(block) = outputs.get(route.output_port)
+                        && let Some(node) = self.graph.node_weight_mut(route.target)
+                    {
+                        node.push(Arc::clone(block), route.input_port);
                     }
                 }
-
-                for (sources, sink) in &mut self.sinks {
-                    for &(sink_node, sink_port) in sources.iter() {
-                        if sink_node == node_idx
-                            && let Some(block) = outputs.get(sink_port)
-                        {
-                            log::trace!(
-                                "[system::run] sink ← NodeIndex({}) port={sink_port}",
-                                node_idx.index()
-                            );
-                            sink.push(Arc::clone(block), 0);
-                        }
+                for route in &dispatch.sinks {
+                    stats.sink_routes += 1;
+                    if let Some(block) = outputs.get(route.output_port)
+                        && let Some((_, sink)) = self.sinks.get_mut(route.sink)
+                    {
+                        log::trace!(
+                            "[system::run] sink ← NodeIndex({}) port={}",
+                            node_idx.index(),
+                            route.output_port
+                        );
+                        sink.push(Arc::clone(block), 0);
                     }
                 }
             }
@@ -652,8 +693,10 @@ impl System {
                 && let Some((_, sink)) = self.sinks.get_mut(sink_idx)
             {
                 sink.push(Arc::clone(block), 0);
+                stats.sink_routes += 1;
             }
         }
+        self.compiled.last_run_stats = stats;
     }
 
     /// Starts a source by index (note-on)
