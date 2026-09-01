@@ -459,20 +459,21 @@ impl System {
         self.layers.clear();
         self.compiled.dispatch.clear();
 
-        // Makes the graph acyclic to be able to create a topology sort
+        // Makes the graph acyclic to be able to create a topology sort. Only
+        // an edge that actually closes a cycle through a postponable node is
+        // dropped: dropping *every* edge into a postponable filter put it in
+        // layer 0 even when it sat mid-chain, so it ran one run behind its
+        // feeder — and when a run is split at a note event the stale block
+        // has the wrong length, which the sink resize turns into dropped
+        // samples: an audible click on nearly every note boundary.
         let acyclic_graph = self.graph.filter_map(
             |_index, node| Some(node),
             |index, edge| {
-                if self
-                    .graph
-                    .edge_endpoints(index)
-                    .map(|(_, to)| self.graph[to].postponable())
-                    == Some(true)
-                {
-                    None
-                } else {
-                    Some(edge)
-                }
+                let closes_cycle = self.graph.edge_endpoints(index).is_some_and(|(from, to)| {
+                    self.graph[to].postponable()
+                        && petgraph::algo::has_path_connecting(&self.graph, to, from, None)
+                });
+                if closes_cycle { None } else { Some(edge) }
             },
         );
 
