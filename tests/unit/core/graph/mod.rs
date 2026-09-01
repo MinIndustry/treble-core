@@ -59,6 +59,13 @@ mod system_tests {
         let mut system = build_simple_system(2.0, 16);
         system.run();
 
+        let stats = system.last_run_stats();
+        assert_eq!(stats.frames, 16);
+        assert_eq!(stats.processed_nodes, 1);
+        assert_eq!(stats.source_routes, 1);
+        assert_eq!(stats.filter_routes, 0);
+        assert_eq!(stats.sink_routes, 1);
+
         let sink = system.get_sink(0).unwrap();
         let frames = sink.consume();
         assert_eq!(frames.len(), 16, "Should produce exactly block_size frames");
