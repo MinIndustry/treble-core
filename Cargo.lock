@@ -1671,6 +1671,8 @@ dependencies = [
 [[package]]
 name = "treble-derive"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aef642c297c775e655952084901ab703f7f707ae4fad6da59c94cfd3fa87c93f"
 dependencies = [
  "convert_case",
  "proc-macro2",
@@ -1682,6 +1684,8 @@ dependencies = [
 [[package]]
 name = "treble-meta"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9d4c5ae50588a53b88109f9089ac62189c276de46fa35b43fb1b4c7706432f01"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2209,3 +2213,11 @@ name = "zmij"
 version = "1.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8848ee67ecc8aedbaf3e4122217aff892639231befc6a1b58d29fff4c2cabaa"
+
+[[patch.unused]]
+name = "treble-meta"
+version = "0.2.0"
+
+[[patch.unused]]
+name = "treble-derive"
+version = "0.2.0"
