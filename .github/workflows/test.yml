@@ -21,6 +21,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  wasm:
+    name: portable DSP (wasm)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Check without the desktop runtime
+        run: cargo check --target wasm32-unknown-unknown --no-default-features --lib
+
   test:
     name: test
     runs-on: ubuntu-latest
