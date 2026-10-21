@@ -20,6 +20,27 @@ Treble is a frontend-agnostic core library for audio synthesis. It provides comp
 
 ## Architecture
 
+### Portable DSP and native runtime
+
+The default `native` feature includes `App`, CPAL device I/O, render threads,
+configuration files and logging. Existing desktop consumers keep that behavior.
+For a host-owned audio callback, use `treble` with `default-features = false`.
+The `core`, `instruments`, and `meta` modules remain available, including
+oscillators, envelopes, filters and graph processing.
+
+```sh
+cargo check --target wasm32-unknown-unknown --no-default-features --lib
+```
+
+The DSP's `SmallRng` streams are explicitly seeded, so they do not need OS entropy
+or JavaScript randomness. A browser host must provide audio scheduling and output
+(for example an AudioWorklet); disabling the native runtime does not create a
+browser audio backend. Filesystem-based sample loading and graph export still
+require a filesystem and are not browser APIs. Graph filters currently allocate
+blocks, so a strict realtime browser adapter should use preallocated voice pools
+or audit its graph's allocation behavior. Wasm hosts using metadata registration
+should run `__wasm_call_ctors` once after instantiating the module.
+
 ### Thread model
 
 The engine runs three concurrent roles:

@@ -242,3 +242,73 @@ mod system_tests {
         system.stop_source(0);
     }
 }
+
+#[cfg(test)]
+mod postponable_layering_tests {
+    use super::*;
+    use treble::core::filters::prelude::ReverbFilter;
+
+    /// A mid-chain postponable filter runs *after* its feeder in one run.
+    ///
+    /// It did not: every edge into a postponable node was dropped before the
+    /// topological sort, so `source → gain → reverb → sink` put the reverb in
+    /// layer 0, one whole run behind the gain. At a fixed block size that was
+    /// mere latency, but a run split at a note event handed the sink a block
+    /// of the previous run's length — and the resize dropped samples, which
+    /// was an audible click on nearly every note boundary of a rendered piece.
+    #[test]
+    fn a_mid_chain_postponable_filter_is_not_a_run_behind() {
+        let mut system = System::new().with_block_size(16);
+        let gain = system.add_filter(Box::new(GainFilter::new(1.0)));
+        let reverb = system.add_filter(Box::new(ReverbFilter::new(44_100.0, 0.5)));
+        let source = system.add_source(Box::new(ConstantSource { value: 0.5 }));
+        let sink = system.add_sink(Box::new(SimpleSink::new()));
+
+        system.connect_source(source, gain, 0);
+        system.connect(gain, reverb, 0, 0);
+        system.connect_sink(reverb, sink, 0);
+        system.compute().expect("a straight chain must compute");
+
+        // The dry path passes through the reverb immediately, so the very
+        // first run must already carry the signal at full length.
+        system.run_frames(16);
+        let frames = system.get_sink(0).unwrap().consume();
+        assert_eq!(frames.len(), 16, "the first run lost its block");
+        assert!(
+            (frames[0][0] - 0.25).abs() < 1e-5,
+            "expected the dry half of 0.5 on the first sample, got {}",
+            frames[0][0]
+        );
+
+        // Split runs — what note events do to a block — must each produce
+        // exactly their own length, not the previous run's.
+        for split in [7usize, 9, 1, 15] {
+            system.run_frames(split);
+            let frames = system.get_sink(0).unwrap().consume();
+            assert_eq!(
+                frames.len(),
+                split,
+                "a split run came back the wrong length"
+            );
+        }
+    }
+
+    /// A genuine feedback loop through a postponable filter still compiles:
+    /// only the cycle-closing edge is postponed, not every edge into it.
+    #[test]
+    fn a_feedback_loop_through_a_postponable_filter_still_computes() {
+        let mut system = System::new().with_block_size(16);
+        let gain = system.add_filter(Box::new(GainFilter::new(0.5)));
+        let delay = system.add_filter(Box::new(DelayFilter::default()));
+        let source = system.add_source(Box::new(ConstantSource { value: 0.5 }));
+        let sink = system.add_sink(Box::new(SimpleSink::new()));
+
+        system.connect_source(source, gain, 0);
+        system.connect(gain, delay, 0, 0);
+        system.connect(delay, gain, 0, 1);
+        system.connect_sink(gain, sink, 0);
+        system
+            .compute()
+            .expect("a delay-broken cycle must still compute");
+    }
+}

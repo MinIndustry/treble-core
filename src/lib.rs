@@ -49,13 +49,17 @@
 //! Adding instruments at runtime requires a call to [`recompile()`](crate::prelude::App::recompile)
 //!
 //! # Features
+//! - `native` (default): desktop App, audio devices, render threads and file-based setup.
+//!   Disable default features for host-owned DSP, including WebAssembly.
 //! - `plotting`: utilities to render and inspect signal plots
 //! - `ts`: enables transpilation of the metadata structures for generators and filters to
 //!   TypeScript
 
+#[cfg(feature = "native")]
 pub mod app;
 
 /// Audio subsystem with three-thread architecture for real-time safe audio
+#[cfg(feature = "native")]
 pub mod audio;
 
 /// The core module of Treble. Contains the envelopes, filters, generators and the
@@ -72,6 +76,7 @@ pub mod meta;
 /// Main prelude module that exports the most commonly used types from the crate
 pub mod prelude {
     // App exports
+    #[cfg(feature = "native")]
     pub use super::app::{
         self,
         prelude::{App, AppCommand, AudioCommand, Command},
@@ -93,6 +98,7 @@ pub const APP_ID: (&str, &str, &str) = ("treble", "minigrim0", "xyz");
 pub use core::{NOTES, Note};
 
 /// Initialize logging based on configuration
+#[cfg(feature = "native")]
 pub fn init_logging(
     config: &audio::LogConfig,
     config_dir: &std::path::Path,
