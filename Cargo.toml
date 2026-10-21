@@ -1,6 +1,8 @@
 [package]
 name = "treble"
 description = "Treble — modular real-time audio synthesis in Rust"
+license = "MIT"
+repository = "https://github.com/MinIndustry/treble-core"
 version = "0.4.3"
 edition = "2024"
 
@@ -20,8 +22,8 @@ thiserror = "2.0.12"
 toml = { version = "0.8.22", optional = true }
 typetag = "0.2.21"
 inventory = "0.3"
-treble-derive = { git = "https://github.com/MinIndustry/treble-derive.git", tag = "0.2.0" }
-treble-meta = { git = "https://github.com/MinIndustry/treble-meta.git", tag = "0.2.0" }
+treble-derive = "0.2.0"
+treble-meta = "0.2.0"
 evdev = { version = "0.12.2", optional = true }
 plotters = { version = "0.3.7", optional = true }
 hound = "3.5.1"
@@ -36,8 +38,16 @@ name = "graph"
 harness = false
 
 [features]
-native = ["dep:atomic_float", "dep:chrono", "dep:cpal", "dep:crossbeam", "dep:directories", "dep:simplelog", "dep:toml"]
-plotting = ["plotters", ]
+native = [
+    "dep:atomic_float",
+    "dep:chrono",
+    "dep:cpal",
+    "dep:crossbeam",
+    "dep:directories",
+    "dep:simplelog",
+    "dep:toml",
+]
+plotting = ["plotters"]
 ts = ["treble-meta/ts"]
 input = ["evdev"]
 
@@ -51,7 +61,3 @@ windows = []
 
 # Default features
 default = ["native"]
-
-# The committed manifest pins the shared crates by tag so a bare checkout (CI,
-# fresh clone) resolves them from GitHub. Sibling-checkout redirection lives in
-# the git-ignored `.cargo/config.toml` — copy `.cargo/config.toml.example`.
