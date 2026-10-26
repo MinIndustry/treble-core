@@ -332,8 +332,8 @@ mod determinism_tests {
     /// used as radians — one sixth of the cycle instead of all of it.
     #[test]
     fn the_phase_covers_the_whole_cycle_in_radians() {
-        let mut lowest = f32::MAX;
-        let mut highest = f32::MIN;
+        let mut lowest = std::primitive::f32::MAX;
+        let mut highest = std::primitive::f32::MIN;
         for step in 0..2000 {
             let phase = spread_phase(40.0 + step as f32 * 3.7, &Waveform::Sine);
             assert!(
