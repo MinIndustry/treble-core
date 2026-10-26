@@ -73,6 +73,9 @@ pub mod instruments;
 /// It allows to store and retrieve metadata about filters
 pub mod meta;
 
+/// Versioned rack documents compiled into the existing audio graph.
+pub mod patch;
+
 /// Main prelude module that exports the most commonly used types from the crate
 pub mod prelude {
     // App exports
