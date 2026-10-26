@@ -3,6 +3,8 @@
 //! All modules render through [`crate::core::graph::System`]. Metadata is an
 //! executable contract: unsupported capabilities are rejected during preparation.
 mod compile;
+mod document;
+pub use document::{DocumentError, parse_document, serialize_document};
 mod modules;
 mod session;
 pub use compile::PreparedPatch;

@@ -340,6 +340,34 @@ fn document_roundtrip_compiles_and_renders_real_stereo_audio() {
 }
 
 #[test]
+fn saving_an_incomplete_or_unavailable_instrument_is_independent_of_playback() {
+    use treble::patch::{parse_document, serialize_document};
+    let mut doc = document();
+    doc.instrument.patch.modules[0].type_id = "plugin.not_installed".into();
+    doc.instrument.patch.cables.clear();
+    let saved = serialize_document(&doc).unwrap();
+    assert_eq!(parse_document(&saved).unwrap(), doc);
+    assert!(
+        ModuleRegistry::builtins()
+            .prepare(&doc, 48000.0, 128)
+            .is_err()
+    );
+    doc.format_version = 999;
+    assert!(
+        serialize_document(&doc)
+            .unwrap_err()
+            .to_string()
+            .contains("format_version")
+    );
+    assert!(
+        parse_document("{")
+            .unwrap_err()
+            .to_string()
+            .contains("JSON")
+    );
+}
+
+#[test]
 fn unlinking_by_cable_id_and_repreparing_silences_output() {
     let registry = ModuleRegistry::builtins();
     let mut doc = document();
