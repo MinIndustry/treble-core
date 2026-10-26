@@ -14,6 +14,7 @@ shared by native playback and portable/headless hosts. The expanded catalog is a
 | `treble.delay` | `in`: summed stereo audio; `out`: stereo audio | `time`, `feedback`, `mix` |
 | `treble.output` | `in`: summed stereo audio; `out`: stereo audio | `level` |
 | `treble.note_input` | `in`: note input; `out`: note output | none |
+| `treble.adsr` (0.5.2+) | `trigger`: note input; `out`: sample control, values 0..1 | `attack`, `decay`, `sustain`, `release` |
 | `treble.lfo` | `out`: bipolar sample control; frequency/amplitude CV inputs | `frequency`, `amplitude` |
 | `treble.audio_to_control` | `in`: summed stereo audio; `out`: bipolar sample control | none |
 
@@ -32,6 +33,23 @@ For a keyboard bus, expose `treble.note_input`'s `in` as the instrument's
 `interface.note_input`, then cable its `out` to one or more oscillator `trigger`
 ports. A direct oscillator trigger may also be exposed. Notes route only along
 those cables. Unconnected trigger sockets are silent in monophonic mode.
+
+## Envelopes
+
+`treble.adsr` emits a linear ADSR at the host sample rate. Its output values are
+0..1, carried by the existing bipolar sample-control contract so they connect to
+parameter CV sockets. Attack/decay/release are seconds (0..30); sustain is 0..1.
+All four controls update live. Notes retrigger from the current level, and the
+last held note's release starts from the instantaneous level, including during
+attack or decay. Zero-length stages advance immediately. Panic kills the envelope.
+In continuous voice mode it attacks on installation and remains at sustain.
+
+Expose `trigger` as the instrument note input, or route a note-input bus to it.
+For amplitude shaping, connect `out` to `gain_cv` on a Gain module using **Replace,
+depth 1**. Multiply CV means `base * (1 + signal)`, so it is not an envelope VCA.
+Use a continuously running carrier (for example LFO → Control to audio) to hear
+the release tail. An oscillator that receives the same note-off stops immediately,
+so its downstream envelope cannot extend that oscillator's sound.
 
 ## Sample modulation
 

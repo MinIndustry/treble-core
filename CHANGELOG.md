@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.2
+
+- Add `treble.adsr`: a note-triggered sample-rate control envelope with live
+  attack, decay, sustain and release parameters. Release and retrigger begin at
+  the current level; zero-length stages, overlapping notes and panic are defined.
+- Preserve the 0.3 metadata identity and existing module version-1 contracts.
+
 ## 0.5.1
 
 - Expand the rack registry from 7 to 32 modules: signed arithmetic, constants,
