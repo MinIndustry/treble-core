@@ -409,6 +409,10 @@ fn same_structure(a: &InstrumentDocument, b: &InstrumentDocument) -> bool {
 
 pub(crate) fn scalar_binding(type_id: &str, parameter: &str) -> Option<&'static str> {
     match (type_id, parameter) {
+        ("treble.adsr", "attack") => Some("attack"),
+        ("treble.adsr", "decay") => Some("decay"),
+        ("treble.adsr", "sustain") => Some("sustain"),
+        ("treble.adsr", "release") => Some("release"),
         ("treble.lfo", "frequency") => Some("frequency"),
         ("treble.lfo", "amplitude") => Some("amplitude"),
         ("treble.oscillator", "frequency") => Some("frequency"),

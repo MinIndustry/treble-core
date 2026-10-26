@@ -5,6 +5,7 @@
 mod catalog;
 mod compile;
 mod document;
+mod envelope;
 pub use document::{DocumentError, parse_document, serialize_document};
 mod modules;
 mod session;

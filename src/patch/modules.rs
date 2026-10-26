@@ -382,6 +382,7 @@ impl ModuleRegistry {
             NoteInput::descriptor(),
             Lfo::descriptor(),
             AudioToControl::descriptor(),
+            super::envelope::Adsr::descriptor(),
         ];
         descriptors.extend(super::catalog::descriptors());
         Self { descriptors }
@@ -416,6 +417,13 @@ impl ModuleRegistry {
         }
         match instance.type_id.as_str() {
             "treble.note_input" => Ok(RuntimeModule::NoteInput),
+            "treble.adsr" => {
+                let mut envelope = super::envelope::Adsr::new(sample_rate);
+                for (id, value) in &instance.parameters {
+                    envelope.set_parameter_value(id, runtime_value(value))?;
+                }
+                Ok(RuntimeModule::Source(Box::new(envelope)))
+            }
             "treble.lfo" => {
                 let mut lfo = Lfo {
                     frequency: 2.0,
