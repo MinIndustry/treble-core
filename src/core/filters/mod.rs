@@ -13,6 +13,7 @@
 
 pub mod dynamics;
 pub mod frequency;
+pub mod math;
 pub mod modulation;
 pub mod utility;
 

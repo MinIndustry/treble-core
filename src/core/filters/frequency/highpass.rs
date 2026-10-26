@@ -73,6 +73,29 @@ impl fmt::Display for HighPassFilter {
 }
 
 impl Filter for HighPassFilter {
+    fn transform_modulated(
+        &mut self,
+        inputs: &[crate::core::graph::ParameterModulation],
+    ) -> Vec<Block> {
+        use crate::core::graph::modulated_value;
+        let mut output = Vec::with_capacity(self.source.len());
+        for (index, frame) in self.source.iter().enumerate() {
+            let cutoff = modulated_value(inputs, "cutoff_frequency", self.cutoff_frequency, index);
+            let resonance = modulated_value(inputs, "resonance", self.resonance, index);
+            let parameters = (cutoff, resonance, self.sample_rate);
+            if parameters != self.coefficients_for {
+                self.svf
+                    .set_coefficients(cutoff, resonance, self.sample_rate);
+                self.coefficients_for = parameters;
+            }
+            output.push(std::array::from_fn(|channel| {
+                self.svf.high_pass(channel, frame[channel])
+            }));
+        }
+        self.svf.reset_if_unstable();
+        vec![output]
+    }
+
     fn transform(&mut self) -> Vec<Block> {
         let parameters = (self.cutoff_frequency, self.resonance, self.sample_rate);
         if parameters != self.coefficients_for {

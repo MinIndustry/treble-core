@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.1
+
+- Expand the rack registry from 7 to 32 modules: signed arithmetic, constants,
+  channel split/merge/adapters, gain, pan/auto-pan, high/band-pass, moving average,
+  reverb, tremolo, compressor, limiter and clipper.
+- Route descriptor input/output indices, including mono audio and control streams,
+  through the same audio/control schedule. Expose prepared filter handles to hosts.
+- Add sample modulation receivers for high-pass, pan, gain, offset, clamp and constants.
+- Correct compressor ratio behaviour (ratio 1 is unity; zero threshold stays finite)
+  and inject host sample rates into compressor/limiter coefficients.
+- Keep existing IDs/version-1 contracts and treble-meta/derive 0.3 identities.
+  Buffer-resizing settings remain rebuild-only; signed arithmetic has no implicit
+  audio-range clipping. Existing polyphony/feedback limits remain.
+
 ## 0.5.0
 
 - Consume published `treble-meta` 0.3 and `treble-derive` 0.3 from crates.io.

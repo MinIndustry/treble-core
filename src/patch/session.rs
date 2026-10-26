@@ -46,6 +46,13 @@ pub struct PreparedEdit {
     owner: Arc<AtomicU64>,
 }
 
+impl PreparedEdit {
+    /// Filter handle resolved during preparation, before the install command is queued.
+    pub fn filter_index(&self, module: &str) -> Option<petgraph::graph::NodeIndex> {
+        self.patch.filter_index(module)
+    }
+}
+
 impl PatchSnapshot {
     pub fn revision(&self) -> u64 {
         self.revision
@@ -412,7 +419,7 @@ pub(crate) fn scalar_binding(type_id: &str, parameter: &str) -> Option<&'static 
         ("treble.delay", "feedback") => Some("feedback"),
         ("treble.delay", "mix") => Some("mix"),
         ("treble.output", "level") => Some("factor"),
-        _ => None,
+        _ => super::catalog::scalar_binding(type_id, parameter),
     }
 }
 

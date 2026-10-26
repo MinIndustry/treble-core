@@ -18,7 +18,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // A snapshot can be moved to a background worker. Installation is explicit.
     let prepared = session.snapshot().prepare(48000.0, 256)?;
     runtime.apply(&mut system, session.commit(prepared)?)?;
-    runtime.apply(&mut system, session.note_on(Note::from_midi(69), 0.8)?)?;
+    if matches!(
+        session.document().instrument.voice,
+        treble::patch::metadata::VoiceConfiguration::Monophonic
+    ) {
+        runtime.apply(&mut system, session.note_on(Note::from_midi(69), 0.8)?)?;
+    }
     system.run();
     let block = system.get_sink(0)?.consume();
     let peak = block

@@ -1,0 +1,342 @@
+{
+  "format_version": 1,
+  "instrument": {
+    "name": "Ring and route",
+    "description": "Signed ring modulation, sample gain CV and typed L/R split/merge.",
+    "patch": {
+      "modules": [
+        {
+          "id": "keys",
+          "type_id": "treble.note_input",
+          "type_version": 1,
+          "parameters": {}
+        },
+        {
+          "id": "carrier",
+          "type_id": "treble.oscillator",
+          "type_version": 1,
+          "parameters": {
+            "frequency": {
+              "kind": "float",
+              "value": 220.0
+            },
+            "amplitude": {
+              "kind": "float",
+              "value": 0.4
+            },
+            "follow_keys": {
+              "kind": "bool",
+              "value": true
+            },
+            "waveform": {
+              "kind": "enum",
+              "value": "sine"
+            }
+          }
+        },
+        {
+          "id": "modulator",
+          "type_id": "treble.oscillator",
+          "type_version": 1,
+          "parameters": {
+            "frequency": {
+              "kind": "float",
+              "value": 110.0
+            },
+            "amplitude": {
+              "kind": "float",
+              "value": 0.8
+            },
+            "follow_keys": {
+              "kind": "bool",
+              "value": false
+            },
+            "waveform": {
+              "kind": "enum",
+              "value": "triangle"
+            }
+          }
+        },
+        {
+          "id": "ring",
+          "type_id": "treble.multiply",
+          "type_version": 1,
+          "parameters": {}
+        },
+        {
+          "id": "highpass",
+          "type_id": "treble.high_pass",
+          "type_version": 1,
+          "parameters": {
+            "cutoff": {
+              "kind": "float",
+              "value": 20.0
+            },
+            "resonance": {
+              "kind": "float",
+              "value": 0.70710677
+            }
+          }
+        },
+        {
+          "id": "gain",
+          "type_id": "treble.gain",
+          "type_version": 1,
+          "parameters": {
+            "gain": {
+              "kind": "float",
+              "value": 1.0
+            }
+          }
+        },
+        {
+          "id": "lfo",
+          "type_id": "treble.lfo",
+          "type_version": 1,
+          "parameters": {
+            "frequency": {
+              "kind": "float",
+              "value": 2.0
+            },
+            "amplitude": {
+              "kind": "float",
+              "value": 1.0
+            }
+          }
+        },
+        {
+          "id": "pan",
+          "type_id": "treble.pan",
+          "type_version": 1,
+          "parameters": {
+            "direction": {
+              "kind": "float",
+              "value": 0.25
+            }
+          }
+        },
+        {
+          "id": "split",
+          "type_id": "treble.stereo_split",
+          "type_version": 1,
+          "parameters": {}
+        },
+        {
+          "id": "merge",
+          "type_id": "treble.stereo_merge",
+          "type_version": 1,
+          "parameters": {}
+        },
+        {
+          "id": "output",
+          "type_id": "treble.output",
+          "type_version": 1,
+          "parameters": {
+            "level": {
+              "kind": "float",
+              "value": 0.7
+            }
+          }
+        }
+      ],
+      "cables": [
+        {
+          "id": "key-a",
+          "from": {
+            "module": "keys",
+            "port": "out"
+          },
+          "to": {
+            "module": "carrier",
+            "port": "trigger"
+          },
+          "modulation": null
+        },
+        {
+          "id": "key-b",
+          "from": {
+            "module": "keys",
+            "port": "out"
+          },
+          "to": {
+            "module": "modulator",
+            "port": "trigger"
+          },
+          "modulation": null
+        },
+        {
+          "id": "a",
+          "from": {
+            "module": "carrier",
+            "port": "out"
+          },
+          "to": {
+            "module": "ring",
+            "port": "a"
+          },
+          "modulation": null
+        },
+        {
+          "id": "b",
+          "from": {
+            "module": "modulator",
+            "port": "out"
+          },
+          "to": {
+            "module": "ring",
+            "port": "b"
+          },
+          "modulation": null
+        },
+        {
+          "id": "highpass",
+          "from": {
+            "module": "ring",
+            "port": "out"
+          },
+          "to": {
+            "module": "highpass",
+            "port": "in"
+          },
+          "modulation": null
+        },
+        {
+          "id": "gain",
+          "from": {
+            "module": "highpass",
+            "port": "out"
+          },
+          "to": {
+            "module": "gain",
+            "port": "in"
+          },
+          "modulation": null
+        },
+        {
+          "id": "pan",
+          "from": {
+            "module": "gain",
+            "port": "out"
+          },
+          "to": {
+            "module": "pan",
+            "port": "in"
+          },
+          "modulation": null
+        },
+        {
+          "id": "split",
+          "from": {
+            "module": "pan",
+            "port": "out"
+          },
+          "to": {
+            "module": "split",
+            "port": "in"
+          },
+          "modulation": null
+        },
+        {
+          "id": "left",
+          "from": {
+            "module": "split",
+            "port": "left"
+          },
+          "to": {
+            "module": "merge",
+            "port": "left"
+          },
+          "modulation": null
+        },
+        {
+          "id": "right",
+          "from": {
+            "module": "split",
+            "port": "right"
+          },
+          "to": {
+            "module": "merge",
+            "port": "right"
+          },
+          "modulation": null
+        },
+        {
+          "id": "output",
+          "from": {
+            "module": "merge",
+            "port": "out"
+          },
+          "to": {
+            "module": "output",
+            "port": "in"
+          },
+          "modulation": null
+        },
+        {
+          "id": "gain-cv",
+          "from": {
+            "module": "lfo",
+            "port": "out"
+          },
+          "to": {
+            "module": "gain",
+            "port": "gain_cv"
+          },
+          "modulation": {
+            "mode": "add",
+            "depth": 0.25
+          }
+        }
+      ]
+    },
+    "interface": {
+      "note_input": {
+        "module": "keys",
+        "port": "in"
+      },
+      "audio_outputs": [
+        {
+          "module": "output",
+          "port": "out"
+        }
+      ],
+      "controls": []
+    },
+    "voice": {
+      "kind": "continuous"
+    }
+  },
+  "editor": {
+    "timbre": {
+      "version": 1,
+      "rows": [
+        {
+          "id": "sources",
+          "modules": [
+            "keys",
+            "carrier",
+            "modulator",
+            "ring"
+          ]
+        },
+        {
+          "id": "filters",
+          "modules": [
+            "highpass",
+            "gain",
+            "lfo",
+            "pan"
+          ]
+        },
+        {
+          "id": "routing",
+          "modules": [
+            "split",
+            "merge",
+            "output"
+          ]
+        }
+      ]
+    }
+  }
+}
