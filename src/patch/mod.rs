@@ -2,7 +2,9 @@
 //!
 //! All modules render through [`crate::core::graph::System`]. Metadata is an
 //! executable contract: unsupported capabilities are rejected during preparation.
+mod compile;
 mod modules;
+pub use compile::PreparedPatch;
 pub use modules::{ModuleRegistry, RuntimeModule};
 pub use treble_meta as metadata;
 
