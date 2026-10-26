@@ -26,6 +26,7 @@ pub struct Compressor {
     /// Per-channel envelope follower values
     envelope: [f32; CHANNELS],
     /// Sample rate for time-based calculations
+    #[filter_parameter(range, 1.0, 192000.0, 44100.0)]
     sample_rate: f32,
 }
 
@@ -73,10 +74,8 @@ impl Filter for Compressor {
                         self.envelope[ch] =
                             release_coeff * (self.envelope[ch] - input_abs) + input_abs;
                     }
-                    let gain = if self.envelope[ch] > self.threshold {
-                        let excess = self.envelope[ch] / self.threshold;
-                        let compressed = excess.powf(1.0 - 1.0 / self.ratio);
-                        (compressed * self.threshold) / self.envelope[ch]
+                    let gain = if self.envelope[ch] > self.threshold && self.ratio > 1.0 {
+                        (self.threshold / self.envelope[ch]).powf(1.0 - 1.0 / self.ratio)
                     } else {
                         1.0
                     };
@@ -90,5 +89,37 @@ impl Filter for Compressor {
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use treble_meta::MetaFilter;
+    #[test]
+    fn unity_ratio_is_unity_and_zero_threshold_stays_finite() {
+        let mut filter = Compressor::default();
+        filter.set_parameter("ratio", 1.0);
+        let input = vec![[2.0, -2.0]; 1024];
+        filter.push(Arc::new(input.clone()), 0);
+        assert_eq!(filter.transform()[0], input);
+        filter.set_parameter("ratio", 4.0);
+        filter.set_parameter("threshold", 0.0);
+        filter.push(Arc::new(vec![[1.0; 2]; 10]), 0);
+        assert_eq!(filter.transform()[0], vec![[0.0; 2]; 10]);
+    }
+    #[test]
+    fn ratio_matches_the_settled_output_curve_at_the_host_sample_rate() {
+        for rate in [22050.0, 48000.0, 96000.0] {
+            let mut filter = Compressor::default();
+            assert!(filter.set_parameter("sample_rate", rate));
+            filter.set_parameter("attack", 0.0001);
+            filter.set_parameter("threshold", 0.5);
+            filter.set_parameter("ratio", 4.0);
+            filter.push(Arc::new(vec![[2.0; 2]; 2048]), 0);
+            let output = filter.transform();
+            let expected = 0.5 * 4.0_f32.powf(0.25);
+            assert!((output[0].last().unwrap()[0] - expected).abs() < 0.0001);
+        }
     }
 }

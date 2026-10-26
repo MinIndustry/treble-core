@@ -31,6 +31,7 @@ pub struct Limiter {
     /// something asks for reduction.
     gain: [f32; CHANNELS],
     /// Sample rate used for coefficient calculation
+    #[filter_parameter(range, 1.0, 192000.0, 44100.0)]
     sample_rate: f32,
 }
 
