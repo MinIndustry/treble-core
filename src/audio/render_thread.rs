@@ -91,6 +91,7 @@ fn render_loop(
 
     let mut block_count: u64 = 0;
     let mut scheduler = EventScheduler::new();
+    let mut patch_runtime = crate::patch::PatchRuntime::default();
     let mut current_frame: u64 = 0;
     // Edge-triggered so TRBC-RT-001 logs once per failure, not per block.
     let mut volume_sync_failed = false;
@@ -98,7 +99,7 @@ fn render_loop(
     while !shared_state.shutdown.load(Ordering::Relaxed) {
         // Process all pending control messages
         while let Ok(msg) = message_rx.try_recv() {
-            process_audio_message(system, &mut scheduler, msg, event_tx);
+            process_audio_message(system, &mut scheduler, &mut patch_runtime, msg, event_tx);
         }
 
         // Throttle to target latency. Sleep for most of the time the device
@@ -317,10 +318,19 @@ fn process_graph_message(system: &mut System, cmd: GraphAudioMessage, event_tx: 
 fn process_audio_message(
     system: &mut System,
     scheduler: &mut EventScheduler,
+    patch_runtime: &mut crate::patch::PatchRuntime,
     msg: AudioMessage,
     event_tx: &EventSender,
 ) {
     match msg {
+        AudioMessage::Patch(command) => match patch_runtime.apply(system, command) {
+            Ok(crate::patch::PatchApply::Installed) => scheduler.clear(),
+            Ok(_) => {}
+            Err(error) => event_tx.send(BackendEvent::Error(ErrorEvent::CommandFailed {
+                command: "Patch".into(),
+                message: error.to_string(),
+            })),
+        },
         // Untimestamped events keep the old behavior: applied at block start.
         AudioMessage::Instrument(cmd) => apply_instrument_message(system, cmd),
         AudioMessage::ScheduledInstrument { at_frame, command } => {
@@ -338,11 +348,86 @@ fn process_audio_message(
             // Immediate graph replacement starts a new graph generation.
             if matches!(cmd, GraphAudioMessage::Clear | GraphAudioMessage::Swap(_)) {
                 scheduler.clear();
+                *patch_runtime = crate::patch::PatchRuntime::default();
             }
             process_graph_message(system, cmd, event_tx);
         }
         AudioMessage::Shutdown => {
             // Handled via shutdown flag in shared_state
         }
+    }
+}
+
+#[cfg(test)]
+mod patch_tests {
+    use super::*;
+    use crate::{
+        Note,
+        audio::EventFilter,
+        patch::{ModuleRegistry, PatchSession, metadata::InstrumentDocument},
+    };
+
+    #[test]
+    fn patch_controls_use_the_native_dispatch_and_clear_old_scheduled_notes() {
+        let document: InstrumentDocument =
+            serde_json::from_str(include_str!("../../examples/fixtures/rack.trbl")).unwrap();
+        let mut session = PatchSession::new(ModuleRegistry::builtins(), document).unwrap();
+        let command = session
+            .commit(session.snapshot().prepare(48000.0, 128).unwrap())
+            .unwrap();
+        let mut system = System::silent();
+        let mut scheduler = EventScheduler::new();
+        let mut runtime = crate::patch::PatchRuntime::default();
+        let (events, _rx) = EventSender::new(EventFilter::all(), 16);
+        scheduler.schedule(
+            1,
+            crate::audio::InstrumentAudioMessage::NoteStart {
+                source_index: 0,
+                note: Note::from_midi(81),
+                velocity: 1.0,
+            },
+        );
+        process_audio_message(
+            &mut system,
+            &mut scheduler,
+            &mut runtime,
+            AudioMessage::Patch(command),
+            &events,
+        );
+        let mut samples = Vec::new();
+        let frame = render_block(&mut system, &mut scheduler, 0, &mut samples);
+        assert_eq!(frame, 128);
+        assert!(
+            samples.iter().all(|x| *x == 0.0),
+            "install must clear notes from the previous graph"
+        );
+        process_audio_message(
+            &mut system,
+            &mut scheduler,
+            &mut runtime,
+            AudioMessage::Patch(session.note_on(Note::from_midi(69), 1.0).unwrap()),
+            &events,
+        );
+        samples.clear();
+        render_block(&mut system, &mut scheduler, frame, &mut samples);
+        assert!(samples.iter().any(|x| x.abs() > 0.01));
+        process_audio_message(
+            &mut system,
+            &mut scheduler,
+            &mut runtime,
+            AudioMessage::Patch(session.all_notes_off().unwrap()),
+            &events,
+        );
+        // Low-pass residual state can ring briefly after hard-stopping a source.
+        for index in 0..100 {
+            samples.clear();
+            render_block(
+                &mut system,
+                &mut scheduler,
+                frame + 128 * index,
+                &mut samples,
+            );
+        }
+        assert!(samples.iter().all(|x| x.abs() < 1e-6));
     }
 }

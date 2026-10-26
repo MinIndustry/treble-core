@@ -454,6 +454,48 @@ impl App {
         crate::audio::output_device_names()
     }
 
+    /// Queue a prepared rack installation or validated live/note control.
+    /// Use the same engine sample rate as `config.system.sample_rate` when
+    /// preparing. The host owns automatic preparation/debouncing policy.
+    /// Keep the command and retry when the bounded render queue is full.
+    pub fn send_patch(
+        &self,
+        command: crate::patch::PatchCommand,
+    ) -> Result<(), error::PatchSendError> {
+        let engine_rate = self
+            .handle
+            .as_ref()
+            .map_or(self.config.system.sample_rate, |handle| {
+                handle.get_metrics().engine_sample_rate
+            });
+        if let Some(rate) = command.installation_sample_rate()
+            && rate != engine_rate as f32
+        {
+            return Err(error::PatchSendError {
+                command: Box::new(command),
+                reason: "prepared patch sample rate does not match engine sample rate".into(),
+            });
+        }
+        let Some(sender) = &self.message_tx else {
+            return Err(error::PatchSendError {
+                command: Box::new(command),
+                reason: "audio engine is not started".into(),
+            });
+        };
+        sender
+            .try_send(crate::audio::AudioMessage::Patch(command))
+            .map_err(|error| {
+                let reason = format!("patch command was not queued: {error}");
+                let crate::audio::AudioMessage::Patch(command) = error.into_inner() else {
+                    unreachable!("sent a patch command")
+                };
+                error::PatchSendError {
+                    command: Box::new(command),
+                    reason,
+                }
+            })
+    }
+
     pub fn active_output_device(&self) -> Option<&str> {
         self.active_output_device.as_deref()
     }
@@ -664,5 +706,48 @@ impl App {
 impl Drop for App {
     fn drop(&mut self) {
         let _ = self.stop();
+    }
+}
+
+#[cfg(test)]
+mod patch_tests {
+    use super::*;
+    use crate::patch::{ModuleRegistry, PatchSession, metadata::InstrumentDocument};
+
+    #[test]
+    fn submission_preserves_commands_on_unstarted_full_or_disconnected_queues() {
+        let document: InstrumentDocument =
+            serde_json::from_str(include_str!("../../examples/fixtures/rack.trbl")).unwrap();
+        let mut session = PatchSession::new(ModuleRegistry::builtins(), document).unwrap();
+        let mut app = App::new();
+        let rate = app.config.system.sample_rate as f32;
+        let install = session
+            .commit(session.snapshot().prepare(rate, 128).unwrap())
+            .unwrap();
+        let unstarted = app.send_patch(install).unwrap_err();
+        assert!(unstarted.reason.contains("not started"));
+        let (tx, rx) = crossbeam::channel::bounded(1);
+        app.message_tx = Some(tx);
+        app.send_patch(*unstarted.command).unwrap();
+        let full = app
+            .send_patch(session.all_notes_off().unwrap())
+            .unwrap_err();
+        assert!(full.reason.contains("full"));
+        rx.recv().unwrap();
+        app.send_patch(*full.command).unwrap();
+        drop(rx);
+        let closed = app
+            .send_patch(session.all_notes_off().unwrap())
+            .unwrap_err();
+        assert!(closed.reason.contains("disconnected"));
+        let wrong_rate = session
+            .commit(session.snapshot().prepare(8000.0, 128).unwrap())
+            .unwrap();
+        assert!(
+            app.send_patch(wrong_rate)
+                .unwrap_err()
+                .reason
+                .contains("sample rate")
+        );
     }
 }

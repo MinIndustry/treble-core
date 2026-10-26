@@ -2,6 +2,14 @@
 
 use thiserror::Error;
 
+/// Failed nonblocking rack submission. The original command can be retried.
+#[derive(Debug, Error)]
+#[error("{reason}")]
+pub struct PatchSendError {
+    pub command: Box<crate::patch::PatchCommand>,
+    pub reason: String,
+}
+
 #[derive(Error, Debug)]
 pub enum AppError {
     #[error("IoError: {0}")]
