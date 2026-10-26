@@ -368,6 +368,116 @@ fn saving_an_incomplete_or_unavailable_instrument_is_independent_of_playback() {
 }
 
 #[test]
+fn live_filter_gain_and_delay_bindings_change_real_audio() {
+    let registry = ModuleRegistry::builtins();
+    let mut session = PatchSession::new(registry, document()).unwrap();
+    let mut runtime = PatchRuntime::default();
+    let mut system = System::silent();
+    let install = session
+        .commit(session.snapshot().prepare(48000.0, 128).unwrap())
+        .unwrap();
+    runtime.apply(&mut system, install).unwrap();
+    let reference = energy(&render(&mut system, 12000));
+    let cutoff = session
+        .set_parameter("filter", "cutoff", ParameterValue::Float(30.0))
+        .unwrap();
+    runtime.apply(&mut system, cutoff.command.unwrap()).unwrap();
+    render(&mut system, 12000); // Let the resonant filter settle after a cutoff jump.
+    assert!(energy(&render(&mut system, 12000)) < reference / 1000.0);
+    let resonance = session
+        .set_parameter("filter", "resonance", ParameterValue::Float(0.5))
+        .unwrap();
+    runtime
+        .apply(&mut system, resonance.command.unwrap())
+        .unwrap();
+    let gain = session
+        .set_parameter("output", "level", ParameterValue::Float(0.0))
+        .unwrap();
+    runtime.apply(&mut system, gain.command.unwrap()).unwrap();
+    assert_eq!(energy(&render(&mut system, 128)), 0.0);
+
+    let mut doc = document();
+    doc.instrument
+        .patch
+        .modules
+        .push(instance("delay", "treble.delay"));
+    doc.instrument
+        .patch
+        .modules
+        .last_mut()
+        .unwrap()
+        .parameters
+        .insert("time".into(), ParameterValue::Float(0.001));
+    doc.instrument.patch.cables = vec![cable("a", "osc", "delay"), cable("b", "delay", "output")];
+    doc.instrument
+        .patch
+        .modules
+        .last_mut()
+        .unwrap()
+        .parameters
+        .insert("mix".into(), ParameterValue::Float(1.0));
+    session.replace_document(doc).unwrap();
+    // Human JSON decimals must use the same f32 validation semantics as the derive.
+    let install = session
+        .commit(session.snapshot().prepare(48000.0, 128).unwrap())
+        .unwrap();
+    runtime.apply(&mut system, install).unwrap();
+    let delayed = render(&mut system, 128);
+    assert!(delayed[..48].iter().all(|frame| frame[0] == 0.0));
+    assert!(energy(&delayed) > 0.1);
+    let feedback = session
+        .set_parameter("delay", "feedback", ParameterValue::Float(0.5))
+        .unwrap();
+    runtime
+        .apply(&mut system, feedback.command.unwrap())
+        .unwrap();
+    let mix = session
+        .set_parameter("delay", "mix", ParameterValue::Float(0.0))
+        .unwrap();
+    runtime.apply(&mut system, mix.command.unwrap()).unwrap();
+    assert!(energy(&render(&mut system, 128)) > 0.1);
+    assert!(
+        session
+            .set_parameter("delay", "time", ParameterValue::Float(0.001))
+            .unwrap()
+            .command
+            .is_none()
+    );
+    assert!(
+        session
+            .set_parameter("delay", "time", ParameterValue::Float(0.0009))
+            .is_err()
+    );
+}
+
+#[test]
+fn live_amplitude_edit_preserves_oscillator_phase() {
+    let (mut session, mut runtime, mut system) = playable_session();
+    let (reference_session, mut reference_runtime, mut reference) = playable_session();
+    let note = Note::from_midi(69);
+    runtime
+        .apply(&mut system, session.note_on(note, 1.0).unwrap())
+        .unwrap();
+    reference_runtime
+        .apply(
+            &mut reference,
+            reference_session.note_on(note, 1.0).unwrap(),
+        )
+        .unwrap();
+    render(&mut system, 137);
+    render(&mut reference, 137);
+    let edit = session
+        .set_parameter("osc", "amplitude", ParameterValue::Float(0.4))
+        .unwrap();
+    runtime.apply(&mut system, edit.command.unwrap()).unwrap();
+    let edited = render(&mut system, 128);
+    let unchanged = render(&mut reference, 128);
+    for (edited, unchanged) in edited.iter().zip(unchanged) {
+        assert!((edited[0] - 2.0 * unchanged[0]).abs() < 1e-6);
+    }
+}
+
+#[test]
 fn unlinking_by_cable_id_and_repreparing_silences_output() {
     let registry = ModuleRegistry::builtins();
     let mut doc = document();

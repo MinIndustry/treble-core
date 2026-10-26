@@ -73,6 +73,10 @@ queued immediately. `None` requires preparation: this includes rebuild settings,
 an uncommitted draft, or any pending structural/rebuild change. Native live
 commands use compiled bindings and never allocate descriptors or compile graphs
 on the render path. All declared built-in parameters are user-owned.
+Built-in float fields use `f32`: execution validation converts values before
+checking the generated, quantized bounds, matching the released derive setters.
+Thus a JSON value `0.001` can reach a delay's `0.001` lower bound. Saving retains
+the supplied base value; this is representation conversion, not range clamping.
 
 Oscillator `waveform` and delay `time` require preparation. Waveforms use stable
 IDs `sine`, `saw`, `square`, `triangle`, `white_noise`, `pink_noise`. Delay sizing

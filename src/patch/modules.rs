@@ -17,6 +17,16 @@ pub enum RuntimeModule {
     NoteInput,
 }
 
+// All built-in float configuration fields use f32. Match ModuleParameters:
+// convert first, then validate the representable value against quantized bounds.
+// Keep the user's saved base value; this conversion is only for execution checks.
+pub(crate) fn runtime_value(value: &ParameterValue) -> ParameterValue {
+    match value {
+        ParameterValue::Float(value) => ParameterValue::Float(f64::from(*value as f32)),
+        value => value.clone(),
+    }
+}
+
 #[derive(ModuleMetadata)]
 #[treble(module(
     id = "treble.note_input",
@@ -275,7 +285,7 @@ impl ModuleRegistry {
                 .iter()
                 .find(|p| p.id == *id)
                 .ok_or_else(|| super::error(format!("parameters.{id}"), "unknown parameter"))?;
-            parameter.validate_value(value)?;
+            parameter.validate_value(&runtime_value(value))?;
         }
         match instance.type_id.as_str() {
             "treble.note_input" => Ok(RuntimeModule::NoteInput),

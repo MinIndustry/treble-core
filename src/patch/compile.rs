@@ -54,7 +54,14 @@ impl ModuleRegistry {
         sample_rate: f32,
         block_size: usize,
     ) -> Result<PreparedPatch, ValidationErrors> {
-        document.validate_against(self.descriptors())?;
+        document.validate()?;
+        let mut representable = document.clone();
+        for module in &mut representable.instrument.patch.modules {
+            for value in module.parameters.values_mut() {
+                *value = super::modules::runtime_value(value);
+            }
+        }
+        representable.validate_against(self.descriptors())?;
         if !sample_rate.is_finite() || !(8000.0..=192000.0).contains(&sample_rate) {
             return Err(error("sample_rate", "expected 8000..=192000 Hz"));
         }

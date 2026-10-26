@@ -246,7 +246,7 @@ impl PatchSession {
                     "unknown parameter",
                 )
             })?;
-        parameter.validate_value(&value)?;
+        parameter.validate_value(&super::modules::runtime_value(&value))?;
         let declared_update = parameter.update.clone();
         let mapping = scalar_binding(&instance.type_id, id);
         let active = self
