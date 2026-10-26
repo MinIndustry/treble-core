@@ -1,5 +1,13 @@
 use std::collections::BTreeMap;
 use treble::{
+    Note,
+    core::{
+        filters::prelude::LowPassFilter,
+        graph::{Entry, Filter},
+    },
+    patch::{PatchRuntime, PatchSession},
+};
+use treble::{
     core::{
         Block,
         generator::prelude::*,
@@ -284,4 +292,287 @@ fn low_level_mutations_invalidate_safely_but_failed_edits_and_merges_do_not() {
             .iter()
             .all(|frame| *frame == [0.0; 2])
     );
+}
+
+#[test]
+fn filtered_audio_to_control_precedes_a_modulated_source_in_the_same_block() {
+    let mut document = document();
+    document.instrument.patch.modules.retain(|m| m.id != "lfo");
+    let mut modulator = module("audio_mod", "treble.oscillator");
+    modulator
+        .parameters
+        .insert("frequency".into(), ParameterValue::Float(80.0));
+    modulator
+        .parameters
+        .insert("amplitude".into(), ParameterValue::Float(0.5));
+    let mut filter = module("filter", "treble.low_pass");
+    filter
+        .parameters
+        .insert("cutoff".into(), ParameterValue::Float(300.0));
+    document.instrument.patch.modules.extend([
+        module("convert", "treble.audio_to_control"),
+        filter,
+        modulator,
+    ]);
+    document.instrument.patch.cables = vec![
+        Cable {
+            id: "a".into(),
+            from: endpoint("audio_mod", "out"),
+            to: endpoint("filter", "in"),
+            modulation: None,
+        },
+        Cable {
+            id: "b".into(),
+            from: endpoint("filter", "out"),
+            to: endpoint("convert", "in"),
+            modulation: None,
+        },
+        wire(
+            "fm",
+            "convert",
+            "osc",
+            "frequency_cv",
+            ModulationMode::Add,
+            300.0,
+        ),
+    ];
+    document.instrument.interface.audio_outputs = vec![endpoint("osc", "out")];
+    let count = 4096;
+    let mut modulator = builder::ToneGeneratorBuilder::new().frequency(80.0).build();
+    modulator.start();
+    let input = (0..count)
+        .map(|_| [modulator.tick(1.0 / 48000.0) * 0.5; 2])
+        .collect();
+    let mut filter = LowPassFilter::new(300.0, 48000.0);
+    filter.push(std::sync::Arc::new(input), 0);
+    let controls = filter.transform().remove(0);
+    let mut carrier = builder::ToneGeneratorBuilder::new().build();
+    carrier.start();
+    let expected: Block = controls
+        .into_iter()
+        .map(|frame| {
+            carrier.set_frequency((440.0 + 300.0 * f64::from(frame[0].clamp(-1.0, 1.0))) as f32);
+            [carrier.tick(1.0 / 48000.0) * 0.2; 2]
+        })
+        .collect();
+    close(&render(&mut prepare(&document), count), &expected);
+    document.instrument.patch.modules.reverse();
+    close(&render(&mut prepare(&document), count), &expected);
+}
+
+#[test]
+fn filter_cutoff_resonance_and_output_gain_accept_sample_views() {
+    let mut document = document();
+    document
+        .instrument
+        .patch
+        .modules
+        .push(module("filter", "treble.low_pass"));
+    document.instrument.patch.cables = vec![
+        Cable {
+            id: "a".into(),
+            from: endpoint("osc", "out"),
+            to: endpoint("filter", "in"),
+            modulation: None,
+        },
+        Cable {
+            id: "b".into(),
+            from: endpoint("filter", "out"),
+            to: endpoint("output", "in"),
+            modulation: None,
+        },
+        wire(
+            "cutoff",
+            "lfo",
+            "filter",
+            "cutoff_cv",
+            ModulationMode::Add,
+            2.0,
+        ),
+        wire(
+            "q",
+            "lfo",
+            "filter",
+            "resonance_cv",
+            ModulationMode::Add,
+            0.5,
+        ),
+        wire(
+            "gain",
+            "lfo",
+            "output",
+            "level_cv",
+            ModulationMode::Add,
+            -0.5,
+        ),
+    ];
+    let count = 4096;
+    let mut carrier = builder::ToneGeneratorBuilder::new().build();
+    carrier.start();
+    let mut filter = LowPassFilter::new(1000.0, 48000.0);
+    let mut expected = Vec::new();
+    for cv in lfo(2.0, count) {
+        let cutoff = (1000.0f64.log2() + 2.0 * f64::from(cv))
+            .exp2()
+            .clamp(1.0, 20000.0) as f32;
+        let resonance = (f64::from(0.70710677f32) + 0.5 * f64::from(cv)).clamp(0.5, 20.0) as f32;
+        filter.set_parameter("cutoff_frequency", cutoff);
+        filter.set_parameter("resonance", resonance);
+        filter.push(
+            std::sync::Arc::new(vec![[carrier.tick(1.0 / 48000.0) * 0.2; 2]]),
+            0,
+        );
+        let filtered = filter.transform()[0][0];
+        let gain = (f64::from(0.8f32) - 0.5 * f64::from(cv)).clamp(0.0, 1.0) as f32;
+        expected.push([filtered[0] * gain; 2]);
+    }
+    close(&render(&mut prepare(&document), count), &expected);
+    let mut split = prepare(&document);
+    close(
+        &[
+            render(&mut split, 1),
+            render(&mut split, 17),
+            render(&mut split, count - 18),
+        ]
+        .concat(),
+        &expected,
+    );
+}
+
+#[test]
+fn multiwire_modes_follow_published_sum_formula_and_stable_cable_order() {
+    for mode in [
+        ModulationMode::Add,
+        ModulationMode::Multiply,
+        ModulationMode::Replace,
+    ] {
+        let mut document = document();
+        let mut second = module("lfo2", "treble.lfo");
+        second
+            .parameters
+            .insert("frequency".into(), ParameterValue::Float(3.0));
+        document.instrument.patch.modules.push(second);
+        let (first_depth, second_depth) = match mode {
+            ModulationMode::Multiply => (0.5, -0.25),
+            _ => (600.0, -200.0),
+        };
+        document.instrument.patch.cables[1].modulation = Some(ModulationSettings {
+            mode: mode.clone(),
+            depth: first_depth,
+        });
+        document.instrument.patch.cables.push(wire(
+            "fm2",
+            "lfo2",
+            "osc",
+            "frequency_cv",
+            mode.clone(),
+            second_depth,
+        ));
+        let count = 4096;
+        let mut carrier = builder::ToneGeneratorBuilder::new().build();
+        carrier.start();
+        let expected = lfo(2.0, count)
+            .into_iter()
+            .zip(lfo(3.0, count))
+            .map(|(a, b)| {
+                let sum = first_depth * f64::from(a) + second_depth * f64::from(b);
+                let frequency = match mode {
+                    ModulationMode::Add => 440.0 + sum,
+                    ModulationMode::Multiply => 440.0 * (1.0 + sum),
+                    ModulationMode::Replace => sum,
+                };
+                carrier.set_frequency(frequency.clamp(1.0, 20000.0) as f32);
+                [carrier.tick(1.0 / 48000.0) * 0.2 * 0.8; 2]
+            })
+            .collect();
+        close(&render(&mut prepare(&document), count), &expected);
+        document.instrument.patch.cables.reverse();
+        document.instrument.patch.modules.reverse();
+        close(&render(&mut prepare(&document), count), &expected);
+    }
+}
+
+#[test]
+fn monophonic_notes_use_effective_pitch_and_lfo_keeps_running_without_keys() {
+    let mut document = document();
+    document.instrument.voice = VoiceConfiguration::Monophonic;
+    let mut session = PatchSession::new(ModuleRegistry::builtins(), document).unwrap();
+    let mut runtime = PatchRuntime::default();
+    let mut system = System::silent();
+    let install = session
+        .commit(session.snapshot().prepare(48000.0, 128).unwrap())
+        .unwrap();
+    runtime.apply(&mut system, install).unwrap();
+    assert!(
+        render(&mut system, 64)
+            .iter()
+            .all(|frame| *frame == [0.0; 2])
+    );
+    runtime
+        .apply(
+            &mut system,
+            session.note_on(Note::from_midi(81), 0.5).unwrap(),
+        )
+        .unwrap();
+    let controls = lfo(2.0, 64 + 512 + 512);
+    let mut carrier = builder::ToneGeneratorBuilder::new().build();
+    carrier.start();
+    let expected = controls[64..576]
+        .iter()
+        .map(|cv| {
+            carrier.set_frequency((880.0 + 100.0 * f64::from(*cv)) as f32);
+            [carrier.tick(1.0 / 48000.0) * 0.2 * 0.5 * 0.8; 2]
+        })
+        .collect();
+    close(&render(&mut system, 512), &expected);
+    let fixed = session
+        .set_parameter("osc", "follow_keys", ParameterValue::Bool(false))
+        .unwrap();
+    runtime.apply(&mut system, fixed.command.unwrap()).unwrap();
+    let base = session
+        .set_parameter("osc", "frequency", ParameterValue::Float(220.0))
+        .unwrap();
+    runtime.apply(&mut system, base.command.unwrap()).unwrap();
+    let expected = controls[576..]
+        .iter()
+        .map(|cv| {
+            carrier.set_frequency((220.0 + 100.0 * f64::from(*cv)) as f32);
+            [carrier.tick(1.0 / 48000.0) * 0.2 * 0.5 * 0.8; 2]
+        })
+        .collect();
+    close(&render(&mut system, 512), &expected);
+    assert_eq!(
+        session.document().instrument.patch.modules[0].parameters["frequency"],
+        ParameterValue::Float(220.0)
+    );
+    runtime
+        .apply(&mut system, session.all_notes_off().unwrap())
+        .unwrap();
+    assert!(
+        render(&mut system, 128)
+            .iter()
+            .all(|frame| *frame == [0.0; 2])
+    );
+    let mut unplugged = session.document().clone();
+    unplugged.instrument.patch.cables.retain(|c| c.id != "fm");
+    session.replace_document(unplugged).unwrap();
+    let install = session
+        .commit(session.snapshot().prepare(48000.0, 128).unwrap())
+        .unwrap();
+    runtime.apply(&mut system, install).unwrap();
+    runtime
+        .apply(
+            &mut system,
+            session.note_on(Note::from_midi(81), 1.0).unwrap(),
+        )
+        .unwrap();
+    let audio = render(&mut system, 512);
+    let mut reference = builder::ToneGeneratorBuilder::new()
+        .frequency(220.0)
+        .build();
+    reference.start();
+    let expected = (0..512)
+        .map(|_| [reference.tick(1.0 / 48000.0) * 0.2 * 0.8; 2])
+        .collect();
+    close(&audio, &expected);
 }
