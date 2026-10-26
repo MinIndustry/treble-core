@@ -2,7 +2,7 @@
 
 `treble::patch` compiles `treble-meta` 0.3 format-1 JSON instrument documents
 into the existing `core::graph::System`. There is one DSP graph implementation,
-shared by native playback and portable/headless hosts. The published
+shared by native playback and portable/headless hosts. The expanded catalog is available in treble 0.5.1. The published
 `treble-derive` 0.3 macros describe and validate built-in module configuration.
 
 ## Built-in contracts (module version 1)
@@ -193,7 +193,7 @@ the same live session and queue each accepted command once.
   plugins are not implemented. Unsupported node/port/signal contracts fail
   validation. Combined audio/modulation cycles identify an involved cable path;
   the runtime never inserts a hidden block of latency to make a cycle run.
-- Stereo audio is currently the only audio channel contract. Sample rates must
+- Mono and stereo are the supported audio channel contracts. Sample rates must
   be finite and within 8000..=192000 Hz; blocks within 1..=65536 frames.
 - This adapter preserves existing render-thread allocation behaviour; it does not
   promise allocation-free graph processing or graph reclamation. Compilation,
@@ -202,3 +202,51 @@ the same live session and queue each accepted command once.
 Automatic preparation, debouncing, playback feedback, undo grouping and UI
 layout belong to the host. Failed preparation leaves the last installed graph
 playing and does not discard the editable draft.
+
+
+## Expanded catalog (0.5.1)
+
+The registry has 32 modules. In addition to the original seven:
+
+| Category | Type suffixes (all prefixed `treble.`) |
+| --- | --- |
+| Math | `add`, `multiply`, `minimum`, `maximum`, `absolute`, `gain`, `offset`, `clamp` |
+| Sources | `constant` |
+| Filters | `high_pass`, `band_pass`, `resonant_band_pass`, `moving_average` |
+| Modulation | `auto_pan`, `tremolo` |
+| Effects | `reverb` |
+| Dynamics | `compressor`, `limiter`, `clipper` |
+| Routing | `stereo_split`, `stereo_merge`, `mono_to_stereo` |
+| Conversion | `control_to_audio`, `mono_to_control` |
+
+Binary math uses stereo audio inputs `a`/`b`; absent inputs contribute zero.
+Operations run independently per sample/channel, preserving signed values and
+values outside [-1,1]. Invalid nonfinite inputs become zero; overflow saturates
+to finite f32 bounds. Constants produce stereo DC independently of keyboard
+notes and respond to explicit start/stop/panic. Constant values and gain/offset
+ranges are [-16,16]. Clamp sorts its effective bounds, including crossing CVs.
+
+`stereo_split.in` is stereo; `left` and `right` are typed mono outputs at indices
+0 and 1. `stereo_merge.left/right` are mono inputs at indices 0/1; `out` is stereo.
+Internally mono uses the existing Block carrier with channel zero duplicated.
+An exposed mono output is duplicated at the device sink. Explicit
+`mono_to_stereo` permits stereo processors on one isolated channel. Convert back
+through a split before merging. Channel mismatches are errors, never implicit
+averaging. `mono_to_control` clamps each mono sample to [-1,1]; `control_to_audio`
+copies the control sample onto L/R without clipping. Control-stream cables have
+`modulation: null`; depth/mode apply only to parameter-bound CV sockets.
+
+High-pass cutoff/resonance, pan direction, gain, offset, clamp bounds and constant
+value expose sample CV sockets. Gain's public parameter `gain` maps to the
+existing DSP `factor` receiver. Remaining filters expose validated block-boundary
+live scalars unless their descriptor says Rebuild. Band-pass endpoints are sorted
+at preparation; its cutoffs, moving-average window, reverb amount and auto-pan
+waveform require preparation. Reverb buffer sizing never follows a live knob on
+the audio path. Enum parameters retain stable string IDs.
+
+Use `PreparedPatch::filter_index(module)` or `PreparedEdit::filter_index(module)`
+for host decorators after installation; do not infer indices from UI order or
+signal types. These handles describe that prepared installation, not later graphs.
+
+Run `cargo run --example rack --no-default-features -- examples/fixtures/math-and-routing.trbl`
+for a complete ring-modulated patch with a note bus, gain CV and split/merge.
