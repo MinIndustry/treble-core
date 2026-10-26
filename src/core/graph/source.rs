@@ -2,6 +2,13 @@ use crate::core::audio::Block;
 use crate::core::utils::Note;
 use dyn_clone::DynClone;
 
+/// A typed source stream input resolved by the compiled schedule.
+#[derive(Clone, Debug)]
+pub struct SourceInput {
+    pub port: usize,
+    pub block: std::sync::Arc<Block>,
+}
+
 /// The source trait defines node that can be used as source in the audio graph.
 pub trait Source: std::fmt::Debug + DynClone + Send + Sync {
     /// Pull exactly one Block (block_size frames) of stereo audio.
@@ -16,6 +23,16 @@ pub trait Source: std::fmt::Debug + DynClone + Send + Sync {
         _inputs: &[super::ParameterModulation],
     ) -> Block {
         self.pull(block_size)
+    }
+
+    /// Render with source stream inputs (for example sample-accurate gates).
+    fn pull_with_inputs(
+        &mut self,
+        frames: usize,
+        parameters: &[super::ParameterModulation],
+        _inputs: &[SourceInput],
+    ) -> Block {
+        self.pull_modulated(frames, parameters)
     }
 
     /// Soft start, envelope attack begins

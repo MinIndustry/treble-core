@@ -20,6 +20,8 @@ pub enum MathOperation {
     MonoToStereo,
     ControlToAudio,
     MonoToControl,
+    ControlToGate,
+    GateToControl,
 }
 
 /// Mono buffers use channel zero and duplicate it in the internal stereo block.
@@ -29,6 +31,7 @@ pub struct MathFilter {
     operation: MathOperation,
     inputs: [Option<Arc<Block>>; 2],
     offset: f32,
+    threshold: f32,
     minimum: f32,
     maximum: f32,
 }
@@ -52,6 +55,7 @@ impl MathFilter {
             operation,
             inputs: [None, None],
             offset: 0.0,
+            threshold: 0.0,
             minimum: -1.0,
             maximum: 1.0,
         }
@@ -82,7 +86,9 @@ impl MetaFilter for MathFilter {
     fn supports_parameter(&self, name: &str) -> bool {
         matches!(
             (self.operation, name),
-            (MathOperation::Offset, "offset") | (MathOperation::Clamp, "minimum" | "maximum")
+            (MathOperation::ControlToGate, "threshold")
+                | (MathOperation::Offset, "offset")
+                | (MathOperation::Clamp, "minimum" | "maximum")
         )
     }
     fn set_parameter(&mut self, name: &str, value: f32) -> bool {
@@ -91,6 +97,7 @@ impl MetaFilter for MathFilter {
         }
         match name {
             "offset" => self.offset = value,
+            "threshold" => self.threshold = value,
             "minimum" => self.minimum = value,
             "maximum" => self.maximum = value,
             _ => return false,
@@ -133,8 +140,13 @@ impl Filter for MathFilter {
                     MathOperation::MonoToStereo
                         | MathOperation::ControlToAudio
                         | MathOperation::MonoToControl
+                        | MathOperation::ControlToGate
+                        | MathOperation::GateToControl
                 ) {
                     let value = bounded(finite(sample(0, i, 0)));
+                    if self.operation == MathOperation::ControlToGate {
+                        return [if value > self.threshold { 1.0 } else { 0.0 }; 2];
+                    }
                     return [if self.operation == MathOperation::MonoToControl {
                         value.clamp(-1.0, 1.0)
                     } else {
@@ -231,6 +243,18 @@ mod tests {
         filter.push(Arc::new(a), 0);
         filter.push(Arc::new(b), 1);
         filter.transform()
+    }
+    #[test]
+    fn gate_conversion_uses_each_sample_and_a_live_threshold() {
+        let mut filter = MathFilter::new(MathOperation::ControlToGate);
+        assert!(filter.set_parameter("threshold", 0.25));
+        filter.push(Arc::new(vec![[0.0; 2], [0.25; 2], [0.5; 2], [-1.0; 2]]), 0);
+        let output = filter.transform().remove(0);
+        assert_eq!(output, vec![[0.0; 2], [0.0; 2], [1.0; 2], [0.0; 2]]);
+        assert_eq!(
+            run(MathOperation::GateToControl, output.clone(), vec![])[0],
+            output
+        );
     }
     #[test]
     fn arithmetic_preserves_stereo_signs_and_does_not_clip_to_audio_range() {

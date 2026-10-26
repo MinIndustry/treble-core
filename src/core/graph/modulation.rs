@@ -101,10 +101,19 @@ pub(crate) struct SignalRoute {
 }
 
 #[derive(Clone, Debug)]
+pub(crate) struct SourceRoute {
+    pub source: usize,
+    pub port: usize,
+    pub input: usize,
+}
+
+#[derive(Clone, Debug)]
 pub(crate) struct ScheduledNode {
     pub node: ExecutionNode,
     pub parameters: Vec<ParameterModulation>,
     pub routes: Vec<SignalRoute>,
+    pub inputs: Vec<super::SourceInput>,
+    pub input_routes: Vec<SourceRoute>,
 }
 
 #[derive(Clone, Debug)]
