@@ -419,7 +419,7 @@ pub(crate) fn scalar_binding(type_id: &str, parameter: &str) -> Option<&'static 
         ("treble.delay", "feedback") => Some("feedback"),
         ("treble.delay", "mix") => Some("mix"),
         ("treble.output", "level") => Some("factor"),
-        _ => None,
+        _ => super::catalog::scalar_binding(type_id, parameter),
     }
 }
 

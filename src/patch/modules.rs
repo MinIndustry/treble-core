@@ -374,17 +374,17 @@ pub struct ModuleRegistry {
 
 impl ModuleRegistry {
     pub fn builtins() -> Self {
-        Self {
-            descriptors: vec![
-                Oscillator::descriptor(),
-                LowPass::descriptor(),
-                Delay::descriptor(),
-                Output::descriptor(),
-                NoteInput::descriptor(),
-                Lfo::descriptor(),
-                AudioToControl::descriptor(),
-            ],
-        }
+        let mut descriptors = vec![
+            Oscillator::descriptor(),
+            LowPass::descriptor(),
+            Delay::descriptor(),
+            Output::descriptor(),
+            NoteInput::descriptor(),
+            Lfo::descriptor(),
+            AudioToControl::descriptor(),
+        ];
+        descriptors.extend(super::catalog::descriptors());
+        Self { descriptors }
     }
     pub fn descriptors(&self) -> &[ModuleDescriptor] {
         &self.descriptors
@@ -478,7 +478,7 @@ impl ModuleRegistry {
                     config.level,
                 ))))
             }
-            _ => Err(super::error("type_id", "no installed runtime factory")),
+            _ => super::catalog::instantiate(instance, sample_rate, descriptor),
         }
     }
 }

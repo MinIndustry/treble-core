@@ -43,6 +43,26 @@ impl fmt::Debug for PanFilter {
 }
 
 impl Filter for PanFilter {
+    fn transform_modulated(
+        &mut self,
+        inputs: &[crate::core::graph::ParameterModulation],
+    ) -> Vec<Block> {
+        let output = self
+            .source
+            .iter()
+            .enumerate()
+            .map(|(i, frame)| {
+                let direction =
+                    crate::core::graph::modulated_value(inputs, "direction", self.direction, i)
+                        .clamp(-1.0, 1.0);
+                let theta = (direction + 1.0) * std::f32::consts::FRAC_PI_4;
+                let (right, left) = theta.sin_cos();
+                [frame[0] * left, frame[1] * right]
+            })
+            .collect();
+        vec![output]
+    }
+
     fn transform(&mut self) -> Vec<Block> {
         // Equal-power law: constant perceived loudness across the sweep.
         // The old linear law put the centre at -6 dB per channel, so panned
