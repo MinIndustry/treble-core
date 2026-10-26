@@ -46,6 +46,13 @@ pub struct PreparedEdit {
     owner: Arc<AtomicU64>,
 }
 
+impl PreparedEdit {
+    /// Filter handle resolved during preparation, before the install command is queued.
+    pub fn filter_index(&self, module: &str) -> Option<petgraph::graph::NodeIndex> {
+        self.patch.filter_index(module)
+    }
+}
+
 impl PatchSnapshot {
     pub fn revision(&self) -> u64 {
         self.revision

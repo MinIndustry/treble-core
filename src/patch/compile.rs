@@ -40,6 +40,13 @@ impl PreparedPatch {
             _ => None,
         }
     }
+    /// Stable compiled filter handle for host-side observation/decorators.
+    pub fn filter_index(&self, module: &str) -> Option<NodeIndex> {
+        match self.bindings.get(module) {
+            Some(Binding::Filter(index)) => Some(*index),
+            _ => None,
+        }
+    }
     pub fn document(&self) -> &InstrumentDocument {
         &self.document
     }
@@ -112,7 +119,7 @@ impl ModuleRegistry {
                 .expect("validated port");
             if !matches!(
                 port.signal,
-                SignalType::Audio { channels: 2 }
+                SignalType::Audio { channels: 1 | 2 }
                     | SignalType::Note
                     | SignalType::Control {
                         domain: ControlDomain::Bipolar,
@@ -121,7 +128,7 @@ impl ModuleRegistry {
             ) {
                 return Err(error(
                     format!("instrument.patch.cables[{i}]"),
-                    "only stereo audio, notes and bipolar sample control cables are supported",
+                    "only mono/stereo audio, notes and bipolar sample control cables are supported",
                 ));
             }
             topology.add_edge(
@@ -170,16 +177,32 @@ impl ModuleRegistry {
                 .iter()
                 .find(|p| p.id == cable.from.port)
                 .expect("validated port");
-            if matches!(output.signal, SignalType::Control { .. }) {
+            let target = document
+                .instrument
+                .patch
+                .modules
+                .iter()
+                .find(|m| m.id == cable.to.module)
+                .expect("validated target");
+            let input = self
+                .descriptor(&target.type_id, target.type_version)
+                .expect("validated descriptor")
+                .ports
+                .iter()
+                .find(|p| p.id == cable.to.port)
+                .expect("validated port");
+            if matches!(input.binding, PortBinding::Parameter { .. })
+                || output.signal == SignalType::Note
+            {
                 continue;
             }
-            // All built-in audio sockets have implementation index zero. IDs
-            // were validated above; no UI ordering or caller index is trusted.
             match (bindings[&cable.from.module], bindings[&cable.to.module]) {
                 (Binding::Source(source), Binding::Filter(filter)) => {
-                    system.connect_source(source, filter, 0)
+                    system.connect_source(source, filter, input.index as usize)
                 }
-                (Binding::Filter(from), Binding::Filter(to)) => system.connect(from, to, 0, 0),
+                (Binding::Filter(from), Binding::Filter(to)) => {
+                    system.connect(from, to, output.index as usize, input.index as usize)
+                }
                 (Binding::NoteInput, Binding::Source(_) | Binding::NoteInput) => {}
                 _ => {
                     return Err(error(
@@ -191,9 +214,23 @@ impl ModuleRegistry {
         }
         let sink = system.add_sink(Box::new(AudioOutputSink::new(sample_rate)));
         for output in &document.instrument.interface.audio_outputs {
+            let module = document
+                .instrument
+                .patch
+                .modules
+                .iter()
+                .find(|m| m.id == output.module)
+                .expect("validated module");
+            let port = self
+                .descriptor(&module.type_id, module.type_version)
+                .expect("validated descriptor")
+                .ports
+                .iter()
+                .find(|p| p.id == output.port)
+                .expect("validated port");
             match bindings[&output.module] {
                 Binding::Source(source) => system.connect_source_to_sink(source, sink),
-                Binding::Filter(filter) => system.connect_sink(filter, sink, 0),
+                Binding::Filter(filter) => system.connect_sink(filter, sink, port.index as usize),
                 Binding::NoteInput => {
                     return Err(error(
                         "instrument.interface.audio_outputs",
@@ -234,7 +271,20 @@ impl ModuleRegistry {
         let empty = Arc::new(Vec::new());
         let mut cables: Vec<_> = document.instrument.patch.cables.iter().collect();
         cables.sort_by(|a, b| a.id.cmp(&b.id));
-        let mut has_modulation = false;
+        let mut has_modulation = document.instrument.patch.cables.iter().any(|cable| {
+            let module = document
+                .instrument
+                .patch
+                .modules
+                .iter()
+                .find(|m| m.id == cable.from.module)
+                .expect("validated module");
+            self.descriptor(&module.type_id, module.type_version)
+                .expect("validated descriptor")
+                .ports
+                .iter()
+                .any(|p| p.id == cable.from.port && matches!(p.signal, SignalType::Control { .. }))
+        });
         for cable in cables {
             let target = document
                 .instrument
@@ -298,7 +348,22 @@ impl ModuleRegistry {
                 .push((Arc::clone(&empty), depth));
             scheduled.routes.push(SignalRoute {
                 source: positions[cable.from.module.as_str()],
-                port: 0,
+                port: {
+                    let module = document
+                        .instrument
+                        .patch
+                        .modules
+                        .iter()
+                        .find(|m| m.id == cable.from.module)
+                        .expect("validated module");
+                    self.descriptor(&module.type_id, module.type_version)
+                        .expect("validated descriptor")
+                        .ports
+                        .iter()
+                        .find(|p| p.id == cable.from.port)
+                        .expect("validated port")
+                        .index as usize
+                },
                 group,
                 contribution,
             });
