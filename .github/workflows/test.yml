@@ -48,6 +48,9 @@ jobs:
       - name: Run tests
         run: cargo test
 
+      - name: Test portable host-owned DSP
+        run: cargo test --no-default-features
+
   lint:
     name: lint (informative)
     runs-on: ubuntu-latest

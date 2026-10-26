@@ -28,6 +28,7 @@
 //! To work with sound it is recommended to create an instance of the treble app:
 //!
 //! ```rust,no_run
+//! # #[cfg(feature = "native")] {
 //! use treble::prelude::*;
 //! use treble::audio::EventFilter;
 //!
@@ -40,6 +41,7 @@
 //!         panic!("Unable to start the treble engine: {e}");
 //!     }
 //! };
+//! # }
 //! ```
 //!
 //! This event_rx is a std::sync::mspc::Receiver channel sending `BackendEvent`

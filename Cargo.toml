@@ -38,6 +38,34 @@ criterion = { version = "0.5", features = ["html_reports"] }
 name = "graph"
 harness = false
 
+[[example]]
+name = "drum_machine"
+required-features = ["native"]
+
+[[example]]
+name = "multi_kick"
+required-features = ["native"]
+
+[[example]]
+name = "plot_hihat"
+required-features = ["native"]
+
+[[example]]
+name = "plot_chord"
+required-features = ["native"]
+
+[[example]]
+name = "plot_kick"
+required-features = ["native"]
+
+[[example]]
+name = "plot_snare"
+required-features = ["native"]
+
+[[example]]
+name = "one_note"
+required-features = ["native"]
+
 [features]
 native = [
     "dep:atomic_float",
