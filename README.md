@@ -24,7 +24,9 @@ Version 0.5 adds metadata-driven rack instruments built with released
 `treble-meta` and `treble-derive` 0.3 contracts. Load/save editable `.trbl` JSON,
 prepare patches away from audio processing, and send revision-checked live
 parameter/note controls through the existing native renderer. A keyboard note bus
-can feed oscillator trigger sockets, with fixed or key-following pitch.
+can feed oscillator trigger sockets, with fixed or key-following pitch. Sample-rate
+FM/AM, cutoff/resonance and gain CV use a combined dependency order; LFOs and
+explicit audio-to-control converters can drive sources or filters in the same block.
 
 See [rack instrument integration](docs/rack-instruments.md) for exact module IDs,
 host APIs and current playback limits. Try the device-free example:

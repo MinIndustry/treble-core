@@ -11,7 +11,11 @@
   block-boundary installation/live controls with recoverable nonblocking submission.
 - Keep incomplete/unavailable documents saveable and last valid audio running
   after preparation errors. Structural swaps reset DSP/held-note state; polyphony,
-  CV modulation, feedback and custom registry factories remain unsupported.
+  feedback and custom registry factories remain unsupported.
+- Apply sample-rate modulation blocks in a combined audio/control dependency
+  order. Add continuously running LFOs and explicit audio-to-control conversion;
+  support linear oscillator FM, AM, cutoff/resonance and gain CV without mutating
+  bases or introducing hidden block latency. Preserve legacy-only graph behavior.
 - Repair no-default-feature test/example gates and exercise portable tests in CI.
 
 This is a minor version bump for a pre-1.0 crate: `AudioMessage` gains a `Patch`

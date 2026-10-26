@@ -14,6 +14,8 @@ shared by native playback and portable/headless hosts. The published
 | `treble.delay` | `in`: summed stereo audio; `out`: stereo audio | `time`, `feedback`, `mix` |
 | `treble.output` | `in`: summed stereo audio; `out`: stereo audio | `level` |
 | `treble.note_input` | `in`: note input; `out`: note output | none |
+| `treble.lfo` | `out`: bipolar sample control; frequency/amplitude CV inputs | `frequency`, `amplitude` |
+| `treble.audio_to_control` | `in`: summed stereo audio; `out`: bipolar sample control | none |
 
 Call `ModuleRegistry::builtins().descriptors()` for exact typed defaults, ranges,
 units, update requirements and descriptions. The registry is built-in only;
@@ -30,6 +32,81 @@ For a keyboard bus, expose `treble.note_input`'s `in` as the instrument's
 `interface.note_input`, then cable its `out` to one or more oscillator `trigger`
 ports. A direct oscillator trigger may also be exposed. Notes route only along
 those cables. Unconnected trigger sockets are silent in monophonic mode.
+
+## Sample modulation
+
+The compiler orders **all source/filter nodes over both audio and control edges**.
+Each node renders once per segment, and its output block is shared by all
+consumers. A modulator declared after its target still supplies the current
+sample. Audio-to-control paths can pass through filters before driving another
+source. Shared modulation fanout does not advance a source twice. Splitting a
+block at note events preserves control/oscillator phase.
+
+All currently supported CV sockets use `Control { domain: bipolar, rate: sample }`
+and `Sum` connections. Audio and control remain distinct socket types.
+
+| Target | Socket | Mapping | Default depth |
+| --- | --- | --- | --- |
+| Oscillator frequency | `frequency_cv` | Native, linear FM | 100 Hz |
+| Oscillator amplitude | `amplitude_cv` | Native | 1 linear amplitude |
+| LFO frequency | `frequency_cv` | Octaves | 1 octave |
+| LFO amplitude | `amplitude_cv` | Native | 1 linear amplitude |
+| Low-pass cutoff | `cutoff_cv` | Octaves | 1 octave |
+| Low-pass resonance | `resonance_cv` | Native | 1 Q |
+| Output level | `level_cv` | Normalized | 1 domain width |
+
+Every socket supports Add, Multiply and Replace. A cable can override mode and
+finite signed depth. All cables to the same parameter socket must use the same
+mode. Contributions accumulate in stable cable-ID order. Following the published
+metadata contract, with `s = sum(depth_i * signal_i[sample])` and `q = T(base)`:
+
+- Add: `q + s`.
+- Multiply: `q * (1 + s)`; it does not multiply separate wire factors.
+- Replace: `s`.
+
+Native uses `T(v)=v`; Octaves uses `log2(v)`/`2^q`; Normalized uses the linear
+position within the declared domain. The inverse-mapped result is clamped to
+that domain. Oscillator/LFO frequencies are also limited below Nyquist. Invalid
+control samples or overflow in the coordinate calculation fall back to the
+bounded base for that sample. Overflow in an inverse mapping can saturate to a
+finite declared bound. A nonfinite low-level base falls back to the domain minimum
+(or zero without a domain). Saved patches/live edits reject nonfinite values.
+
+Frequency modulation composes with the held note frequency when `follow_keys`
+is true, and the saved frequency knob otherwise. For the oscillator's Native
+socket, Add is exactly `effective_frequency + sum(depth * cv[sample])`. Amplitude
+modulation composes with the saved amplitude before note velocity. Modulation
+never writes the saved base. Live knobs update that base without recompilation;
+unplugging/rebuilding retains the latest base rather than the last CV value.
+
+The sine LFO runs continuously, including idle monophonic patches, and is not a
+playable note target or an audio output. To modulate with an audio oscillator,
+noise or a filtered audio path, insert `treble.audio_to_control`: each frame
+becomes `(L+R)/2`, clamped to `[-1,1]`; nonfinite frames become zero. This is
+per-frame stereo reduction, never a mean over the block. Control buffers are
+transported internally in the existing block representation, with identical
+channels and channel zero carrying the scalar control.
+
+Preparation builds the execution plan and reusable routing/contribution storage.
+Rendering performs no per-sample heap allocation; existing block allocations
+remain. Per-sample cutoff/resonance can require a coefficient recalculation on
+every sample. Changing CV wiring/depth/mode requires preparation in this initial
+API, with the same structural-state reset as other patch edits.
+
+Low-level structural System mutations invalidate a sample plan only when they
+actually change topology. Rendering an invalidated plan produces silence and
+`compute()` reports that a new instrument preparation is required, rather than
+using stale source/filter indices. Failed/no-op removals/disconnects preserve the
+running plan. Absorbing a configured sample graph is rejected before changing
+either graph. Legacy scalar `ModWire` block-mean behavior remains available on
+legacy-only Systems; mixing it into a sample-plan System is explicitly rejected.
+Use the rack document/session API for topology edits.
+
+Try the complete modulated instrument without an audio device:
+
+```sh
+cargo run --example rack --no-default-features -- examples/fixtures/modulated.trbl
+```
 
 ## Loading, editing and saving
 
@@ -108,14 +185,14 @@ the same live session and queue each accepted command once.
   There is no per-note envelope control in the initial rack oscillator: note-off
   immediately stops that note's source contribution. Filters/delays may ring out.
 - Continuous mode starts all oscillators on installation; `all_notes_off` kills
-  sources, including drones. It does not erase effect tails.
+  audio sources, including drones. It does not erase effect tails or stop the LFO clock.
 - Live scalar edits preserve DSP state. Structural installations reset oscillator
   phase, held notes and delay/filter state. There is no state migration or
   crossfade in the rack adapter yet; hosts must retrigger notes if desired.
-- Polyphony, feedback cycles, CV/gate/control-rate modulation and custom plugins
-  are not implemented. They fail validation rather than silently changing
-  meaning. No modulation socket is advertised until its published base/depth/
-  mapping semantics are implemented. Base values remain separate and persistent.
+- Polyphony, feedback/self-modulation cycles, gate/block-rate control and custom
+  plugins are not implemented. Unsupported node/port/signal contracts fail
+  validation. Combined audio/modulation cycles identify an involved cable path;
+  the runtime never inserts a hidden block of latency to make a cycle run.
 - Stereo audio is currently the only audio channel contract. Sample rates must
   be finite and within 8000..=192000 Hz; blocks within 1..=65536 frames.
 - This adapter preserves existing render-thread allocation behaviour; it does not
