@@ -39,6 +39,23 @@ impl fmt::Display for GainFilter {
 }
 
 impl Filter for GainFilter {
+    fn transform_modulated(
+        &mut self,
+        inputs: &[crate::core::graph::ParameterModulation],
+    ) -> Vec<Block> {
+        let output = self
+            .source
+            .iter()
+            .enumerate()
+            .map(|(index, frame)| {
+                let gain =
+                    crate::core::graph::modulated_value(inputs, "factor", self.factor, index);
+                std::array::from_fn(|channel| frame[channel] * gain)
+            })
+            .collect();
+        vec![output]
+    }
+
     fn transform(&mut self) -> Vec<Block> {
         let factor = self.factor;
         // Serial on purpose: a 512-frame multiply is ~100ns of work, and

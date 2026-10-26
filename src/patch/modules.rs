@@ -1,9 +1,11 @@
+use crate::core::graph::{Entry, ParameterModulation, modulated_value};
 use crate::core::{
     Block, Note,
     filters::prelude::*,
     generator::prelude::*,
     graph::{Filter, Source},
 };
+use std::sync::Arc;
 use treble_derive::{ModuleMetadata, ModuleParameters, ParameterEnum};
 use treble_meta::{
     MetaFilter, ModuleDescriptor, ModuleInstance, ModuleMetadata as _, ParameterValue,
@@ -79,8 +81,10 @@ impl Shape {
 #[treble(output(id = "out", index = 0, signal = audio(channels = 2)))]
 pub(crate) struct Oscillator {
     #[treble(param(id = "frequency", default = 440.0, range(min = 1.0, max = 20000.0), unit = hz, scale = logarithmic))]
+    #[treble(modulation(port = "frequency_cv", index = 1, modes = [add, multiply, replace], mapping = octaves, rate = sample, connections = sum))]
     frequency: f32,
     #[treble(param(id = "amplitude", default = 0.2, range(min = 0.0, max = 1.0)))]
+    #[treble(modulation(port = "amplitude_cv", index = 2, modes = [add, multiply, replace], mapping = native, rate = sample, connections = sum))]
     amplitude: f32,
     #[treble(param(id = "follow_keys", default = true))]
     follow_keys: bool,
@@ -123,14 +127,18 @@ impl Oscillator {
         Ok(())
     }
 
-    fn retune(&mut self) {
-        let frequency = if self.follow_keys {
+    fn frequency_base(&self) -> f32 {
+        if self.follow_keys {
             self.held
                 .last()
                 .map_or(self.frequency, |(note, _)| note.frequency())
         } else {
             self.frequency
-        };
+        }
+    }
+
+    fn retune(&mut self) {
+        let frequency = self.frequency_base();
         self.generator
             .set_frequency(frequency.min(self.sample_rate * 0.49));
     }
@@ -138,19 +146,28 @@ impl Oscillator {
 
 impl Source for Oscillator {
     fn pull(&mut self, frames: usize) -> Block {
-        let gain = if self.drone {
-            self.amplitude
+        self.pull_modulated(frames, &[])
+    }
+    fn pull_modulated(&mut self, frames: usize, inputs: &[ParameterModulation]) -> Block {
+        let velocity = if self.drone {
+            1.0
         } else {
-            self.held
-                .last()
-                .map_or(0.0, |(_, velocity)| self.amplitude * velocity)
+            self.held.last().map_or(0.0, |(_, velocity)| *velocity)
         };
-        if gain == 0.0 {
+        if velocity == 0.0 || (inputs.is_empty() && self.amplitude == 0.0) {
             return vec![[0.0; 2]; frames];
         }
-        (0..frames)
-            .map(|_| [self.generator.tick(1.0 / self.sample_rate) * gain; 2])
-            .collect()
+        let base_frequency = self.frequency_base();
+        let mut output = Vec::with_capacity(frames);
+        for index in 0..frames {
+            let frequency = modulated_value(inputs, "frequency", base_frequency, index)
+                .clamp(1.0, self.sample_rate * 0.49);
+            let amplitude = modulated_value(inputs, "amplitude", self.amplitude, index);
+            self.generator.set_frequency(frequency);
+            output.push([self.generator.tick(1.0 / self.sample_rate) * amplitude * velocity; 2]);
+        }
+        self.retune();
+        output
     }
     fn start(&mut self) {
         self.drone = true;
@@ -206,8 +223,10 @@ pub(crate) struct LowPass {
     #[treble(input(id = "in", index = 0, signal = audio(channels = 2), connections = sum))]
     pub(crate) _input: (),
     #[treble(param(id = "cutoff", default = 1000.0, range(min = 1.0, max = 20000.0), unit = hz, scale = logarithmic))]
+    #[treble(modulation(port = "cutoff_cv", modes = [add, multiply, replace], mapping = octaves, rate = sample, connections = sum))]
     pub(crate) cutoff: f32,
     #[treble(param(id = "resonance", default = 0.70710677, range(min = 0.5, max = 20.0), unit = q))]
+    #[treble(modulation(port = "resonance_cv", modes = [add, multiply, replace], mapping = native, rate = sample, connections = sum))]
     pub(crate) resonance: f32,
 }
 
@@ -238,7 +257,113 @@ pub(crate) struct Output {
     #[treble(input(id = "in", index = 0, signal = audio(channels = 2), connections = sum))]
     pub(crate) _input: (),
     #[treble(param(id = "level", default = 0.8, range(min = 0.0, max = 1.0)))]
+    #[treble(modulation(port = "level_cv", modes = [add, multiply, replace], mapping = normalized, rate = sample, connections = sum))]
     pub(crate) level: f32,
+}
+
+/// A continuously running bipolar sample control oscillator (including audio-rate FM).
+#[derive(Clone, Debug, ModuleMetadata, ModuleParameters)]
+#[treble(module(id = "treble.lfo", version = 1, name = "LFO", category = "Control"))]
+#[treble(output(id = "out", index = 0, signal = control(domain = bipolar, rate = sample)))]
+struct Lfo {
+    #[treble(param(id = "frequency", default = 2.0, range(min = 0.001, max = 20000.0), unit = hz, scale = logarithmic))]
+    #[treble(modulation(port = "frequency_cv", modes = [add, multiply, replace], mapping = octaves, rate = sample, connections = sum))]
+    frequency: f32,
+    #[treble(param(id = "amplitude", default = 1.0, range(min = 0.0, max = 1.0)))]
+    #[treble(modulation(port = "amplitude_cv", modes = [add, multiply, replace], mapping = native, rate = sample, connections = sum))]
+    amplitude: f32,
+    #[treble(context(sample_rate))]
+    sample_rate: f32,
+    phase: f64,
+}
+impl Source for Lfo {
+    fn pull(&mut self, frames: usize) -> Block {
+        self.pull_modulated(frames, &[])
+    }
+    fn pull_modulated(&mut self, frames: usize, inputs: &[ParameterModulation]) -> Block {
+        let mut output = Vec::with_capacity(frames);
+        for index in 0..frames {
+            let frequency = modulated_value(inputs, "frequency", self.frequency, index)
+                .min(self.sample_rate * 0.49);
+            let amplitude = modulated_value(inputs, "amplitude", self.amplitude, index);
+            output.push([(self.phase * std::f64::consts::TAU).sin() as f32 * amplitude; 2]);
+            self.phase = (self.phase + f64::from(frequency) / f64::from(self.sample_rate)).fract();
+        }
+        output
+    }
+    fn is_active(&self) -> bool {
+        true
+    }
+    fn supports_parameter(&self, name: &str) -> bool {
+        matches!(name, "frequency" | "amplitude")
+    }
+    fn set_parameter(&mut self, name: &str, value: f32) -> bool {
+        match name {
+            "frequency" => self.frequency = value,
+            "amplitude" => self.amplitude = value,
+            _ => return false,
+        }
+        true
+    }
+}
+
+/// Explicit per-frame mean(L,R) conversion, bounded to bipolar control range.
+#[derive(Clone, Debug, ModuleMetadata)]
+#[treble(module(
+    id = "treble.audio_to_control",
+    version = 1,
+    name = "Audio to control",
+    category = "Control"
+))]
+#[treble(output(id = "out", index = 0, signal = control(domain = bipolar, rate = sample)))]
+struct AudioToControl {
+    #[treble(input(id = "in", index = 0, signal = audio(channels = 2), connections = sum))]
+    input: Arc<Block>,
+}
+impl Entry for AudioToControl {
+    fn push(&mut self, block: Arc<Block>, _port: usize) {
+        self.input = block;
+    }
+}
+impl std::fmt::Display for AudioToControl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Audio to control")
+    }
+}
+impl MetaFilter for AudioToControl {
+    fn metadata() -> treble_meta::FilterInfo {
+        treble_meta::FilterInfo {
+            name: "Audio to control",
+            type_id: "treble.audio_to_control",
+            description: "Per-sample stereo mean, clamped to bipolar control",
+            inputs: vec![treble_meta::FilterInput {
+                label: Some("Input"),
+                parameter: None,
+            }],
+            outputs: 1,
+        }
+    }
+}
+impl Filter for AudioToControl {
+    fn transform(&mut self) -> Vec<Block> {
+        let output = self
+            .input
+            .iter()
+            .map(|frame| {
+                let value = frame[0] * 0.5 + frame[1] * 0.5;
+                [if value.is_finite() {
+                    value.clamp(-1.0, 1.0)
+                } else {
+                    0.0
+                }; 2]
+            })
+            .collect();
+        self.input = Arc::new(Vec::new());
+        vec![output]
+    }
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 /// Built-in playable contracts. No unsupported ports are advertised.
@@ -256,6 +381,8 @@ impl ModuleRegistry {
                 Delay::descriptor(),
                 Output::descriptor(),
                 NoteInput::descriptor(),
+                Lfo::descriptor(),
+                AudioToControl::descriptor(),
             ],
         }
     }
@@ -289,6 +416,21 @@ impl ModuleRegistry {
         }
         match instance.type_id.as_str() {
             "treble.note_input" => Ok(RuntimeModule::NoteInput),
+            "treble.lfo" => {
+                let mut lfo = Lfo {
+                    frequency: 2.0,
+                    amplitude: 1.0,
+                    sample_rate,
+                    phase: 0.0,
+                };
+                for (id, value) in &instance.parameters {
+                    lfo.set_parameter_value(id, value.clone())?;
+                }
+                Ok(RuntimeModule::Source(Box::new(lfo)))
+            }
+            "treble.audio_to_control" => Ok(RuntimeModule::Filter(Box::new(AudioToControl {
+                input: Arc::new(Vec::new()),
+            }))),
             "treble.oscillator" => {
                 let mut config = Oscillator::new(sample_rate);
                 for (id, value) in &instance.parameters {
@@ -344,6 +486,64 @@ impl ModuleRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn modulation(parameter: &str, mapping: treble_meta::ModulationMapping) -> ParameterModulation {
+        ParameterModulation {
+            parameter: parameter.into(),
+            mode: treble_meta::ModulationMode::Add,
+            mapping,
+            domain: None,
+            signals: vec![(
+                Arc::new(vec![[-0.5; 2], [-0.25; 2], [0.0; 2], [0.25; 2], [0.5; 2]]),
+                1.0,
+            )],
+        }
+    }
+    #[test]
+    fn oscillator_fm_and_am_are_sample_views_with_persistent_bases() {
+        let mut oscillator = Oscillator::new(48000.0);
+        let mut reference = builder::ToneGeneratorBuilder::new().build();
+        oscillator.start();
+        reference.start();
+        let inputs = vec![
+            modulation("frequency", treble_meta::ModulationMapping::Octaves),
+            modulation("amplitude", treble_meta::ModulationMapping::Native),
+        ];
+        let actual = oscillator.pull_modulated(5, &inputs);
+        for (index, frame) in actual.iter().enumerate() {
+            let cv = -0.5 + index as f32 * 0.25;
+            reference.set_frequency(440.0 * 2.0f32.powf(cv));
+            let expected = reference.tick(1.0 / 48000.0) * (0.2 + cv);
+            assert!((frame[0] - expected).abs() < 1e-6);
+        }
+        assert_eq!(oscillator.frequency, 440.0);
+        assert_eq!(oscillator.amplitude, 0.2);
+        reference.set_frequency(440.0);
+        assert!((oscillator.pull(1)[0][0] - reference.tick(1.0 / 48000.0) * 0.2).abs() < 1e-6);
+    }
+    #[test]
+    fn lfo_runs_without_keys_and_converter_reduces_each_stereo_frame() {
+        let mut lfo = Lfo {
+            frequency: 1000.0,
+            amplitude: 0.5,
+            sample_rate: 48000.0,
+            phase: 0.0,
+        };
+        let mut split = lfo.clone();
+        let whole = lfo.pull(100);
+        let chunks: Block = [split.pull(13), split.pull(29), split.pull(58)].concat();
+        assert_eq!(whole, chunks);
+        for (index, frame) in whole.iter().enumerate() {
+            let expected = (index as f64 / 48.0 * std::f64::consts::TAU).sin() as f32 * 0.5;
+            assert!((frame[0] - expected).abs() < 1e-6);
+        }
+        let mut converter = AudioToControl {
+            input: Arc::new(vec![[1.0, -1.0], [0.6, 0.2], [3.0, 1.0], [f32::NAN, 0.2]]),
+        };
+        assert_eq!(
+            converter.transform()[0],
+            vec![[0.0; 2], [0.4; 2], [1.0; 2], [0.0; 2]]
+        );
+    }
     #[test]
     fn builtin_contracts_are_valid() {
         for descriptor in ModuleRegistry::builtins().descriptors() {

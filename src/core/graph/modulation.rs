@@ -21,7 +21,11 @@ impl ParameterModulation {
             Some(domain) => value.clamp(domain.min, domain.max),
             None => value,
         };
-        let base = bounded(f64::from(base));
+        let base = bounded(if base.is_finite() {
+            f64::from(base)
+        } else {
+            self.domain.as_ref().map_or(0.0, |domain| domain.min)
+        });
         let mut sum = 0.0;
         for (signal, depth) in &self.signals {
             let input = signal.get(sample).map_or(0.0, |frame| f64::from(frame[0]));
@@ -77,7 +81,9 @@ pub fn modulated_value(
     inputs
         .iter()
         .find(|input| input.parameter == parameter)
-        .map_or(base, |input| input.value(base, sample))
+        .map_or(if base.is_finite() { base } else { 0.0 }, |input| {
+            input.value(base, sample)
+        })
 }
 
 #[cfg(test)]
