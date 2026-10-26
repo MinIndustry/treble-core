@@ -13,6 +13,21 @@ use treble_meta::{
 pub enum RuntimeModule {
     Source(Box<dyn Source>),
     Filter(Box<dyn Filter>),
+    /// Event routing only; no fake audio source is installed.
+    NoteInput,
+}
+
+#[derive(ModuleMetadata)]
+#[treble(module(
+    id = "treble.note_input",
+    version = 1,
+    name = "Note input",
+    category = "Control"
+))]
+#[treble(output(id = "out", index = 0, signal = note))]
+struct NoteInput {
+    #[treble(input(id = "in", index = 0, signal = note))]
+    _input: (),
 }
 
 #[derive(Clone, Debug, ParameterEnum)]
@@ -230,6 +245,7 @@ impl ModuleRegistry {
                 LowPass::descriptor(),
                 Delay::descriptor(),
                 Output::descriptor(),
+                NoteInput::descriptor(),
             ],
         }
     }
@@ -262,6 +278,7 @@ impl ModuleRegistry {
             parameter.validate_value(value)?;
         }
         match instance.type_id.as_str() {
+            "treble.note_input" => Ok(RuntimeModule::NoteInput),
             "treble.oscillator" => {
                 let mut config = Oscillator::new(sample_rate);
                 for (id, value) in &instance.parameters {

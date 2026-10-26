@@ -252,6 +252,77 @@ fn structural_install_explicitly_resets_held_notes_and_state() {
 }
 
 #[test]
+fn a_note_input_bus_fans_out_to_oscillator_triggers_and_can_be_unplugged() {
+    let mut doc = document();
+    doc.instrument.voice = VoiceConfiguration::Monophonic;
+    doc.instrument
+        .patch
+        .modules
+        .push(instance("keyboard", "treble.note_input"));
+    doc.instrument
+        .patch
+        .modules
+        .push(instance("osc2", "treble.oscillator"));
+    doc.instrument.interface.note_input = Some(endpoint("keyboard", "in"));
+    doc.instrument.patch.cables.push(Cable {
+        id: "note1".into(),
+        from: endpoint("keyboard", "out"),
+        to: endpoint("osc", "trigger"),
+        modulation: None,
+    });
+    doc.instrument.patch.cables.push(Cable {
+        id: "note2".into(),
+        from: endpoint("keyboard", "out"),
+        to: endpoint("osc2", "trigger"),
+        modulation: None,
+    });
+    doc.instrument
+        .patch
+        .cables
+        .push(cable("audio2", "osc2", "output"));
+    let mut session = PatchSession::new(ModuleRegistry::builtins(), doc).unwrap();
+    let mut runtime = PatchRuntime::default();
+    let mut system = System::silent();
+    let command = session
+        .commit(session.snapshot().prepare(48000.0, 128).unwrap())
+        .unwrap();
+    runtime.apply(&mut system, command).unwrap();
+    runtime
+        .apply(
+            &mut system,
+            session.note_on(Note::from_midi(69), 1.0).unwrap(),
+        )
+        .unwrap();
+    assert!(system.is_source_active(0));
+    assert!(system.is_source_active(1));
+    assert!(energy(&render(&mut system, 1024)) > 1.0);
+    runtime
+        .apply(&mut system, session.note_off(Note::from_midi(69)).unwrap())
+        .unwrap();
+    assert!(!system.is_source_active(0));
+    assert!(!system.is_source_active(1));
+    let mut unplugged = session.document().clone();
+    unplugged
+        .instrument
+        .patch
+        .cables
+        .retain(|c| c.id != "note2");
+    session.replace_document(unplugged).unwrap();
+    let command = session
+        .commit(session.snapshot().prepare(48000.0, 128).unwrap())
+        .unwrap();
+    runtime.apply(&mut system, command).unwrap();
+    runtime
+        .apply(
+            &mut system,
+            session.note_on(Note::from_midi(69), 1.0).unwrap(),
+        )
+        .unwrap();
+    assert!(system.is_source_active(0));
+    assert!(!system.is_source_active(1));
+}
+
+#[test]
 fn document_roundtrip_compiles_and_renders_real_stereo_audio() {
     let document = document();
     let json = serde_json::to_string_pretty(&document).unwrap();

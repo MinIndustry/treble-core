@@ -4,13 +4,14 @@ use petgraph::{
     algo::toposort,
     graph::{DiGraph, NodeIndex},
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use treble_meta::{InstrumentDocument, SignalType, ValidationErrors, VoiceConfiguration};
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Binding {
     Source(usize),
     Filter(NodeIndex),
+    NoteInput,
 }
 
 /// A fully validated, compiled graph. Prepare away from audio processing.
@@ -21,6 +22,7 @@ pub struct PreparedPatch {
     pub(crate) bindings: BTreeMap<String, Binding>,
     pub(crate) document: InstrumentDocument,
     pub(crate) sample_rate: f32,
+    pub(crate) note_routes: BTreeMap<String, Vec<usize>>,
 }
 
 impl PreparedPatch {
@@ -94,10 +96,13 @@ impl ModuleRegistry {
                 .iter()
                 .find(|p| p.id == cable.from.port)
                 .expect("validated port");
-            if !matches!(port.signal, SignalType::Audio { channels: 2 }) {
+            if !matches!(
+                port.signal,
+                SignalType::Audio { channels: 2 } | SignalType::Note
+            ) {
                 return Err(error(
                     format!("instrument.patch.cables[{i}]"),
-                    "only stereo audio cables are currently supported; use the external note input for triggering",
+                    "only stereo audio and note cables are currently supported",
                 ));
             }
             topology.add_edge(
@@ -126,6 +131,7 @@ impl ModuleRegistry {
             let binding = match runtime {
                 RuntimeModule::Source(source) => Binding::Source(system.add_source(source)),
                 RuntimeModule::Filter(filter) => Binding::Filter(system.add_filter(filter)),
+                RuntimeModule::NoteInput => Binding::NoteInput,
             };
             bindings.insert(instance.id.clone(), binding);
         }
@@ -137,6 +143,7 @@ impl ModuleRegistry {
                     system.connect_source(source, filter, 0)
                 }
                 (Binding::Filter(from), Binding::Filter(to)) => system.connect(from, to, 0, 0),
+                (Binding::NoteInput, Binding::Source(_) | Binding::NoteInput) => {}
                 _ => {
                     return Err(error(
                         "instrument.patch.cables",
@@ -150,6 +157,12 @@ impl ModuleRegistry {
             match bindings[&output.module] {
                 Binding::Source(source) => system.connect_source_to_sink(source, sink),
                 Binding::Filter(filter) => system.connect_sink(filter, sink, 0),
+                Binding::NoteInput => {
+                    return Err(error(
+                        "instrument.interface.audio_outputs",
+                        "note input cannot supply audio",
+                    ));
+                }
             }
         }
         system
@@ -162,11 +175,43 @@ impl ModuleRegistry {
                 }
             }
         }
+        let mut note_routes = BTreeMap::new();
+        for (id, binding) in &bindings {
+            let mut sources = Vec::new();
+            let mut pending = vec![id.as_str()];
+            let mut visited = BTreeSet::new();
+            while let Some(id) = pending.pop() {
+                if !visited.insert(id) {
+                    continue;
+                }
+                match bindings[id] {
+                    Binding::Source(index) => sources.push(index),
+                    Binding::NoteInput => {
+                        pending.extend(
+                            document
+                                .instrument
+                                .patch
+                                .cables
+                                .iter()
+                                .filter(|c| c.from.module == id)
+                                .map(|c| c.to.module.as_str()),
+                        );
+                    }
+                    Binding::Filter(_) => {}
+                }
+            }
+            sources.sort_unstable();
+            sources.dedup();
+            if matches!(binding, Binding::Source(_) | Binding::NoteInput) {
+                note_routes.insert(id.clone(), sources);
+            }
+        }
         Ok(PreparedPatch {
             system,
             bindings,
             document: document.clone(),
             sample_rate,
+            note_routes,
         })
     }
 }

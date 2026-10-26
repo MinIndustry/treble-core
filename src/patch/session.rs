@@ -27,6 +27,7 @@ struct ActivePatch {
     document: InstrumentDocument,
     bindings: BTreeMap<String, Binding>,
     slots: BTreeMap<(String, String), usize>,
+    note_routes: BTreeMap<String, Vec<usize>>,
 }
 
 /// Owned snapshot suitable for background preparation while the draft changes.
@@ -198,6 +199,7 @@ impl PatchSession {
             document: self.document.clone(),
             bindings: prepared.patch.bindings.clone(),
             slots,
+            note_routes: prepared.patch.note_routes.clone(),
         });
         self.owner.store(self.revision, Ordering::Release);
         Ok(PatchCommand {
@@ -336,8 +338,8 @@ impl PatchSession {
                     "instrument has no exposed note input",
                 )
             })?;
-        match active.bindings.get(&input.module) {
-            Some(Binding::Source(index)) => Ok(vec![*index]),
+        match active.note_routes.get(&input.module) {
+            Some(sources) => Ok(sources.clone()),
             _ => Err(error(
                 "instrument.interface.note_input",
                 "note input is not bound to a playable source",
@@ -486,6 +488,9 @@ impl PatchRuntime {
                     Binding::Source(index) => system
                         .set_source_parameter(index, name, value)
                         .map_err(|e| error("parameter", e.to_string()))?,
+                    Binding::NoteInput => {
+                        return Err(error("parameter", "note router has no parameters"));
+                    }
                     Binding::Filter(index) => {
                         let filter = system
                             .get_filter_mut(index)
