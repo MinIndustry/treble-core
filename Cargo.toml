@@ -3,7 +3,7 @@ name = "treble"
 description = "Treble — modular real-time audio synthesis in Rust"
 license = "MIT"
 repository = "https://github.com/MinIndustry/treble-core"
-version = "0.4.3"
+version = "0.5.0"
 edition = "2024"
 
 [dependencies]
@@ -22,20 +22,49 @@ thiserror = "2.0.12"
 toml = { version = "0.8.22", optional = true }
 typetag = "0.2.21"
 inventory = "0.3"
-treble-derive = "0.2.0"
-treble-meta = "0.2.0"
+treble-derive = "0.3.0"
+treble-meta = "0.3.0"
 evdev = { version = "0.12.2", optional = true }
 plotters = { version = "0.3.7", optional = true }
 hound = "3.5.1"
 
+serde_json = "1.0"
+
 [dev-dependencies]
 pretty_assertions = "1.1.0"
 criterion = { version = "0.5", features = ["html_reports"] }
-serde_json = "1.0.151"
 
 [[bench]]
 name = "graph"
 harness = false
+
+[[example]]
+name = "drum_machine"
+required-features = ["native"]
+
+[[example]]
+name = "multi_kick"
+required-features = ["native"]
+
+[[example]]
+name = "plot_hihat"
+required-features = ["native"]
+
+[[example]]
+name = "plot_chord"
+required-features = ["native"]
+
+[[example]]
+name = "plot_kick"
+required-features = ["native"]
+
+[[example]]
+name = "plot_snare"
+required-features = ["native"]
+
+[[example]]
+name = "one_note"
+required-features = ["native"]
 
 [features]
 native = [

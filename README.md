@@ -18,6 +18,23 @@
 
 Treble is a frontend-agnostic core library for audio synthesis. It provides composable DSP primitives — generators, envelopes, filters, and a node graph — behind a lock-free, real-time-safe audio pipeline. The same engine can be embedded in GUI applications, CLI tools, or test harnesses without modification.
 
+## Rack instruments and `.trbl` files
+
+Version 0.5 adds metadata-driven rack instruments built with released
+`treble-meta` and `treble-derive` 0.3 contracts. Load/save editable `.trbl` JSON,
+prepare patches away from audio processing, and send revision-checked live
+parameter/note controls through the existing native renderer. A keyboard note bus
+can feed oscillator trigger sockets, with fixed or key-following pitch. Sample-rate
+FM/AM, cutoff/resonance and gain CV use a combined dependency order; LFOs and
+explicit audio-to-control converters can drive sources or filters in the same block.
+
+See [rack instrument integration](docs/rack-instruments.md) for exact module IDs,
+host APIs and current playback limits. Try the device-free example:
+
+```sh
+cargo run --example rack --no-default-features
+```
+
 ## Architecture
 
 ### Portable DSP and native runtime
@@ -188,33 +205,21 @@ held level) and logs the code once. Debug builds additionally trip a
 
 ## Development
 
-`treble-meta` and `treble-derive` are separate repositories, pinned in
-`Cargo.toml` by git tag so a bare checkout builds straight from GitHub.
+`treble-meta` and `treble-derive` are separate repositories, consumed from
+crates.io at version 0.3. CI and package verification require the released crates.
 
-To work against sibling checkouts instead, copy the example override:
+For deliberate local development, copy the example override:
 
 ```sh
 cp .cargo/config.toml.example .cargo/config.toml
 ```
 
-`.cargo/config.toml` is git-ignored, so CI and fresh clones never see it. The
-example assumes the umbrella layout — `treble-core`, `treble-meta` and
-`treble-derive` checked out side by side.
+The override uses `[patch.crates-io]` and assumes sibling checkouts. It is
+ignored by Git. Cargo rewrites the lockfile while patches are active; do not
+commit local resolution changes. A sibling version must satisfy the dependency
+requirement. Verify one metadata identity with `cargo tree -i treble-meta` and
+check for unused patches when local edits appear to have no effect.
 
-Two things to know while that override is active:
-
-- **Building rewrites `Cargo.lock`**, because cargo records a patched crate
-  without its `source` line. The committed lockfile is the unpatched
-  resolution, which is what CI needs — leave that churn out of commits.
-- **A patch is silently ignored** when the sibling checkout's version does not
-  satisfy the pin, and cargo then quietly uses the tag instead, so you can
-  believe you are testing local changes that never get compiled. Check for
-  `[[patch.unused]]` in `Cargo.lock` if a local edit seems to have no effect.
-
-Every repository must spell a shared dependency identically (same URL, `.git`
-suffix included, same tag): cargo keys a git source on URL + ref, so two
-spellings build the crate twice and a trait implemented against one instance is
-invisible to the other. `grep -c 'name = "treble-meta"' Cargo.lock` must
-print `1`.
-
-Verify changes with `cargo test` and `cargo clippy --all-targets -- -D warnings`.
+Verify with `cargo test`, `cargo test --no-default-features`,
+`cargo fmt --check`, and
+`cargo clippy --features plotting,ts --all-targets -- -D warnings`.

@@ -8,6 +8,10 @@ pub trait Filter: Entry + fmt::Display + treble_meta::MetaFilter + Send + Sync {
     /// Returns a Vector of Blocks. Each block correspond to output port `x` of the filter
     fn transform(&mut self) -> Vec<Block>;
 
+    fn transform_modulated(&mut self, _inputs: &[super::ParameterModulation]) -> Vec<Block> {
+        self.transform()
+    }
+
     /// Returns true if the filter's execution can be postponed to the end of the execution cycle of the graph.
     /// A postponable element must be present in a cycle of the graph to avoid infinite looping.
     /// E.g. a delay filter can be postponed if it lies within a feedback loop.

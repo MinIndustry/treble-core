@@ -10,6 +10,8 @@ use crate::core::graph::{ModTarget, System};
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 pub enum AudioMessage {
+    /// Validated rack installation/control, applied between rendered blocks.
+    Patch(crate::patch::PatchCommand),
     /// Instrument note control — routed by source index in the compiled System.
     /// Applied at the start of the next rendered block.
     Instrument(InstrumentAudioMessage),

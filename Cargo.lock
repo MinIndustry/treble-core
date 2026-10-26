@@ -1641,7 +1641,7 @@ checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
 
 [[package]]
 name = "treble"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "atomic_float",
  "chrono",
@@ -1670,11 +1670,12 @@ dependencies = [
 
 [[package]]
 name = "treble-derive"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aef642c297c775e655952084901ab703f7f707ae4fad6da59c94cfd3fa87c93f"
+checksum = "5402cbaadbdf06e44fc4d70a8770e346b4e439cb4cd7696ef59065af43d9ba0f"
 dependencies = [
  "convert_case",
+ "proc-macro-crate",
  "proc-macro2",
  "quote",
  "syn",
@@ -1683,13 +1684,14 @@ dependencies = [
 
 [[package]]
 name = "treble-meta"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d4c5ae50588a53b88109f9089ac62189c276de46fa35b43fb1b4c7706432f01"
+checksum = "a32eb635139487e9268e8ee3756ee569c6a72fb7dc0b66b13906d2d3e070e2c7"
 dependencies = [
  "proc-macro2",
  "quote",
  "serde",
+ "serde_json",
  "ts-rs",
 ]
 
@@ -1699,6 +1701,7 @@ version = "12.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "756050066659291d47a554a9f558125db17428b073c5ffce1daf5dcb0f7231d8"
 dependencies = [
+ "serde_json",
  "thiserror 2.0.12",
  "ts-rs-macros",
 ]
@@ -2213,11 +2216,3 @@ name = "zmij"
 version = "1.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8848ee67ecc8aedbaf3e4122217aff892639231befc6a1b58d29fff4c2cabaa"
-
-[[patch.unused]]
-name = "treble-meta"
-version = "0.2.0"
-
-[[patch.unused]]
-name = "treble-derive"
-version = "0.2.0"

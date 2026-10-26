@@ -1,0 +1,87 @@
+{
+  "format_version": 1,
+  "instrument": {
+    "name": "Rack sine",
+    "description": "A monophonic rack instrument",
+    "patch": {
+      "modules": [
+        {
+          "id": "osc",
+          "type_id": "treble.oscillator",
+          "type_version": 1,
+          "parameters": {}
+        },
+        {
+          "id": "filter",
+          "type_id": "treble.low_pass",
+          "type_version": 1,
+          "parameters": {}
+        },
+        {
+          "id": "output",
+          "type_id": "treble.output",
+          "type_version": 1,
+          "parameters": {}
+        }
+      ],
+      "cables": [
+        {
+          "id": "osc_filter",
+          "from": {
+            "module": "osc",
+            "port": "out"
+          },
+          "to": {
+            "module": "filter",
+            "port": "in"
+          },
+          "modulation": null
+        },
+        {
+          "id": "filter_output",
+          "from": {
+            "module": "filter",
+            "port": "out"
+          },
+          "to": {
+            "module": "output",
+            "port": "in"
+          },
+          "modulation": null
+        }
+      ]
+    },
+    "interface": {
+      "note_input": {
+        "module": "osc",
+        "port": "trigger"
+      },
+      "audio_outputs": [
+        {
+          "module": "output",
+          "port": "out"
+        }
+      ],
+      "controls": []
+    },
+    "voice": {
+      "kind": "monophonic"
+    }
+  },
+  "editor": {
+    "rack": {
+      "osc": [
+        0,
+        0
+      ],
+      "filter": [
+        0,
+        1
+      ],
+      "output": [
+        0,
+        2
+      ]
+    }
+  }
+}
