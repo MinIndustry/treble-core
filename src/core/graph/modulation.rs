@@ -86,6 +86,34 @@ pub fn modulated_value(
         })
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ExecutionNode {
+    Source(usize),
+    Filter(petgraph::graph::NodeIndex),
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct SignalRoute {
+    pub source: usize,
+    pub port: usize,
+    pub group: usize,
+    pub contribution: usize,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct ScheduledNode {
+    pub node: ExecutionNode,
+    pub parameters: Vec<ParameterModulation>,
+    pub routes: Vec<SignalRoute>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct SamplePlan {
+    pub valid: bool,
+    pub nodes: Vec<ScheduledNode>,
+    pub outputs: Vec<Vec<Arc<Block>>>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

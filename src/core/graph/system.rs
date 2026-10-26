@@ -95,6 +95,7 @@ pub struct System {
     automation: Box<AutomationState>,
     /// Number of frames to produce per `run()` call
     block_size: usize,
+    sample_plan: Option<Box<super::SamplePlan>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -148,11 +149,101 @@ impl Default for System {
             mod_wires: Vec::new(),
             automation: Box::default(),
             block_size: 512,
+            sample_plan: None,
         }
     }
 }
 
 impl System {
+    fn invalidate_sample_plan(&mut self) {
+        if let Some(plan) = &mut self.sample_plan {
+            plan.valid = false;
+        }
+    }
+
+    pub(crate) fn install_sample_plan(
+        &mut self,
+        plan: super::SamplePlan,
+    ) -> Result<(), AudioGraphError> {
+        if !self.mod_wires.is_empty() {
+            return Err(AudioGraphError::ConnectionNotAllowed);
+        }
+        for (index, node) in plan.nodes.iter().enumerate() {
+            if node
+                .routes
+                .iter()
+                .any(|route| route.source >= index || route.port != 0)
+            {
+                return Err(AudioGraphError::ConnectionNotAllowed);
+            }
+        }
+        self.sample_plan = Some(Box::new(plan));
+        Ok(())
+    }
+
+    fn run_sample_plan(&mut self, frames: usize, plan: &mut super::SamplePlan) {
+        let mut stats = RunStats {
+            frames,
+            ..RunStats::default()
+        };
+        if !plan.valid {
+            let silence = Arc::new(crate::core::audio::silent_block(frames));
+            for (_, sink) in &mut self.sinks {
+                sink.discard();
+                sink.push(Arc::clone(&silence), 0);
+            }
+            self.compiled.last_run_stats = stats;
+            return;
+        }
+        for index in 0..plan.nodes.len() {
+            let scheduled = &mut plan.nodes[index];
+            let (previous, remaining) = plan.outputs.split_at_mut(index);
+            for route in &scheduled.routes {
+                scheduled.parameters[route.group].signals[route.contribution].0 =
+                    Arc::clone(&previous[route.source][route.port]);
+            }
+            let outputs = &mut remaining[0];
+            outputs.clear();
+            match scheduled.node {
+                super::ExecutionNode::Source(source) => {
+                    let (source_node, connections) = &mut self.sources[source];
+                    let block = Arc::new(source_node.pull_modulated(frames, &scheduled.parameters));
+                    stats.active_sources += usize::from(source_node.is_active());
+                    stats.source_routes += connections.len();
+                    for &(target, port) in connections.iter() {
+                        self.graph[target].push(Arc::clone(&block), port);
+                    }
+                    for &(from, sink) in &self.source_sink_wires {
+                        if from == source {
+                            self.sinks[sink].1.push(Arc::clone(&block), 0);
+                            stats.sink_routes += 1;
+                        }
+                    }
+                    outputs.push(block);
+                }
+                super::ExecutionNode::Filter(node) => {
+                    outputs
+                        .extend(self.graph[node].process_modulated(frames, &scheduled.parameters));
+                    stats.processed_nodes += 1;
+                    let dispatch = &self.compiled.dispatch[node.index()];
+                    for route in &dispatch.filters {
+                        if let Some(block) = outputs.get(route.output_port) {
+                            self.graph[route.target].push(Arc::clone(block), route.input_port);
+                            stats.filter_routes += 1;
+                        }
+                    }
+                    for route in &dispatch.sinks {
+                        if let Some(block) = outputs.get(route.output_port) {
+                            self.sinks[route.sink].1.push(Arc::clone(block), 0);
+                            stats.sink_routes += 1;
+                        }
+                    }
+                }
+            }
+        }
+        self.compiled.last_run_stats = stats;
+    }
+
     /// Creates a new system with a default block size of 512 frames.
     pub fn new() -> Self {
         Self::default()
@@ -191,6 +282,7 @@ impl System {
 
     // Adds a filter to the system. Further references to this filter should be done using the returned uuid
     pub fn add_filter(&mut self, filter: Box<dyn Filter>) -> NodeIndex<u32> {
+        self.invalidate_sample_plan();
         log::trace!("[Graph] Adding filter {:?}", filter);
         self.graph
             .add_node(AudioNode::new(filter, MixMode::default()))
@@ -205,6 +297,7 @@ impl System {
         out_port: usize,
         in_port: usize,
     ) {
+        self.invalidate_sample_plan();
         log::trace!(
             "[Graph] Connecting {:?} (p: {}) to {:?} (p: {})",
             self.graph[from],
@@ -218,31 +311,44 @@ impl System {
     /// Connects a source directly to a sink, bypassing any filters.
     pub fn connect_source_to_sink(&mut self, source_idx: usize, sink_idx: usize) {
         if !self.source_sink_wires.contains(&(source_idx, sink_idx)) {
+            self.invalidate_sample_plan();
             self.source_sink_wires.push((source_idx, sink_idx));
         }
     }
 
     /// Removes a direct source→sink wire.
     pub fn disconnect_source_from_sink(&mut self, source_idx: usize, sink_idx: usize) {
+        let before = self.source_sink_wires.len();
         self.source_sink_wires
             .retain(|&(s, k)| s != source_idx || k != sink_idx);
+        if self.source_sink_wires.len() != before {
+            self.invalidate_sample_plan();
+        }
     }
 
     /// Connects a source to a filter of the graph (fan-out: one source can feed many filters).
     pub fn connect_source(&mut self, source: usize, to: NodeIndex<u32>, in_port: usize) {
+        self.invalidate_sample_plan();
         self.sources[source].1.push((to, in_port));
     }
 
     /// Removes the connection from a source to a specific filter.
     pub fn disconnect_source(&mut self, source: usize, filter: NodeIndex<u32>) {
+        let mut changed = false;
         if let Some((_, connections)) = self.sources.get_mut(source) {
+            let before = connections.len();
             connections.retain(|&(n, _)| n != filter);
+            changed = connections.len() != before;
+        }
+        if changed {
+            self.invalidate_sample_plan();
         }
     }
 
     /// Connects a filter node's output to a sink.
     /// Multiple calls add multiple source connections to the same sink.
     pub fn connect_sink(&mut self, from: NodeIndex<u32>, sink: usize, out_port: usize) {
+        self.invalidate_sample_plan();
         log::info!("Node {} (p: {}) -> Sink {}", from.index(), out_port, sink);
         self.sinks[sink].0.push((from, out_port));
     }
@@ -250,6 +356,7 @@ impl System {
     /// Sets the sink at index `index` to be the given sink object (preserves existing sources).
     pub fn set_sink(&mut self, index: usize, sink: Box<dyn Sink>) -> Result<(), AudioGraphError> {
         if index < self.sinks.len() {
+            self.invalidate_sample_plan();
             log::trace!("[Graph] Setting Node {:?} as sink {}", sink, index);
             self.sinks[index].1 = sink;
             Ok(())
@@ -265,6 +372,7 @@ impl System {
         source: Box<dyn Source>,
     ) -> Result<(), AudioGraphError> {
         if index < self.sources.len() {
+            self.invalidate_sample_plan();
             log::trace!("[Graph] Setting Node {:?} as source", source);
             self.sources[index] = (source, vec![]);
             Ok(())
@@ -329,6 +437,7 @@ impl System {
 
     /// Adds a source and returns its index
     pub fn add_source(&mut self, source: Box<dyn Source>) -> usize {
+        self.invalidate_sample_plan();
         let idx = self.sources.len();
         self.sources.push((source, vec![]));
         idx
@@ -337,6 +446,7 @@ impl System {
     /// Removes a source by index
     pub fn remove_source(&mut self, index: usize) -> Option<Box<dyn Source>> {
         if index < self.sources.len() {
+            self.invalidate_sample_plan();
             let removed = self.sources.remove(index).0;
             // Drop direct source→sink wires; shift remaining source indices
             self.source_sink_wires.retain(|&(s, _)| s != index);
@@ -371,6 +481,9 @@ impl System {
         target: ModTarget,
         param_name: String,
     ) -> Result<(), AudioGraphError> {
+        if self.sample_plan.is_some() {
+            return Err(AudioGraphError::ConnectionNotAllowed);
+        }
         if from_source >= self.sources.len() {
             return Err(AudioGraphError::InvalidNode);
         }
@@ -412,6 +525,7 @@ impl System {
 
     /// Adds a sink and returns its index
     pub fn add_sink(&mut self, sink: Box<dyn Sink>) -> usize {
+        self.invalidate_sample_plan();
         let idx = self.sinks.len();
         self.sinks.push((vec![], sink));
         idx
@@ -420,6 +534,7 @@ impl System {
     /// Removes a sink by index
     pub fn remove_sink(&mut self, index: usize) -> Option<Box<dyn Sink>> {
         if index < self.sinks.len() {
+            self.invalidate_sample_plan();
             let removed = self.sinks.remove(index).1;
             // Drop wires involving the removed sink; shift remaining sink indices
             self.source_sink_wires.retain(|&(_, k)| k != index);
@@ -436,7 +551,11 @@ impl System {
 
     /// Removes a filter from the graph
     pub fn remove_filter(&mut self, index: NodeIndex<u32>) -> Option<Box<dyn Filter>> {
-        self.graph.remove_node(index).map(|n| n.filter)
+        let removed = self.graph.remove_node(index).map(|n| n.filter);
+        if removed.is_some() {
+            self.invalidate_sample_plan();
+        }
+        removed
     }
 
     /// Disconnects two filters
@@ -446,6 +565,7 @@ impl System {
         to: NodeIndex<u32>,
     ) -> Result<(), AudioGraphError> {
         if let Some(edge) = self.graph.find_edge(from, to) {
+            self.invalidate_sample_plan();
             self.graph.remove_edge(edge);
             Ok(())
         } else {
@@ -456,6 +576,11 @@ impl System {
     // Creates the execution layers by sorting the graph topologically.
     #[allow(clippy::result_unit_err)]
     pub fn compute(&mut self) -> Result<(), AudioGraphError> {
+        if self.sample_plan.as_ref().is_some_and(|plan| !plan.valid) {
+            return Err(AudioGraphError::ProcessingError(
+                "sample modulation topology was edited; prepare a new instrument document",
+            ));
+        }
         self.layers.clear();
         self.compiled.dispatch.clear();
 
@@ -609,6 +734,11 @@ impl System {
     /// note-event boundaries (sample-accurate timing); all DSP nodes are
     /// block-size-agnostic so any `frames >= 1` is valid.
     pub fn run_frames(&mut self, frames: usize) {
+        if let Some(mut plan) = self.sample_plan.take() {
+            self.run_sample_plan(frames, &mut plan);
+            self.sample_plan = Some(plan);
+            return;
+        }
         let block_size = frames;
         let mut stats = RunStats {
             frames,
@@ -813,6 +943,9 @@ impl System {
         &mut self,
         other: System,
     ) -> Result<(NodeIndex<u32>, HashMap<NodeIndex<u32>, NodeIndex<u32>>), AudioGraphError> {
+        if self.sample_plan.is_some() || other.sample_plan.is_some() {
+            return Err(AudioGraphError::InvalidMerging);
+        }
         if other.sinks.is_empty() {
             return Err(AudioGraphError::InvalidMerging);
         }

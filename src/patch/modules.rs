@@ -81,7 +81,7 @@ impl Shape {
 #[treble(output(id = "out", index = 0, signal = audio(channels = 2)))]
 pub(crate) struct Oscillator {
     #[treble(param(id = "frequency", default = 440.0, range(min = 1.0, max = 20000.0), unit = hz, scale = logarithmic))]
-    #[treble(modulation(port = "frequency_cv", index = 1, modes = [add, multiply, replace], mapping = octaves, rate = sample, connections = sum))]
+    #[treble(modulation(port = "frequency_cv", index = 1, modes = [add, multiply, replace], mapping = native, depth = 100.0, rate = sample, connections = sum))]
     frequency: f32,
     #[treble(param(id = "amplitude", default = 0.2, range(min = 0.0, max = 1.0)))]
     #[treble(modulation(port = "amplitude_cv", index = 2, modes = [add, multiply, replace], mapping = native, rate = sample, connections = sum))]

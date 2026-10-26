@@ -1,11 +1,18 @@
 use super::{ModuleRegistry, RuntimeModule, error};
-use crate::core::graph::{AudioOutputSink, System};
+use crate::core::graph::{
+    AudioOutputSink, ExecutionNode, ParameterModulation, SamplePlan, ScheduledNode, SignalRoute,
+    System,
+};
 use petgraph::{
     algo::toposort,
     graph::{DiGraph, NodeIndex},
 };
 use std::collections::{BTreeMap, BTreeSet};
-use treble_meta::{InstrumentDocument, SignalType, ValidationErrors, VoiceConfiguration};
+use std::sync::Arc;
+use treble_meta::{
+    ControlDomain, ControlRate, InstrumentDocument, PortBinding, SignalType, ValidationErrors,
+    VoiceConfiguration,
+};
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Binding {
@@ -105,11 +112,16 @@ impl ModuleRegistry {
                 .expect("validated port");
             if !matches!(
                 port.signal,
-                SignalType::Audio { channels: 2 } | SignalType::Note
+                SignalType::Audio { channels: 2 }
+                    | SignalType::Note
+                    | SignalType::Control {
+                        domain: ControlDomain::Bipolar,
+                        rate: ControlRate::Sample
+                    }
             ) {
                 return Err(error(
                     format!("instrument.patch.cables[{i}]"),
-                    "only stereo audio and note cables are currently supported",
+                    "only stereo audio, notes and bipolar sample control cables are supported",
                 ));
             }
             topology.add_edge(
@@ -118,12 +130,12 @@ impl ModuleRegistry {
                 (),
             );
         }
-        if toposort(&topology, None).is_err() {
-            return Err(error(
-                "instrument.patch.cables",
-                "feedback cycle is unsupported; remove a cable to break the cycle",
-            ));
-        }
+        let order = toposort(&topology, None).map_err(|_| {
+            let components = petgraph::algo::kosaraju_scc(&topology);
+            let cycle = components.iter().find(|component| component.len() > 1 || topology.contains_edge(component[0], component[0])).expect("toposort found a cycle");
+            let (index, cable) = document.instrument.patch.cables.iter().enumerate().find(|(_, cable)| cycle.contains(&indices[cable.from.module.as_str()]) && cycle.contains(&indices[cable.to.module.as_str()])).expect("cycle has a cable");
+            error(format!("instrument.patch.cables[{index}]"), format!("audio/modulation feedback cycle through cable `{}`; remove this cable to break the cycle", cable.id))
+        })?;
         let mut system = System::new().with_block_size(block_size);
         let mut bindings = BTreeMap::new();
         for (i, instance) in document.instrument.patch.modules.iter().enumerate() {
@@ -143,6 +155,24 @@ impl ModuleRegistry {
             bindings.insert(instance.id.clone(), binding);
         }
         for cable in &document.instrument.patch.cables {
+            let module = document
+                .instrument
+                .patch
+                .modules
+                .iter()
+                .find(|m| m.id == cable.from.module)
+                .expect("validated module");
+            let descriptor = self
+                .descriptor(&module.type_id, module.type_version)
+                .expect("validated descriptor");
+            let output = descriptor
+                .ports
+                .iter()
+                .find(|p| p.id == cable.from.port)
+                .expect("validated port");
+            if matches!(output.signal, SignalType::Control { .. }) {
+                continue;
+            }
             // All built-in audio sockets have implementation index zero. IDs
             // were validated above; no UI ordering or caller index is trusted.
             match (bindings[&cable.from.module], bindings[&cable.to.module]) {
@@ -175,6 +205,115 @@ impl ModuleRegistry {
         system
             .compute()
             .map_err(|e| error("instrument.patch", e.to_string()))?;
+        let module_by_node: BTreeMap<_, _> =
+            indices.iter().map(|(id, node)| (*node, *id)).collect();
+        let ordered: Vec<_> = order
+            .into_iter()
+            .filter_map(|node| {
+                let id = module_by_node[&node];
+                match bindings[id] {
+                    Binding::Source(index) => Some((id, ExecutionNode::Source(index))),
+                    Binding::Filter(index) => Some((id, ExecutionNode::Filter(index))),
+                    Binding::NoteInput => None,
+                }
+            })
+            .collect();
+        let positions: BTreeMap<_, _> = ordered
+            .iter()
+            .enumerate()
+            .map(|(index, (id, _))| (*id, index))
+            .collect();
+        let mut nodes: Vec<_> = ordered
+            .iter()
+            .map(|(_, node)| ScheduledNode {
+                node: *node,
+                parameters: Vec::new(),
+                routes: Vec::new(),
+            })
+            .collect();
+        let empty = Arc::new(Vec::new());
+        let mut cables: Vec<_> = document.instrument.patch.cables.iter().collect();
+        cables.sort_by(|a, b| a.id.cmp(&b.id));
+        let mut has_modulation = false;
+        for cable in cables {
+            let target = document
+                .instrument
+                .patch
+                .modules
+                .iter()
+                .find(|m| m.id == cable.to.module)
+                .expect("validated target");
+            let descriptor = self
+                .descriptor(&target.type_id, target.type_version)
+                .expect("validated descriptor");
+            let port = descriptor
+                .ports
+                .iter()
+                .find(|p| p.id == cable.to.port)
+                .expect("validated input");
+            let PortBinding::Parameter { parameter_id } = &port.binding else {
+                continue;
+            };
+            let parameter = descriptor
+                .parameters
+                .iter()
+                .find(|p| p.id == *parameter_id)
+                .expect("validated parameter");
+            let modulation = parameter.modulation.as_ref().expect("validated modulation");
+            let name =
+                super::session::scalar_binding(&target.type_id, parameter_id).ok_or_else(|| {
+                    error(
+                        format!("modules.{}.parameters.{parameter_id}", target.id),
+                        "sample modulation receiver is unsupported",
+                    )
+                })?;
+            let mode = cable.modulation.as_ref().map_or_else(
+                || modulation.default_mode.clone(),
+                |setting| setting.mode.clone(),
+            );
+            let depth = cable
+                .modulation
+                .as_ref()
+                .map_or(modulation.default_depth, |setting| setting.depth);
+            let scheduled = &mut nodes[positions[cable.to.module.as_str()]];
+            let group = if let Some(index) = scheduled
+                .parameters
+                .iter()
+                .position(|group| group.parameter == name)
+            {
+                index
+            } else {
+                scheduled.parameters.push(ParameterModulation {
+                    parameter: name.into(),
+                    mode,
+                    mapping: modulation.mapping.clone(),
+                    domain: parameter.domain.clone(),
+                    signals: Vec::new(),
+                });
+                scheduled.parameters.len() - 1
+            };
+            let contribution = scheduled.parameters[group].signals.len();
+            scheduled.parameters[group]
+                .signals
+                .push((Arc::clone(&empty), depth));
+            scheduled.routes.push(SignalRoute {
+                source: positions[cable.from.module.as_str()],
+                port: 0,
+                group,
+                contribution,
+            });
+            has_modulation = true;
+        }
+        if has_modulation {
+            let outputs = vec![Vec::new(); nodes.len()];
+            system
+                .install_sample_plan(SamplePlan {
+                    valid: true,
+                    nodes,
+                    outputs,
+                })
+                .map_err(|e| error("instrument.patch", e.to_string()))?;
+        }
         if matches!(document.instrument.voice, VoiceConfiguration::Continuous) {
             for binding in bindings.values() {
                 if let Binding::Source(index) = *binding {
@@ -209,7 +348,22 @@ impl ModuleRegistry {
             }
             sources.sort_unstable();
             sources.dedup();
-            if matches!(binding, Binding::Source(_) | Binding::NoteInput) {
+            let instance = document
+                .instrument
+                .patch
+                .modules
+                .iter()
+                .find(|m| m.id == *id)
+                .expect("validated module");
+            let descriptor = self
+                .descriptor(&instance.type_id, instance.type_version)
+                .expect("validated descriptor");
+            if matches!(binding, Binding::Source(_) | Binding::NoteInput)
+                && descriptor.ports.iter().any(|port| {
+                    port.direction == treble_meta::Direction::Input
+                        && port.signal == SignalType::Note
+                })
+            {
                 note_routes.insert(id.clone(), sources);
             }
         }

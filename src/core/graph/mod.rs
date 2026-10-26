@@ -11,6 +11,7 @@ pub mod error;
 mod filter;
 mod modulation;
 mod note_lifecycle;
+pub(crate) use modulation::{ExecutionNode, SamplePlan, ScheduledNode, SignalRoute};
 pub use modulation::{ParameterModulation, modulated_value};
 /// The sink module provides implementations for various types of sinks.
 mod simple_sink;
