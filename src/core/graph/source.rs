@@ -8,6 +8,16 @@ pub trait Source: std::fmt::Debug + DynClone + Send + Sync {
     /// The block_size is known to the source via the System that owns it.
     fn pull(&mut self, block_size: usize) -> Block;
 
+    /// Optional sample-rate parameter views. Implementations supporting these
+    /// inputs compose them with immutable base state instead of scalar mutation.
+    fn pull_modulated(
+        &mut self,
+        block_size: usize,
+        _inputs: &[super::ParameterModulation],
+    ) -> Block {
+        self.pull(block_size)
+    }
+
     /// Soft start, envelope attack begins
     fn start(&mut self) {}
     /// Soft stop, let the release phase of the envelope finish

@@ -40,13 +40,28 @@ impl AudioNode {
     /// Mix all accumulated inputs, run the inner filter, return Arc-wrapped outputs.
     /// Clears all input accumulators as a side effect.
     pub(super) fn process(&mut self, block_size: usize) -> Vec<Arc<Block>> {
+        self.process_modulated(block_size, &[])
+    }
+
+    pub(super) fn process_modulated(
+        &mut self,
+        block_size: usize,
+        inputs: &[super::ParameterModulation],
+    ) -> Vec<Arc<Block>> {
         for (port, blocks) in self.inputs.iter_mut().enumerate() {
             if !blocks.is_empty() {
                 let mixed = mix_blocks(std::mem::take(blocks), &self.mix_mode, block_size);
                 self.filter.push(mixed, port);
             }
         }
-        self.filter.transform().into_iter().map(Arc::new).collect()
+        if inputs.is_empty() {
+            self.filter.transform()
+        } else {
+            self.filter.transform_modulated(inputs)
+        }
+        .into_iter()
+        .map(Arc::new)
+        .collect()
     }
 
     pub(super) fn filter_mut(&mut self) -> &mut Box<dyn Filter> {
