@@ -208,18 +208,6 @@ held level) and logs the code once. Debug builds additionally trip a
 `treble-meta` and `treble-derive` are separate repositories, consumed from
 crates.io at version 0.3. CI and package verification require the released crates.
 
-For deliberate local development, copy the example override:
-
-```sh
-cp .cargo/config.toml.example .cargo/config.toml
-```
-
-The override uses `[patch.crates-io]` and assumes sibling checkouts. It is
-ignored by Git. Cargo rewrites the lockfile while patches are active; do not
-commit local resolution changes. A sibling version must satisfy the dependency
-requirement. Verify one metadata identity with `cargo tree -i treble-meta` and
-check for unused patches when local edits appear to have no effect.
-
 Verify with `cargo test`, `cargo test --no-default-features`,
 `cargo fmt --check`, and
 `cargo clippy --features plotting,ts --all-targets -- -D warnings`.

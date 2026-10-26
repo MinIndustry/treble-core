@@ -1,6 +1,0 @@
-# Optional sibling development overrides; copy to .cargo/config.toml.
-# Keep this disabled for release/package verification. Both dependents must use
-# the same crates.io metadata identity, and sibling versions must satisfy 0.3.
-[patch.crates-io]
-treble-meta = { path = "../treble-meta" }
-treble-derive = { path = "../treble-derive" }
