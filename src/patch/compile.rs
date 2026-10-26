@@ -15,7 +15,7 @@ pub(crate) enum Binding {
 
 /// A fully validated, compiled graph. Prepare away from audio processing.
 /// Installing replaces DSP state: phase, held notes and effect tails reset.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct PreparedPatch {
     pub(crate) system: System,
     pub(crate) bindings: BTreeMap<String, Binding>,

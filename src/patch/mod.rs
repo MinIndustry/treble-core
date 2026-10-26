@@ -4,8 +4,13 @@
 //! executable contract: unsupported capabilities are rejected during preparation.
 mod compile;
 mod modules;
+mod session;
 pub use compile::PreparedPatch;
 pub use modules::{ModuleRegistry, RuntimeModule};
+pub use session::{
+    ParameterEdit, PatchApply, PatchCommand, PatchRuntime, PatchSession, PatchSnapshot,
+    PreparedEdit,
+};
 pub use treble_meta as metadata;
 
 use treble_meta::{ValidationError, ValidationErrors};

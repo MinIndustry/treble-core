@@ -1,5 +1,9 @@
 use std::collections::BTreeMap;
 use treble::{
+    Note,
+    patch::{PatchApply, PatchRuntime, PatchSession},
+};
+use treble::{
     core::{Block, graph::System},
     patch::{ModuleRegistry, metadata::*},
 };
@@ -56,6 +60,195 @@ fn render(system: &mut System, frames: usize) -> Block {
 }
 fn energy(block: &Block) -> f32 {
     block.iter().map(|f| f[0] * f[0]).sum()
+}
+
+fn playable_session() -> (PatchSession, PatchRuntime, System) {
+    let mut doc = document();
+    doc.instrument.voice = VoiceConfiguration::Monophonic;
+    doc.instrument.patch.cables = vec![cable("direct", "osc", "output")];
+    let mut session = PatchSession::new(ModuleRegistry::builtins(), doc).unwrap();
+    let prepared = session.snapshot().prepare(48000.0, 128).unwrap();
+    let command = session.commit(prepared).unwrap();
+    let mut runtime = PatchRuntime::default();
+    let mut system = System::silent();
+    assert_eq!(
+        runtime.apply(&mut system, command).unwrap(),
+        PatchApply::Installed
+    );
+    (session, runtime, system)
+}
+
+fn pitch(block: &Block, rate: f32) -> f32 {
+    let rising: Vec<_> = block
+        .windows(2)
+        .enumerate()
+        .filter_map(|(i, w)| (w[0][0] <= 0.0 && w[1][0] > 0.0).then_some(i))
+        .collect();
+    rate * (rising.len() - 1) as f32 / (rising.last().unwrap() - rising[0]) as f32
+}
+
+#[test]
+fn note_trigger_follow_keys_fixed_pitch_and_release() {
+    let (mut session, mut runtime, mut system) = playable_session();
+    let a4 = Note::from_midi(69);
+    let a5 = Note::from_midi(81);
+    assert_eq!(energy(&render(&mut system, 128)), 0.0);
+    runtime
+        .apply(&mut system, session.note_on(a4, 1.0).unwrap())
+        .unwrap();
+    assert!((pitch(&render(&mut system, 12000), 48000.0) - 440.0).abs() < 1.0);
+    runtime
+        .apply(&mut system, session.note_on(a5, 0.5).unwrap())
+        .unwrap();
+    assert!((pitch(&render(&mut system, 12000), 48000.0) - 880.0).abs() < 1.0);
+    runtime
+        .apply(&mut system, session.note_off(a5).unwrap())
+        .unwrap();
+    assert!((pitch(&render(&mut system, 12000), 48000.0) - 440.0).abs() < 1.0);
+    let edit = session
+        .set_parameter("osc", "follow_keys", ParameterValue::Bool(false))
+        .unwrap();
+    assert_eq!(edit.update, UpdateMode::Live);
+    runtime.apply(&mut system, edit.command.unwrap()).unwrap();
+    let edit = session
+        .set_parameter("osc", "frequency", ParameterValue::Float(220.0))
+        .unwrap();
+    runtime.apply(&mut system, edit.command.unwrap()).unwrap();
+    runtime
+        .apply(&mut system, session.note_on(a5, 1.0).unwrap())
+        .unwrap();
+    assert!((pitch(&render(&mut system, 12000), 48000.0) - 220.0).abs() < 1.0);
+    runtime
+        .apply(&mut system, session.note_off(a4).unwrap())
+        .unwrap();
+    assert!(
+        energy(&render(&mut system, 128)) > 0.0,
+        "releasing an older key must not stop the held key"
+    );
+    runtime
+        .apply(&mut system, session.note_off(a5).unwrap())
+        .unwrap();
+    assert_eq!(energy(&render(&mut system, 128)), 0.0);
+    assert!(session.note_on(a4, f32::NAN).is_err());
+    runtime
+        .apply(&mut system, session.note_on(a4, 1.0).unwrap())
+        .unwrap();
+    runtime
+        .apply(&mut system, session.all_notes_off().unwrap())
+        .unwrap();
+    assert_eq!(energy(&render(&mut system, 128)), 0.0);
+}
+
+#[test]
+fn stale_preparations_and_out_of_order_installs_cannot_replace_latest_graph() {
+    let (mut session, mut runtime, mut system) = playable_session();
+    let old_preparation = session.snapshot().prepare(48000.0, 128).unwrap();
+    session
+        .set_parameter("osc", "frequency", ParameterValue::Float(330.0))
+        .unwrap();
+    assert!(session.commit(old_preparation).is_err());
+    let old = session
+        .commit(session.snapshot().prepare(48000.0, 128).unwrap())
+        .unwrap();
+    session
+        .set_parameter("osc", "frequency", ParameterValue::Float(660.0))
+        .unwrap();
+    let latest = session
+        .commit(session.snapshot().prepare(48000.0, 128).unwrap())
+        .unwrap();
+    assert_eq!(
+        runtime.apply(&mut system, latest).unwrap(),
+        PatchApply::Installed
+    );
+    assert_eq!(
+        runtime.apply(&mut system, old).unwrap(),
+        PatchApply::Superseded
+    );
+    runtime
+        .apply(
+            &mut system,
+            session.note_on(Note::from_midi(69), 1.0).unwrap(),
+        )
+        .unwrap();
+    let mut bad = session.document().clone();
+    bad.instrument.patch.modules[0].type_id = "unavailable.plugin".into();
+    session.replace_document(bad).unwrap();
+    assert!(session.snapshot().prepare(48000.0, 128).is_err());
+    assert!(
+        energy(&render(&mut system, 1024)) > 1.0,
+        "invalid draft leaves last installed graph playing"
+    );
+}
+
+#[test]
+fn live_base_values_persist_and_rebuild_edits_do_not_leak_to_playing_graph() {
+    let (mut session, mut runtime, mut system) = playable_session();
+    let old = session
+        .set_parameter("osc", "amplitude", ParameterValue::Float(0.1))
+        .unwrap()
+        .command
+        .unwrap();
+    let new = session
+        .set_parameter("osc", "amplitude", ParameterValue::Float(0.4))
+        .unwrap()
+        .command
+        .unwrap();
+    runtime.apply(&mut system, new).unwrap();
+    assert_eq!(
+        runtime.apply(&mut system, old).unwrap(),
+        PatchApply::Superseded
+    );
+    let rebuild = session
+        .set_parameter("osc", "waveform", ParameterValue::Enum("square".into()))
+        .unwrap();
+    assert_eq!(rebuild.update, UpdateMode::Rebuild);
+    assert!(rebuild.command.is_none());
+    assert!(
+        session
+            .set_parameter("osc", "amplitude", ParameterValue::Float(0.3))
+            .unwrap()
+            .command
+            .is_none()
+    );
+    let loaded: InstrumentDocument =
+        serde_json::from_str(&serde_json::to_string(session.document()).unwrap()).unwrap();
+    assert_eq!(
+        loaded.instrument.patch.modules[0].parameters["amplitude"],
+        ParameterValue::Float(0.3)
+    );
+    let command = session
+        .commit(session.snapshot().prepare(48000.0, 128).unwrap())
+        .unwrap();
+    runtime.apply(&mut system, command).unwrap();
+    runtime
+        .apply(
+            &mut system,
+            session.note_on(Note::from_midi(69), 1.0).unwrap(),
+        )
+        .unwrap();
+    let audio = render(&mut system, 4096);
+    assert!(audio.iter().any(|frame| frame[0].abs() > 0.23));
+    assert!(audio.iter().all(|frame| frame[0].abs() < 0.26));
+}
+
+#[test]
+fn structural_install_explicitly_resets_held_notes_and_state() {
+    let (mut session, mut runtime, mut system) = playable_session();
+    runtime
+        .apply(
+            &mut system,
+            session.note_on(Note::from_midi(69), 1.0).unwrap(),
+        )
+        .unwrap();
+    assert!(energy(&render(&mut system, 128)) > 0.0);
+    session
+        .replace_document(session.document().clone())
+        .unwrap();
+    let command = session
+        .commit(session.snapshot().prepare(48000.0, 128).unwrap())
+        .unwrap();
+    runtime.apply(&mut system, command).unwrap();
+    assert_eq!(energy(&render(&mut system, 128)), 0.0);
 }
 
 #[test]
