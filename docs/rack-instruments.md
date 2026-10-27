@@ -9,12 +9,12 @@ shared by native playback and portable/headless hosts. The expanded catalog is a
 
 | Type ID | Ports | Parameters |
 | --- | --- | --- |
-| `treble.oscillator` | `trigger`: note input; `out`: stereo audio output | `frequency`, `amplitude`, `follow_keys`, `waveform` |
+| `treble.oscillator` | `trigger`: note input; `out`: stereo audio output | `frequency`, `amplitude`, `follow_keys`, `waveform`, `gate_mode` |
 | `treble.low_pass` | `in`: summed stereo audio; `out`: stereo audio | `cutoff`, `resonance` |
 | `treble.delay` | `in`: summed stereo audio; `out`: stereo audio | `time`, `feedback`, `mix` |
 | `treble.output` | `in`: summed stereo audio; `out`: stereo audio | `level` |
 | `treble.note_input` | `in`: note input; `out`: note output | none |
-| `treble.adsr` (0.5.2+) | `trigger`: note input; `out`: sample control, values 0..1 | `attack`, `decay`, `sustain`, `release` |
+| `treble.adsr` (0.5.2+) | `trigger`: note input; `gate`/`retrigger`: gate inputs; `out`: sample control, values 0..1 | `attack`, `decay`, `sustain`, `release`, `mode`, `retrigger` |
 | `treble.lfo` | `out`: bipolar sample control; frequency/amplitude CV inputs | `frequency`, `amplitude` |
 | `treble.audio_to_control` | `in`: summed stereo audio; `out`: bipolar sample control | none |
 
@@ -39,7 +39,7 @@ those cables. Unconnected trigger sockets are silent in monophonic mode.
 `treble.adsr` emits a linear ADSR at the host sample rate. Its output values are
 0..1, carried by the existing bipolar sample-control contract so they connect to
 parameter CV sockets. Attack/decay/release are seconds (0..30); sustain is 0..1.
-All four controls update live. Notes retrigger from the current level, and the
+All four numeric controls update live. Modes and retrigger policies rebuild the patch. Notes retrigger from the current level by default, and the
 last held note's release starts from the instantaneous level, including during
 attack or decay. Zero-length stages advance immediately. Panic kills the envelope.
 In continuous voice mode it attacks on installation and remains at sustain.
@@ -47,9 +47,25 @@ In continuous voice mode it attacks on installation and remains at sustain.
 Expose `trigger` as the instrument note input, or route a note-input bus to it.
 For amplitude shaping, connect `out` to `gain_cv` on a Gain module using **Replace,
 depth 1**. Multiply CV means `base * (1 + signal)`, so it is not an envelope VCA.
-Use a continuously running carrier (for example LFO → Control to audio) to hear
-the release tail. An oscillator that receives the same note-off stops immediately,
-so its downstream envelope cannot extend that oscillator's sound.
+Use oscillator `gate_mode = envelope` to retain the released note's pitch and
+velocity while its amplitude CV shapes the tail. The default `note` mode still
+silences immediately on note-off. Panic kills both modes. A continuous LFO →
+Control to audio carrier is also available.
+
+Envelope modes are `gate` (hold sustain until release), `one_shot` (A/D/R, ignoring
+note-off) and `loop` (repeat A/D/R while held). Retrigger policies are `current`
+(attack from the current level), `reset` (attack from zero) and `legato` (do not
+retrigger an active envelope). `retrigger` pulses act only while a gate/note is held.
+The gate inputs are typed, sample-rate streams with one cable each. Gate levels
+above 0.5 are high; gate edges survive block boundaries. A connected gate input
+replaces the envelope's automatic continuous-voice start. Notes and a signal gate
+can hold the same envelope; release starts when both are off.
+
+`treble.control_to_gate` compares each bipolar control sample with its live
+`threshold` (strictly greater is high). `treble.gate_to_control` exposes gate levels
+for CV processing or visualization. Neither adapter changes the metadata identity.
+Source stream inputs use the same topological sample schedule as modulation; no
+block averaging is performed.
 
 ## Sample modulation
 

@@ -5,6 +5,12 @@
 - Add `treble.adsr`: a note-triggered sample-rate control envelope with live
   attack, decay, sustain and release parameters. Release and retrigger begin at
   the current level; zero-length stages, overlapping notes and panic are defined.
+- Add Gate / One-shot / Loop envelope modes and Current / Reset / Legato retrigger
+  policies, plus typed sample gate and retrigger inputs.
+- Add explicit Control to gate and Gate to control adapters; schedule source stream
+  inputs without averaging or rendering shared modulators twice.
+- Add oscillator `gate_mode = envelope` for pitched release tails driven by amplitude
+  CV. Its default note gating behavior remains unchanged.
 - Preserve the 0.3 metadata identity and existing module version-1 contracts.
 
 ## 0.5.1
