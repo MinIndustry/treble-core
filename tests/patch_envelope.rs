@@ -166,3 +166,51 @@ fn signal_gate_edges_use_current_samples_even_when_the_gate_processor_is_declare
     actual.extend(render(&mut split, 511));
     assert_eq!(expected, actual);
 }
+
+#[test]
+fn killing_routed_notes_preserves_independent_constant_sources() {
+    let mut doc = document();
+    for name in ["attack", "decay"] {
+        doc.instrument.patch.modules[0]
+            .parameters
+            .insert(name.into(), ParameterValue::Float(0.0));
+    }
+    doc.instrument.patch.modules.push(ModuleInstance {
+        id: "dc".into(),
+        type_id: "treble.constant".into(),
+        type_version: 1,
+        parameters: std::collections::BTreeMap::from([(
+            "value".into(),
+            ParameterValue::Float(0.1),
+        )]),
+    });
+    doc.instrument.interface.audio_outputs.push(Endpoint {
+        module: "dc".into(),
+        port: "out".into(),
+    });
+    let mut session = PatchSession::new(ModuleRegistry::builtins(), doc).unwrap();
+    let prepared = session.snapshot().prepare(48000.0, 256).unwrap();
+    let mut system = System::silent();
+    let mut runtime = PatchRuntime::default();
+    runtime
+        .apply(&mut system, session.commit(prepared).unwrap())
+        .unwrap();
+    runtime
+        .apply(
+            &mut system,
+            session.note_on(Note::from_midi(60), 1.0).unwrap(),
+        )
+        .unwrap();
+    runtime
+        .apply(&mut system, session.kill_notes().unwrap())
+        .unwrap();
+    assert!(
+        render(&mut system, 256)
+            .iter()
+            .all(|v| (v[0] - 0.1).abs() < 1e-6)
+    );
+    runtime
+        .apply(&mut system, session.all_notes_off().unwrap())
+        .unwrap();
+    assert!(render(&mut system, 256).iter().all(|v| *v == [0.0; 2]));
+}

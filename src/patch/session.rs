@@ -369,6 +369,14 @@ impl PatchSession {
             note,
         })
     }
+    /// Immediately stop only sources reachable from the instrument note input.
+    /// Hosts can reuse a voice without killing independent constants/modulators.
+    pub fn kill_notes(&self) -> Result<PatchCommand, ValidationErrors> {
+        self.command(CommandKind::Kill {
+            sources: self.note_sources()?,
+        })
+    }
+
     /// Immediately stop every source, including continuous drones.
     pub fn all_notes_off(&self) -> Result<PatchCommand, ValidationErrors> {
         let active = self

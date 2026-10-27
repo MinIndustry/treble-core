@@ -11,6 +11,8 @@
   inputs without averaging or rendering shared modulators twice.
 - Add oscillator `gate_mode = envelope` for pitched release tails driven by amplitude
   CV. Its default note gating behavior remains unchanged.
+- Add `PatchSession::kill_notes` for host voice reuse without killing independent
+  constants or modulators. `all_notes_off` retains its global panic behavior.
 - Preserve the 0.3 metadata identity and existing module version-1 contracts.
 
 ## 0.5.1
