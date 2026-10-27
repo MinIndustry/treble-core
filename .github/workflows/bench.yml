@@ -29,6 +29,9 @@ jobs:
       - name: Preserve the identical harness for both revisions
         run: cp benches/graph.rs "$RUNNER_TEMP/treble-graph-bench.rs"
 
+      - name: Test benchmark comparison rules
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+
       - name: Checkout base (merge target)
         uses: actions/checkout@v4
         with:
@@ -43,13 +46,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
-      # A baseline that will not build is not a regression. It happens when the
-      # base is broken, or when a bench only exists on the PR, and failing here
-      # would deadlock exactly the PR that repairs the base. Record it and skip
-      # the comparison instead.
+      # A green optimization gate requires a complete measured comparison.
       - name: Bench base
         id: bench_base
-        continue-on-error: true
         run: cargo bench --bench graph -- --save-baseline base --noplot
 
       - name: Checkout PR (preserve criterion baselines)
@@ -61,12 +60,7 @@ jobs:
         run: cargo bench --bench graph -- --save-baseline pr --noplot
 
       - name: Compare & enforce threshold
-        if: steps.bench_base.outcome == 'success'
-        run: python3 .github/scripts/bench_compare.py --base base --new pr --max-regression-pct 30
-
-      - name: Report a missing baseline
-        if: steps.bench_base.outcome != 'success'
-        run: echo "::notice::The base commit did not bench, so there is no baseline to compare against. The PR's own benches ran; the regression gate is skipped for this run."
+        run: python3 .github/scripts/bench_compare.py --base base --new pr --max-regression-pct 30 --require-complete
 
       - name: Comment results on PR
         if: always()

@@ -64,6 +64,8 @@ compatible with the merge base's public API. The default regression threshold an
 confidence-interval check remain unchanged; historical per-benchmark waivers have
 been removed. Allocation tests separately count allocations on the rendering
 thread after warm-up; audio-reference and irregular-span tests check behavior.
+The CI gate fails if the baseline cannot run or a workload is missing either
+measurement; cached results belonging to unrelated comparisons are ignored.
 
 Run native and portable tests, strict all-target Clippy, wasm compilation, package
 verification and the benchmark gate before release. Use optimized builds for

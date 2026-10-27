@@ -58,6 +58,7 @@ def main() -> int:
     ap.add_argument("--base", required=True, help="baseline name for the base commit")
     ap.add_argument("--new", required=True, help="baseline name for the PR commit")
     ap.add_argument("--max-regression-pct", type=float, default=30.0)
+    ap.add_argument("--require-complete", action="store_true", help="fail if either baseline is missing")
     ap.add_argument(
         "--waivers",
         default=".github/bench-waivers.json",
@@ -81,6 +82,9 @@ def main() -> int:
             continue
         base_est = mean_estimate(bench_dir, args.base)
         new_est = mean_estimate(bench_dir, args.new)
+        if base_est is None and new_est is None:
+            # Cached results from unrelated runs are not part of this comparison.
+            continue
         if base_est is None or new_est is None:
             missing.append(bench_dir.name)
             continue
@@ -115,6 +119,10 @@ def main() -> int:
         return 2
 
     verdict = (
+        "**❌ Incomplete comparison** — missing baseline for "
+        + ", ".join(f"`{name}`" for name in missing)
+        if args.require_complete and missing
+        else
         f"**❌ Regression check failed** — {', '.join(f'`{f}`' for f in failures)} "
         f"slower than the {args.max_regression_pct:.0f}% threshold."
         if failures
@@ -152,7 +160,7 @@ def main() -> int:
         with open(summary, "a") as fh:
             fh.write(report + "\n")
 
-    return 1 if failures else 0
+    return 2 if args.require_complete and missing else 1 if failures else 0
 
 
 if __name__ == "__main__":
