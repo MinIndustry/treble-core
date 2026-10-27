@@ -71,6 +71,14 @@ impl Shape {
     }
 }
 
+#[derive(Clone, Debug, ParameterEnum)]
+enum GateBehavior {
+    #[treble(value(id = "note"))]
+    Note,
+    #[treble(value(id = "envelope"))]
+    Envelope,
+}
+
 #[derive(Clone, Debug, ModuleMetadata, ModuleParameters)]
 #[treble(module(
     id = "treble.oscillator",
@@ -80,6 +88,9 @@ impl Shape {
 ))]
 #[treble(output(id = "out", index = 0, signal = audio(channels = 2)))]
 pub(crate) struct Oscillator {
+    #[treble(param(id = "gate_mode", default = GateBehavior::Note, update = rebuild))]
+    gate_mode: GateBehavior,
+    released: Option<(Note, f32)>,
     #[treble(param(id = "frequency", default = 440.0, range(min = 1.0, max = 20000.0), unit = hz, scale = logarithmic))]
     #[treble(modulation(port = "frequency_cv", index = 1, modes = [add, multiply, replace], mapping = native, depth = 100.0, rate = sample, connections = sum))]
     frequency: f32,
@@ -102,6 +113,8 @@ pub(crate) struct Oscillator {
 impl Oscillator {
     pub(crate) fn new(sample_rate: f32) -> Self {
         Self {
+            gate_mode: GateBehavior::Note,
+            released: None,
             frequency: 440.0,
             amplitude: 0.2,
             follow_keys: true,
@@ -131,6 +144,13 @@ impl Oscillator {
         if self.follow_keys {
             self.held
                 .last()
+                .or({
+                    if matches!(self.gate_mode, GateBehavior::Envelope) {
+                        self.released.as_ref()
+                    } else {
+                        None
+                    }
+                })
                 .map_or(self.frequency, |(note, _)| note.frequency())
         } else {
             self.frequency
@@ -152,7 +172,16 @@ impl Source for Oscillator {
         let velocity = if self.drone {
             1.0
         } else {
-            self.held.last().map_or(0.0, |(_, velocity)| *velocity)
+            self.held
+                .last()
+                .or({
+                    if matches!(self.gate_mode, GateBehavior::Envelope) {
+                        self.released.as_ref()
+                    } else {
+                        None
+                    }
+                })
+                .map_or(0.0, |(_, velocity)| *velocity)
         };
         if velocity == 0.0 || (inputs.is_empty() && self.amplitude == 0.0) {
             return vec![[0.0; 2]; frames];
@@ -171,12 +200,14 @@ impl Source for Oscillator {
     }
     fn start(&mut self) {
         self.drone = true;
+        self.released = None;
         self.generator.start();
         self.retune();
     }
     fn stop(&mut self) {
         self.drone = false;
         self.held.clear();
+        self.released = None;
     }
     fn kill(&mut self) {
         self.stop();
@@ -190,11 +221,16 @@ impl Source for Oscillator {
         self.retune();
     }
     fn stop_note(&mut self, note: Note) {
+        if let Some(held) = self.held.iter().find(|(held, _)| *held == note).copied() {
+            self.released = Some(held);
+        }
         self.held.retain(|(held, _)| *held != note);
         self.retune();
     }
     fn is_active(&self) -> bool {
-        self.drone || !self.held.is_empty()
+        self.drone
+            || !self.held.is_empty()
+            || (matches!(self.gate_mode, GateBehavior::Envelope) && self.released.is_some())
     }
     fn supports_parameter(&self, name: &str) -> bool {
         matches!(name, "frequency" | "amplitude" | "follow_keys")
@@ -505,6 +541,27 @@ mod tests {
                 1.0,
             )],
         }
+    }
+    #[test]
+    fn envelope_carrier_retains_pitch_and_velocity_after_note_off_but_panic_silences_it() {
+        let mut oscillator = Oscillator::new(48000.0);
+        oscillator
+            .configure("gate_mode", ParameterValue::Enum("envelope".into()))
+            .unwrap();
+        let note = Note::from_midi(60);
+        oscillator.start_note(note, 0.5);
+        oscillator.pull(100);
+        oscillator.stop_note(note);
+        assert!((oscillator.frequency_base() - note.frequency()).abs() < 1e-5);
+        assert!(
+            oscillator
+                .pull(100)
+                .iter()
+                .flatten()
+                .any(|v| v.abs() > 0.01)
+        );
+        oscillator.kill();
+        assert!(oscillator.pull(100).iter().flatten().all(|v| *v == 0.0));
     }
     #[test]
     fn oscillator_fm_and_am_are_sample_views_with_persistent_bases() {
