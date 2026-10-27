@@ -12,64 +12,116 @@ pub struct ParameterModulation {
     pub(crate) signals: Vec<(Arc<Block>, f64)>,
 }
 
+/// A parameter resolved once for a block. Borrows its signal buffers and caches
+/// the bounded base and mapping coordinate; no allocation or base mutation.
+#[derive(Clone, Copy, Debug)]
+pub struct ModulationView<'a> {
+    input: Option<&'a ParameterModulation>,
+    base: f64,
+    coordinate: f64,
+}
+
 impl ParameterModulation {
-    /// Compose this sample with the current effective base (e.g. a held note's
-    /// pitch). Bad inputs/intermediate overflow fall back to the bounded base.
-    /// Published Sum semantics apply to every mode, including Multiply.
-    pub fn value(&self, base: f32, sample: usize) -> f32 {
-        let bounded = |value: f64| match &self.domain {
-            Some(domain) => value.clamp(domain.min, domain.max),
-            None => value,
-        };
-        let base = bounded(if base.is_finite() {
+    /// Resolve the effective base (for example the current held note's pitch)
+    /// once before iterating samples. Rebind after the base or input block changes.
+    pub fn bind(&self, base: f32) -> ModulationView<'_> {
+        let base = if base.is_finite() {
             f64::from(base)
         } else {
             self.domain.as_ref().map_or(0.0, |domain| domain.min)
-        });
-        let mut sum = 0.0;
-        for (signal, depth) in &self.signals {
-            let input = signal.get(sample).map_or(0.0, |frame| f64::from(frame[0]));
-            sum += depth * input;
-            if !input.is_finite() || !sum.is_finite() {
-                return base as f32;
-            }
-        }
+        };
+        let base = self
+            .domain
+            .as_ref()
+            .map_or(base, |domain| base.clamp(domain.min, domain.max));
         let coordinate = match self.mapping {
             ModulationMapping::Native => base,
             ModulationMapping::Octaves => base.log2(),
-            ModulationMapping::Normalized => {
-                let Some(domain) = &self.domain else {
-                    return base as f32;
-                };
+            ModulationMapping::Normalized => self.domain.as_ref().map_or(f64::NAN, |domain| {
                 (base - domain.min) / (domain.max - domain.min)
-            }
+            }),
         };
-        let mapped = match self.mode {
-            ModulationMode::Add => coordinate + sum,
-            ModulationMode::Multiply => coordinate * (1.0 + sum),
+        ModulationView {
+            input: Some(self),
+            base,
+            coordinate,
+        }
+    }
+
+    /// Compose this sample with the current effective base. Prefer `bind` when
+    /// the base remains constant for a block. Sum and fallback semantics match.
+    pub fn value(&self, base: f32, sample: usize) -> f32 {
+        self.bind(base).value(sample)
+    }
+}
+
+impl ModulationView<'_> {
+    /// Evaluate one sample, retaining sample-rate modulation and finite fallback.
+    #[inline]
+    pub fn value(&self, sample: usize) -> f32 {
+        let Some(input) = self.input else {
+            return self.base as f32;
+        };
+        let mut sum = 0.0;
+        for (signal, depth) in &input.signals {
+            let value = signal.get(sample).map_or(0.0, |frame| f64::from(frame[0]));
+            sum += depth * value;
+            if !value.is_finite() || !sum.is_finite() {
+                return self.base as f32;
+            }
+        }
+        let mapped = match input.mode {
+            ModulationMode::Add => self.coordinate + sum,
+            ModulationMode::Multiply => self.coordinate * (1.0 + sum),
             ModulationMode::Replace => sum,
         };
         if !mapped.is_finite() {
-            return base as f32;
+            return self.base as f32;
         }
-        let value = match self.mapping {
+        let value = match input.mapping {
             ModulationMapping::Native => mapped,
             ModulationMapping::Octaves => mapped.exp2(),
             ModulationMapping::Normalized => {
-                let Some(domain) = &self.domain else {
-                    return base as f32;
+                let Some(domain) = &input.domain else {
+                    return self.base as f32;
                 };
                 domain.min + mapped * (domain.max - domain.min)
             }
         };
-        // Infinite inverse mapping can be bounded when a domain exists.
-        let value = bounded(value);
+        let value = input
+            .domain
+            .as_ref()
+            .map_or(value, |domain| value.clamp(domain.min, domain.max));
         if !value.is_finite() || !(value as f32).is_finite() {
-            base as f32
+            self.base as f32
         } else {
             value as f32
         }
     }
+}
+
+/// Bind a named parameter once outside the sample loop. Missing inputs resolve
+/// to a finite constant base, preserving the legacy helper's behavior.
+pub fn bind_modulation<'a>(
+    inputs: &'a [ParameterModulation],
+    parameter: &str,
+    base: f32,
+) -> ModulationView<'a> {
+    inputs
+        .iter()
+        .find(|input| input.parameter == parameter)
+        .map_or_else(
+            || ModulationView {
+                input: None,
+                base: if base.is_finite() {
+                    f64::from(base)
+                } else {
+                    0.0
+                },
+                coordinate: 0.0,
+            },
+            |input| input.bind(base),
+        )
 }
 
 pub fn modulated_value(
@@ -78,12 +130,7 @@ pub fn modulated_value(
     base: f32,
     sample: usize,
 ) -> f32 {
-    inputs
-        .iter()
-        .find(|input| input.parameter == parameter)
-        .map_or(if base.is_finite() { base } else { 0.0 }, |input| {
-            input.value(base, sample)
-        })
+    bind_modulation(inputs, parameter, base).value(sample)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -171,5 +218,80 @@ mod tests {
         assert_eq!(extreme.value(100.0, 0), 100.0);
         extreme.signals[0] = (Arc::new(vec![[10.0; 2]]), f64::MAX);
         assert_eq!(extreme.value(100.0, 0), 100.0);
+    }
+
+    #[test]
+    fn bound_views_preserve_mapping_modes_and_effective_base_changes() {
+        for (mapping, mode, base, expected) in [
+            (
+                ModulationMapping::Native,
+                ModulationMode::Add,
+                10.0,
+                [11.0, 9.5],
+            ),
+            (
+                ModulationMapping::Native,
+                ModulationMode::Multiply,
+                10.0,
+                [20.0, 5.0],
+            ),
+            (
+                ModulationMapping::Native,
+                ModulationMode::Replace,
+                10.0,
+                [1.0, 1.0],
+            ),
+            (
+                ModulationMapping::Octaves,
+                ModulationMode::Add,
+                100.0,
+                [200.0, 100.0 / 2.0f32.sqrt()],
+            ),
+            (
+                ModulationMapping::Octaves,
+                ModulationMode::Multiply,
+                100.0,
+                [1000.0, 10.0],
+            ),
+            (
+                ModulationMapping::Octaves,
+                ModulationMode::Replace,
+                100.0,
+                [2.0, 1.0],
+            ),
+            (
+                ModulationMapping::Normalized,
+                ModulationMode::Add,
+                10.0,
+                [1000.0, 1.0],
+            ),
+            (
+                ModulationMapping::Normalized,
+                ModulationMode::Multiply,
+                10.0,
+                [19.0, 5.5],
+            ),
+            (
+                ModulationMapping::Normalized,
+                ModulationMode::Replace,
+                10.0,
+                [1000.0, 1.0],
+            ),
+        ] {
+            let inputs = [input(mapping, mode)];
+            let view = bind_modulation(&inputs, "test", base);
+            for (sample, expected) in expected.into_iter().enumerate() {
+                assert!((view.value(sample) - expected).abs() < 1e-5);
+                assert_eq!(
+                    view.value(sample),
+                    modulated_value(&inputs, "test", base, sample)
+                );
+            }
+        }
+        let inputs = [input(ModulationMapping::Octaves, ModulationMode::Add)];
+        assert_eq!(bind_modulation(&inputs, "test", 100.0).value(0), 200.0);
+        assert_eq!(bind_modulation(&inputs, "test", 200.0).value(0), 400.0);
+        assert_eq!(bind_modulation(&inputs, "missing", f32::NAN).value(0), 0.0);
+        assert_eq!(bind_modulation(&inputs, "test", f32::NAN).value(0), 2.0);
     }
 }

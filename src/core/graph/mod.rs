@@ -12,7 +12,7 @@ mod filter;
 mod modulation;
 mod note_lifecycle;
 pub(crate) use modulation::{ExecutionNode, SamplePlan, ScheduledNode, SignalRoute, SourceRoute};
-pub use modulation::{ParameterModulation, modulated_value};
+pub use modulation::{ModulationView, ParameterModulation, bind_modulation, modulated_value};
 /// The sink module provides implementations for various types of sinks.
 mod simple_sink;
 /// The source module provides implementations for various types of sources.

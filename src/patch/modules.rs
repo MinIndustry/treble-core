@@ -1,4 +1,4 @@
-use crate::core::graph::{Entry, ParameterModulation, modulated_value};
+use crate::core::graph::{Entry, ParameterModulation, bind_modulation};
 use crate::core::{
     Block, Note,
     filters::prelude::*,
@@ -187,11 +187,12 @@ impl Source for Oscillator {
             return vec![[0.0; 2]; frames];
         }
         let base_frequency = self.frequency_base();
+        let frequency = bind_modulation(inputs, "frequency", base_frequency);
+        let amplitude = bind_modulation(inputs, "amplitude", self.amplitude);
         let mut output = Vec::with_capacity(frames);
         for index in 0..frames {
-            let frequency = modulated_value(inputs, "frequency", base_frequency, index)
-                .clamp(1.0, self.sample_rate * 0.49);
-            let amplitude = modulated_value(inputs, "amplitude", self.amplitude, index);
+            let frequency = frequency.value(index).clamp(1.0, self.sample_rate * 0.49);
+            let amplitude = amplitude.value(index);
             self.generator.set_frequency(frequency);
             output.push([self.generator.tick(1.0 / self.sample_rate) * amplitude * velocity; 2]);
         }
@@ -317,11 +318,12 @@ impl Source for Lfo {
         self.pull_modulated(frames, &[])
     }
     fn pull_modulated(&mut self, frames: usize, inputs: &[ParameterModulation]) -> Block {
+        let frequency = bind_modulation(inputs, "frequency", self.frequency);
+        let amplitude = bind_modulation(inputs, "amplitude", self.amplitude);
         let mut output = Vec::with_capacity(frames);
         for index in 0..frames {
-            let frequency = modulated_value(inputs, "frequency", self.frequency, index)
-                .min(self.sample_rate * 0.49);
-            let amplitude = modulated_value(inputs, "amplitude", self.amplitude, index);
+            let frequency = frequency.value(index).min(self.sample_rate * 0.49);
+            let amplitude = amplitude.value(index);
             output.push([(self.phase * std::f64::consts::TAU).sin() as f32 * amplitude; 2]);
             self.phase = (self.phase + f64::from(frequency) / f64::from(self.sample_rate)).fract();
         }

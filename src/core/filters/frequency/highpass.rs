@@ -77,11 +77,13 @@ impl Filter for HighPassFilter {
         &mut self,
         inputs: &[crate::core::graph::ParameterModulation],
     ) -> Vec<Block> {
-        use crate::core::graph::modulated_value;
+        use crate::core::graph::bind_modulation;
+        let cutoff = bind_modulation(inputs, "cutoff_frequency", self.cutoff_frequency);
+        let resonance = bind_modulation(inputs, "resonance", self.resonance);
         let mut output = Vec::with_capacity(self.source.len());
         for (index, frame) in self.source.iter().enumerate() {
-            let cutoff = modulated_value(inputs, "cutoff_frequency", self.cutoff_frequency, index);
-            let resonance = modulated_value(inputs, "resonance", self.resonance, index);
+            let cutoff = cutoff.value(index);
+            let resonance = resonance.value(index);
             let parameters = (cutoff, resonance, self.sample_rate);
             if parameters != self.coefficients_for {
                 self.svf
