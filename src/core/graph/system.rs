@@ -173,6 +173,10 @@ impl System {
                 .routes
                 .iter()
                 .any(|route| route.source >= index || route.port != 0)
+                || node
+                    .input_routes
+                    .iter()
+                    .any(|route| route.source >= index || route.port != 0)
             {
                 return Err(AudioGraphError::ConnectionNotAllowed);
             }
@@ -202,12 +206,20 @@ impl System {
                 scheduled.parameters[route.group].signals[route.contribution].0 =
                     Arc::clone(&previous[route.source][route.port]);
             }
+            for route in &scheduled.input_routes {
+                scheduled.inputs[route.input].block =
+                    Arc::clone(&previous[route.source][route.port]);
+            }
             let outputs = &mut remaining[0];
             outputs.clear();
             match scheduled.node {
                 super::ExecutionNode::Source(source) => {
                     let (source_node, connections) = &mut self.sources[source];
-                    let block = Arc::new(source_node.pull_modulated(frames, &scheduled.parameters));
+                    let block = Arc::new(source_node.pull_with_inputs(
+                        frames,
+                        &scheduled.parameters,
+                        &scheduled.inputs,
+                    ));
                     stats.active_sources += usize::from(source_node.is_active());
                     stats.source_routes += connections.len();
                     for &(target, port) in connections.iter() {

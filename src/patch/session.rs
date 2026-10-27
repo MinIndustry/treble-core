@@ -369,6 +369,14 @@ impl PatchSession {
             note,
         })
     }
+    /// Immediately stop only sources reachable from the instrument note input.
+    /// Hosts can reuse a voice without killing independent constants/modulators.
+    pub fn kill_notes(&self) -> Result<PatchCommand, ValidationErrors> {
+        self.command(CommandKind::Kill {
+            sources: self.note_sources()?,
+        })
+    }
+
     /// Immediately stop every source, including continuous drones.
     pub fn all_notes_off(&self) -> Result<PatchCommand, ValidationErrors> {
         let active = self
@@ -409,6 +417,10 @@ fn same_structure(a: &InstrumentDocument, b: &InstrumentDocument) -> bool {
 
 pub(crate) fn scalar_binding(type_id: &str, parameter: &str) -> Option<&'static str> {
     match (type_id, parameter) {
+        ("treble.adsr", "attack") => Some("attack"),
+        ("treble.adsr", "decay") => Some("decay"),
+        ("treble.adsr", "sustain") => Some("sustain"),
+        ("treble.adsr", "release") => Some("release"),
         ("treble.lfo", "frequency") => Some("frequency"),
         ("treble.lfo", "amplitude") => Some("amplitude"),
         ("treble.oscillator", "frequency") => Some("frequency"),

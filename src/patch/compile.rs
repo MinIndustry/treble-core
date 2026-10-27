@@ -121,6 +121,7 @@ impl ModuleRegistry {
                 port.signal,
                 SignalType::Audio { channels: 1 | 2 }
                     | SignalType::Note
+                    | SignalType::Gate
                     | SignalType::Control {
                         domain: ControlDomain::Bipolar,
                         rate: ControlRate::Sample
@@ -128,7 +129,7 @@ impl ModuleRegistry {
             ) {
                 return Err(error(
                     format!("instrument.patch.cables[{i}]"),
-                    "only mono/stereo audio, notes and bipolar sample control cables are supported",
+                    "only mono/stereo audio, notes, gates and bipolar sample control cables are supported",
                 ));
             }
             topology.add_edge(
@@ -193,6 +194,8 @@ impl ModuleRegistry {
                 .expect("validated port");
             if matches!(input.binding, PortBinding::Parameter { .. })
                 || output.signal == SignalType::Note
+                || (output.signal == SignalType::Gate
+                    && matches!(bindings[&cable.to.module], Binding::Source(_)))
             {
                 continue;
             }
@@ -266,6 +269,8 @@ impl ModuleRegistry {
                 node: *node,
                 parameters: Vec::new(),
                 routes: Vec::new(),
+                inputs: Vec::new(),
+                input_routes: Vec::new(),
             })
             .collect();
         let empty = Arc::new(Vec::new());
@@ -283,7 +288,10 @@ impl ModuleRegistry {
                 .expect("validated descriptor")
                 .ports
                 .iter()
-                .any(|p| p.id == cable.from.port && matches!(p.signal, SignalType::Control { .. }))
+                .any(|p| {
+                    p.id == cable.from.port
+                        && matches!(p.signal, SignalType::Control { .. } | SignalType::Gate)
+                })
         });
         for cable in cables {
             let target = document
@@ -301,6 +309,39 @@ impl ModuleRegistry {
                 .iter()
                 .find(|p| p.id == cable.to.port)
                 .expect("validated input");
+            if port.signal == SignalType::Gate
+                && matches!(bindings[&cable.to.module], Binding::Source(_))
+            {
+                let source = document
+                    .instrument
+                    .patch
+                    .modules
+                    .iter()
+                    .find(|m| m.id == cable.from.module)
+                    .expect("validated source");
+                let output = self
+                    .descriptor(&source.type_id, source.type_version)
+                    .expect("validated descriptor")
+                    .ports
+                    .iter()
+                    .find(|p| p.id == cable.from.port)
+                    .expect("validated output");
+                let scheduled = &mut nodes[positions[cable.to.module.as_str()]];
+                let input = scheduled.inputs.len();
+                scheduled.inputs.push(crate::core::graph::SourceInput {
+                    port: port.index as usize,
+                    block: Arc::clone(&empty),
+                });
+                scheduled
+                    .input_routes
+                    .push(crate::core::graph::SourceRoute {
+                        source: positions[cable.from.module.as_str()],
+                        port: output.index as usize,
+                        input,
+                    });
+                has_modulation = true;
+                continue;
+            }
             let PortBinding::Parameter { parameter_id } = &port.binding else {
                 continue;
             };

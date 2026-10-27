@@ -77,6 +77,8 @@ fn control() -> SignalType {
 fn port(id: &str, signal: SignalType, direction: Direction, index: u32) -> PortDescriptor {
     let connections = if direction == Direction::Output {
         ConnectionPolicy::FanOut
+    } else if signal == SignalType::Gate {
+        ConnectionPolicy::Single
     } else {
         ConnectionPolicy::Sum
     };
@@ -349,6 +351,22 @@ pub(super) fn descriptors() -> Vec<ModuleDescriptor> {
             vec![],
         ),
     ];
+    list.push(module(
+        "control_to_gate",
+        "Control to gate",
+        "Control",
+        vec![("in", control())],
+        vec![("out", SignalType::Gate)],
+        vec![numeric("threshold", 0.0, -1.0, 1.0)],
+    ));
+    list.push(module(
+        "gate_to_control",
+        "Gate to control",
+        "Control",
+        vec![("in", SignalType::Gate)],
+        vec![("out", control())],
+        vec![],
+    ));
     for (id, name) in [
         ("add", "Add"),
         ("multiply", "Multiply"),
@@ -366,6 +384,8 @@ pub(super) fn descriptors() -> Vec<ModuleDescriptor> {
     }
     for d in &mut list {
         d.description = match d.type_id.as_str() {
+            "treble.control_to_gate" => "Gate is high while the control signal exceeds the threshold.",
+            "treble.gate_to_control" => "Expose gate samples as bipolar-compatible control values.",
             "treble.add" => "Sample-wise A + B, independently per channel. Missing inputs are zero.",
             "treble.multiply" => "Signed sample-wise A × B (ring modulation). No audio-range clipping.",
             "treble.constant" => "Continuous signed stereo DC value, independent of keyboard notes.",
@@ -385,6 +405,7 @@ pub(super) fn descriptors() -> Vec<ModuleDescriptor> {
 }
 pub(super) fn scalar_binding(type_id: &str, parameter: &str) -> Option<&'static str> {
     match (type_id, parameter) {
+        ("treble.control_to_gate", "threshold") => Some("threshold"),
         ("treble.high_pass", "cutoff") => Some("cutoff_frequency"),
         ("treble.high_pass", "resonance") => Some("resonance"),
         ("treble.gain", "gain") => Some("factor"),
@@ -483,6 +504,8 @@ pub(super) fn instantiate(
         "treble.clipper" => Box::new(Clipper::new(number("maximum"))),
         _ => {
             let operation = match id {
+                "treble.control_to_gate" => MathOperation::ControlToGate,
+                "treble.gate_to_control" => MathOperation::GateToControl,
                 "treble.add" => MathOperation::Add,
                 "treble.multiply" => MathOperation::Multiply,
                 "treble.minimum" => MathOperation::Minimum,
