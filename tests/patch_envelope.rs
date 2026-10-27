@@ -106,3 +106,63 @@ fn continuous_voice_runs_attack_to_sustain_without_a_note_input() {
     render(&mut system, 12000);
     assert!(render(&mut system, 256).iter().all(|f| *f == [0.125; 2]));
 }
+
+#[test]
+fn signal_gate_edges_use_current_samples_even_when_the_gate_processor_is_declared_later() {
+    let registry = ModuleRegistry::builtins();
+    let mut doc = document();
+    doc.instrument.voice = VoiceConfiguration::Continuous;
+    doc.instrument.interface.note_input = None;
+    let envelope = &mut doc.instrument.patch.modules[0];
+    for name in ["attack", "decay", "release"] {
+        envelope
+            .parameters
+            .insert(name.into(), ParameterValue::Float(0.0));
+    }
+    envelope
+        .parameters
+        .insert("sustain".into(), ParameterValue::Float(0.25));
+    doc.instrument.patch.modules.push(ModuleInstance {
+        id: "lfo".into(),
+        type_id: "treble.lfo".into(),
+        type_version: 1,
+        parameters: std::collections::BTreeMap::from([(
+            "frequency".into(),
+            ParameterValue::Float(1000.0),
+        )]),
+    });
+    doc.instrument.patch.modules.push(ModuleInstance {
+        id: "gate".into(),
+        type_id: "treble.control_to_gate".into(),
+        type_version: 1,
+        parameters: Default::default(),
+    });
+    for (id, from, port, to, input) in [
+        ("threshold", "lfo", "out", "gate", "in"),
+        ("trigger", "gate", "out", "env", "gate"),
+    ] {
+        doc.instrument.patch.cables.push(Cable {
+            id: id.into(),
+            from: Endpoint {
+                module: from.into(),
+                port: port.into(),
+            },
+            to: Endpoint {
+                module: to.into(),
+                port: input.into(),
+            },
+            modulation: None,
+        });
+    }
+    let make = || registry.prepare(&doc, 48000.0, 256).unwrap().into_system();
+    let mut full = make();
+    let expected = render(&mut full, 768);
+    assert_eq!(expected[0], [0.0; 2]);
+    assert_eq!(expected[1], [0.25; 2]);
+    assert!(expected.contains(&[0.0; 2]));
+    assert!(expected.iter().all(|v| *v == [0.0; 2] || *v == [0.25; 2]));
+    let mut split = make();
+    let mut actual = render(&mut split, 257);
+    actual.extend(render(&mut split, 511));
+    assert_eq!(expected, actual);
+}
