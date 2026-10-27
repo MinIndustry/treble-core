@@ -98,8 +98,8 @@ impl Adsr {
     fn gated(&self) -> bool {
         self.drone || self.gate_high || !self.held.is_empty()
     }
-    fn fire(&mut self) {
-        if self.retrigger == RetriggerMode::Legato && self.is_active() {
+    fn fire(&mut self, was_gated: bool) {
+        if self.retrigger == RetriggerMode::Legato && was_gated && self.is_active() {
             return;
         }
         if self.retrigger == RetriggerMode::Reset {
@@ -138,16 +138,17 @@ impl Adsr {
                 };
                 let gate = high(1);
                 if gate != self.gate_high {
+                    let was_gated = self.gated();
                     self.gate_high = gate;
                     if gate {
-                        self.fire();
+                        self.fire(was_gated);
                     } else {
                         self.release_gate();
                     }
                 }
                 let retrigger = high(2);
                 if retrigger && !self.retrigger_high && self.gated() {
-                    self.fire();
+                    self.fire(true);
                 }
                 self.retrigger_high = retrigger;
                 [self.tick(); 2]
@@ -217,8 +218,9 @@ impl Source for Adsr {
         self.render(frames, inputs)
     }
     fn start(&mut self) {
+        let was_gated = self.gated();
         self.drone = true;
-        self.fire();
+        self.fire(was_gated);
     }
     fn stop(&mut self) {
         self.drone = false;
@@ -232,9 +234,10 @@ impl Source for Adsr {
         self.enter(Stage::Idle);
     }
     fn start_note(&mut self, note: Note, _velocity: f32) {
+        let was_gated = self.gated();
         self.held.retain(|held| *held != note);
         self.held.push(note);
-        self.fire();
+        self.fire(was_gated);
     }
     fn stop_note(&mut self, note: Note) {
         let was_held = self.held.contains(&note);
@@ -334,6 +337,23 @@ mod tests {
         e.retrigger = RetriggerMode::Reset;
         e.start_note(Note::from_midi(67), 1.0);
         assert!(e.pull(1)[0][0] < 0.001);
+    }
+    #[test]
+    fn legato_retriggers_a_fresh_note_during_release() {
+        let mut e = Adsr::new(48000.0);
+        e.attack = 0.125;
+        e.release = 0.125;
+        e.retrigger = RetriggerMode::Legato;
+        let note = Note::from_midi(60);
+        e.start_note(note, 1.0);
+        e.pull(3000);
+        e.stop_note(note);
+        e.pull(1500);
+        let level = e.level;
+        assert_eq!(e.stage, Stage::Release);
+        e.start_note(note, 1.0);
+        assert_eq!(e.stage, Stage::Attack);
+        assert!(f64::from(e.pull(1)[0][0]) > level);
     }
     #[test]
     fn stages_follow_host_sample_rate_and_release_the_instantaneous_level() {
