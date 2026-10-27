@@ -22,6 +22,9 @@ jobs:
     permissions:
       contents: read
       pull-requests: write # post the comparison table as a PR comment
+    env:
+      BENCH_BASE: base-${{ github.run_id }}-${{ github.run_attempt }}
+      BENCH_PR: pr-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Checkout benchmark harness
         uses: actions/checkout@v4
@@ -49,7 +52,7 @@ jobs:
       # A green optimization gate requires a complete measured comparison.
       - name: Bench base
         id: bench_base
-        run: cargo bench --bench graph -- --save-baseline base --noplot
+        run: cargo bench --bench graph -- --save-baseline "$BENCH_BASE" --noplot
 
       - name: Checkout PR (preserve criterion baselines)
         uses: actions/checkout@v4
@@ -57,10 +60,10 @@ jobs:
           clean: false # keep target/criterion from the base run
 
       - name: Bench PR
-        run: cargo bench --bench graph -- --save-baseline pr --noplot
+        run: cargo bench --bench graph -- --save-baseline "$BENCH_PR" --noplot
 
       - name: Compare & enforce threshold
-        run: python3 .github/scripts/bench_compare.py --base base --new pr --max-regression-pct 30 --require-complete
+        run: python3 .github/scripts/bench_compare.py --base "$BENCH_BASE" --new "$BENCH_PR" --max-regression-pct 30 --require-complete
 
       - name: Comment results on PR
         if: always()
