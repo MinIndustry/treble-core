@@ -89,12 +89,19 @@ impl Entry for AudioOutputSink {
 impl Sink for AudioOutputSink {
     /// Apply master_volume → limiter to the accumulated sum, then clear the buffer.
     fn consume(&mut self) -> Block {
+        let mut output = Block::new();
+        self.consume_into(&mut output);
+        output
+    }
+
+    fn consume_into(&mut self, output: &mut Block) {
+        output.clear();
+        output.reserve(self.accumulator.len());
         let attack_coeff = (-1.0 / (self.limiter_attack * self.sample_rate)).exp();
         let release_coeff = (-1.0 / (self.limiter_release * self.sample_rate)).exp();
 
         // iter() not par_iter(): limiter envelope is frame-sequential (each frame
         // depends on the previous frame's envelope value).
-        let mut output = Block::with_capacity(self.accumulator.len());
         let mut telemetry = SinkTelemetry::default();
         let mut minimum_gain = 1.0f32;
         for frame in &self.accumulator {
@@ -147,7 +154,6 @@ impl Sink for AudioOutputSink {
         self.telemetry = telemetry;
 
         self.accumulator.clear();
-        output
     }
 
     fn get_frames(&self) -> &[Frame] {

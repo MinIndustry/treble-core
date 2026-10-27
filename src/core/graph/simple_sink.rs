@@ -29,6 +29,11 @@ impl Sink for SimpleSink {
         std::mem::take(&mut self.values)
     }
 
+    fn consume_into(&mut self, output: &mut Block) {
+        std::mem::swap(output, &mut self.values);
+        self.values.clear();
+    }
+
     fn discard(&mut self) {
         self.values.clear();
     }
