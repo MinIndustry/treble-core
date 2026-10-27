@@ -281,11 +281,83 @@ fn bench_filter_parallelism(c: &mut Criterion) {
     });
 }
 
+// Keep this harness compatible with 0.5.2: CI runs this exact file on both
+// revisions so new workloads have a real baseline, rather than being skipped.
+fn build_patch_system(modulated: bool, frames: usize) -> System {
+    use serde_json::json;
+    use treble::patch::ModuleRegistry;
+    let mut modules = vec![];
+    for (id, type_id) in [
+        ("osc", "treble.oscillator"),
+        ("lfo", "treble.lfo"),
+        ("filter", "treble.low_pass"),
+        ("pan", "treble.pan"),
+        ("gain", "treble.gain"),
+        ("output", "treble.output"),
+    ] {
+        modules.push(json!({"id":id,"type_id":type_id,"type_version":1,"parameters":{}}));
+    }
+    let mut cables = vec![];
+    for (a, b) in [
+        ("osc", "filter"),
+        ("filter", "pan"),
+        ("pan", "gain"),
+        ("gain", "output"),
+    ] {
+        cables.push(json!({"id":format!("{a}-{b}"),"from":{"module":a,"port":"out"},"to":{"module":b,"port":"in"},"modulation":null}));
+    }
+    if modulated {
+        for (module, port, depth) in [
+            ("osc", "frequency_cv", 0.25),
+            ("osc", "amplitude_cv", 0.1),
+            ("filter", "cutoff_cv", 400.0),
+            ("pan", "direction_cv", 0.7),
+            ("gain", "gain_cv", 0.1),
+        ] {
+            cables.push(json!({"id":format!("cv-{module}-{port}"),"from":{"module":"lfo","port":"out"},"to":{"module":module,"port":port},"modulation":{"mode":"add","depth":depth}}));
+        }
+    }
+    let document = serde_json::from_value(json!({
+        "format_version":1,"instrument":{
+            "name":"Render benchmark","description":"",
+            "patch":{"modules":modules,"cables":cables},
+            "interface":{"note_input":null,"audio_outputs":[{"module":"output","port":"out"}],"controls":[]},
+            "voice":{"kind":"continuous"}
+        }
+    })).unwrap();
+    ModuleRegistry::builtins()
+        .prepare(&document, SAMPLE_RATE, frames)
+        .unwrap()
+        .into_system()
+}
+
+fn bench_patch_rendering(c: &mut Criterion) {
+    for (name, modulation, frames, voices) in [
+        ("patch_static_256", false, 256, 1),
+        ("patch_cv_256", true, 256, 1),
+        ("patch_cv_32", true, 32, 1),
+        ("patch_cv_8_voices", true, 256, 8),
+    ] {
+        let mut systems: Vec<_> = (0..voices)
+            .map(|_| build_patch_system(modulation, frames))
+            .collect();
+        c.bench_function(name, |b| {
+            b.iter(|| {
+                for system in &mut systems {
+                    system.run_frames(frames);
+                    black_box(system.get_sink(0).unwrap().consume());
+                }
+            })
+        });
+    }
+}
+
 criterion_group!(
     benches,
     bench_simple_graph,
     bench_complex_graph,
     bench_session,
-    bench_filter_parallelism
+    bench_filter_parallelism,
+    bench_patch_rendering
 );
 criterion_main!(benches);

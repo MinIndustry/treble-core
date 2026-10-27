@@ -121,6 +121,7 @@ struct NodeDispatch {
 struct CompiledState {
     dispatch: Vec<NodeDispatch>,
     last_run_stats: RunStats,
+    source_blocks: Vec<Arc<crate::core::Block>>,
 }
 
 /// Sweep bookkeeping, boxed: a whole `System` travels by value inside the
@@ -759,7 +760,7 @@ impl System {
 
         // Pull from all sources; push directly to connected AudioNodes (fan-out).
         // Two-step collect releases the borrow on self.sources before we touch self.graph.
-        let mut source_blocks = Vec::with_capacity(self.sources.len());
+        self.compiled.source_blocks.clear();
         for (i, (source, connections)) in self.sources.iter_mut().enumerate() {
             let block = Arc::new(source.pull(block_size));
             log::trace!("[system::run] source[{i}] active={}", source.is_active());
@@ -770,12 +771,12 @@ impl System {
                     node.push(Arc::clone(&block), port);
                 }
             }
-            source_blocks.push(block);
+            self.compiled.source_blocks.push(block);
         }
 
         // Apply live modulation: drive target parameters from source block means.
         for wire in &self.mod_wires {
-            let Some(block) = source_blocks.get(wire.from_source) else {
+            let Some(block) = self.compiled.source_blocks.get(wire.from_source) else {
                 continue;
             };
             let value = if block.is_empty() {
@@ -832,7 +833,7 @@ impl System {
 
         // Push source blocks to directly-wired sinks.
         for &(src_idx, sink_idx) in &self.source_sink_wires {
-            if let Some(block) = source_blocks.get(src_idx)
+            if let Some(block) = self.compiled.source_blocks.get(src_idx)
                 && let Some((_, sink)) = self.sinks.get_mut(sink_idx)
             {
                 sink.push(Arc::clone(block), 0);

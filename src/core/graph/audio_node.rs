@@ -50,7 +50,7 @@ impl AudioNode {
     ) -> Vec<Arc<Block>> {
         for (port, blocks) in self.inputs.iter_mut().enumerate() {
             if !blocks.is_empty() {
-                let mixed = mix_blocks(std::mem::take(blocks), &self.mix_mode, block_size);
+                let mixed = mix_blocks(blocks, &self.mix_mode, block_size);
                 self.filter.push(mixed, port);
             }
         }
@@ -102,8 +102,8 @@ impl std::fmt::Debug for AudioNode {
 }
 
 /// Reduce a collection of blocks arriving at the same port using the given mix strategy.
-fn mix_blocks(mut blocks: Vec<Arc<Block>>, mode: &MixMode, block_size: usize) -> Arc<Block> {
-    match blocks.len() {
+fn mix_blocks(blocks: &mut Vec<Arc<Block>>, mode: &MixMode, block_size: usize) -> Arc<Block> {
+    let mixed = match blocks.len() {
         0 => Arc::new(silent_block(block_size)),
         // pop() on a length-1 vec always succeeds; the fallback keeps this
         // audio-path helper panic-free by construction.
@@ -115,7 +115,7 @@ fn mix_blocks(mut blocks: Vec<Arc<Block>>, mode: &MixMode, block_size: usize) ->
             match mode {
                 MixMode::Sum | MixMode::Average => {
                     let mut acc = silent_block(block_size);
-                    for block in &blocks {
+                    for block in blocks.iter() {
                         for (af, bf) in acc.iter_mut().zip(block.iter()) {
                             for ch in 0..CHANNELS {
                                 af[ch] += bf[ch];
@@ -153,5 +153,7 @@ fn mix_blocks(mut blocks: Vec<Arc<Block>>, mode: &MixMode, block_size: usize) ->
                 }
             }
         }
-    }
+    };
+    blocks.clear();
+    mixed
 }

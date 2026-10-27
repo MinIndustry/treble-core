@@ -47,14 +47,13 @@ impl Filter for PanFilter {
         &mut self,
         inputs: &[crate::core::graph::ParameterModulation],
     ) -> Vec<Block> {
+        let direction = crate::core::graph::bind_modulation(inputs, "direction", self.direction);
         let output = self
             .source
             .iter()
             .enumerate()
             .map(|(i, frame)| {
-                let direction =
-                    crate::core::graph::modulated_value(inputs, "direction", self.direction, i)
-                        .clamp(-1.0, 1.0);
+                let direction = direction.value(i).clamp(-1.0, 1.0);
                 let theta = (direction + 1.0) * std::f32::consts::FRAC_PI_4;
                 let (right, left) = theta.sin_cos();
                 [frame[0] * left, frame[1] * right]

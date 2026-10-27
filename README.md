@@ -16,7 +16,7 @@
 
 ## Project Overview
 
-Treble is a frontend-agnostic core library for audio synthesis. It provides composable DSP primitives — generators, envelopes, filters, and a node graph — behind a lock-free, real-time-safe audio pipeline. The same engine can be embedded in GUI applications, CLI tools, or test harnesses without modification.
+Treble is a frontend-agnostic core library for audio synthesis. It provides composable DSP primitives — generators, envelopes, filters, and a node graph — with portable rendering APIs and an optional native audio runtime. The same engine can be embedded in GUI applications, CLI tools, or test harnesses without modification.
 
 ## Rack instruments and `.trbl` files
 
@@ -34,6 +34,16 @@ host APIs and current playback limits. Try the device-free example:
 ```sh
 cargo run --example rack --no-default-features
 ```
+
+## Render performance
+
+Version 0.5.3 retains graph routing queue capacity and binds modulation names and
+base mapping coordinates once per render span. Sample-rate modulation still
+operates on every sample. Hosts can reuse sink output with `consume_into` instead
+of requesting a newly allocated block. Existing APIs and metadata remain compatible.
+
+See [render performance](docs/render-performance.md) for host usage, allocation
+limits, benchmark workloads and the regression gate.
 
 ## Architecture
 

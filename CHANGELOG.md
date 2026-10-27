@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.5.3
+
+- Retain graph input queues and legacy source-routing scratch capacity between
+  render calls instead of reallocating their vectors every block.
+- Add backward-compatible `Sink::consume_into`: built-in simple and output sinks
+  reuse caller-owned output storage after warm-up; `consume` remains available.
+- Add borrowed `ModulationView` and `bind_modulation` APIs. Built-in sample
+  modulation receivers resolve names and base mapping coordinates once per span,
+  retaining per-sample FM/AM, gates, finite fallback, and immutable base parameters.
+- Benchmark static, sample-modulated, 32-frame and eight-graph workloads against
+  the same harness on the base revision. Remove historical benchmark waivers.
+- Keep existing source/filter/sink implementations and 0.3 metadata compatible.
+  This reduces render overhead; complete allocation-free graph rendering and
+  deferred graph reclamation remain future work.
+
 ## 0.5.2
 
 - Add `treble.adsr`: a note-triggered sample-rate control envelope with live

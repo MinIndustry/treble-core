@@ -19,6 +19,12 @@ pub struct SinkTelemetry {
 pub trait Sink: Entry + Send + Sync {
     /// Gets the values of the sink
     fn consume(&mut self) -> Block;
+    /// Overwrite `output` with the pending frames, then empty the sink.
+    /// Built-in sinks reuse caller-owned storage after warm-up. Custom sinks
+    /// retain their existing behavior through this compatibility default.
+    fn consume_into(&mut self, output: &mut Block) {
+        *output = self.consume();
+    }
     /// Drop buffered frames without returning an allocated block.
     fn discard(&mut self) {
         let _ = self.consume();

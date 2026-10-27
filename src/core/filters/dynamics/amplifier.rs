@@ -43,13 +43,13 @@ impl Filter for GainFilter {
         &mut self,
         inputs: &[crate::core::graph::ParameterModulation],
     ) -> Vec<Block> {
+        let factor = crate::core::graph::bind_modulation(inputs, "factor", self.factor);
         let output = self
             .source
             .iter()
             .enumerate()
             .map(|(index, frame)| {
-                let gain =
-                    crate::core::graph::modulated_value(inputs, "factor", self.factor, index);
+                let gain = factor.value(index);
                 std::array::from_fn(|channel| frame[channel] * gain)
             })
             .collect();

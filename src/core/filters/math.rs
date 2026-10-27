@@ -1,7 +1,7 @@
 //! Sample-wise arithmetic and explicit channel/domain adapters.
 use crate::core::{
     Block,
-    graph::{Entry, Filter, ParameterModulation, Source, modulated_value},
+    graph::{Entry, Filter, ParameterModulation, Source, bind_modulation},
 };
 use std::sync::Arc;
 use treble_meta::{FilterInfo, MetaFilter};
@@ -110,6 +110,9 @@ impl Filter for MathFilter {
         self.transform_modulated(&[])
     }
     fn transform_modulated(&mut self, modulation: &[ParameterModulation]) -> Vec<Block> {
+        let offset = bind_modulation(modulation, "offset", self.offset);
+        let minimum = bind_modulation(modulation, "minimum", self.minimum);
+        let maximum = bind_modulation(modulation, "maximum", self.maximum);
         let inputs = [self.inputs[0].take(), self.inputs[1].take()];
         let frames = inputs.iter().flatten().map(|b| b.len()).max().unwrap_or(0);
         let sample = |port: usize, frame: usize, channel: usize| {
@@ -153,9 +156,9 @@ impl Filter for MathFilter {
                         value
                     }; 2];
                 }
-                let offset = modulated_value(modulation, "offset", self.offset, i);
-                let minimum = modulated_value(modulation, "minimum", self.minimum, i);
-                let maximum = modulated_value(modulation, "maximum", self.maximum, i);
+                let offset = offset.value(i);
+                let minimum = minimum.value(i);
+                let maximum = maximum.value(i);
                 std::array::from_fn(|channel| {
                     let a = finite(sample(0, i, channel));
                     let b = finite(sample(1, i, channel));
@@ -201,14 +204,9 @@ impl Source for ConstantSource {
         self.pull_modulated(frames, &[])
     }
     fn pull_modulated(&mut self, frames: usize, inputs: &[ParameterModulation]) -> Block {
+        let value = bind_modulation(inputs, "value", self.value);
         (0..frames)
-            .map(|i| {
-                [if self.active {
-                    modulated_value(inputs, "value", self.value, i)
-                } else {
-                    0.0
-                }; 2]
-            })
+            .map(|i| [if self.active { value.value(i) } else { 0.0 }; 2])
             .collect()
     }
     fn is_active(&self) -> bool {
