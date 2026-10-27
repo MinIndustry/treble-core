@@ -23,10 +23,19 @@ jobs:
       contents: read
       pull-requests: write # post the comparison table as a PR comment
     steps:
+      - name: Checkout benchmark harness
+        uses: actions/checkout@v4
+
+      - name: Preserve the identical harness for both revisions
+        run: cp benches/graph.rs "$RUNNER_TEMP/treble-graph-bench.rs"
+
       - name: Checkout base (merge target)
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.base.sha }}
+
+      - name: Use the PR workloads on the base revision
+        run: cp "$RUNNER_TEMP/treble-graph-bench.rs" benches/graph.rs
 
       - name: Install ALSA headers (cpal build dependency)
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
