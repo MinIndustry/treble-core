@@ -13,12 +13,12 @@ pub struct DelayFilter {
     source: Arc<Block>,
     #[filter_parameter(range, 0.0, 20.0, 0.5)]
     delay_for: f32,
-    #[filter_parameter(range, 0.0, 0.99, 0.0)]
+    #[filter_parameter(range, 0.0, 0.99, 0.0, scale = linear)]
     feedback: f32,
-    #[filter_parameter(range, 0.0, 1.0, 1.0)]
+    #[filter_parameter(range, 0.0, 1.0, 1.0, scale = linear)]
     mix: f32,
     buffer: VecDeque<Frame>,
-    #[filter_parameter(range, 1.0, 192000.0, 44100.0)]
+    #[filter_parameter(range, 1.0, 192000.0, 44100.0, access = engine)]
     sample_rate: f32,
     configured_for: (f32, f32),
 }

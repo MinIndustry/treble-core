@@ -15,15 +15,15 @@ use crate::core::graph::{Entry, Filter};
 pub struct HighPassFilter {
     #[filter_source]
     source: Arc<Block>,
-    #[filter_parameter(range, 1.0, 20000.0, 1000.0)]
+    #[filter_parameter(range, 1.0, 20000.0, 1000.0, scale = logarithmic)]
     cutoff_frequency: f32,
     // Range and default must match svf::{MIN,MAX,DEFAULT}_RESONANCE; the
     // derive parses literals out of this attribute and cannot see constants.
-    #[filter_parameter(range, 0.5, 20.0, 0.70710678)]
+    #[filter_parameter(range, 0.5, 20.0, 0.70710678, scale = logarithmic)]
     resonance: f32,
     // Registered so the engine injects its real rate at build time; a plain
     // field would keep the default and mistune every cutoff.
-    #[filter_parameter(range, 1.0, 192000.0, 44100.0)]
+    #[filter_parameter(range, 1.0, 192000.0, 44100.0, access = engine)]
     sample_rate: f32,
     svf: Svf,
     /// The `(cutoff, resonance, rate)` the coefficients were built for. The

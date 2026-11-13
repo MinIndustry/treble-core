@@ -377,6 +377,8 @@ impl MetaFilter for AudioToControl {
             inputs: vec![treble_meta::FilterInput {
                 label: Some("Input"),
                 parameter: None,
+                access: treble_meta::ParameterAccess::User,
+                scale: None,
             }],
             outputs: 1,
         }

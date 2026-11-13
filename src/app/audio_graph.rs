@@ -288,8 +288,10 @@ impl AudioGraph {
             let mut previous = None;
             for (fx_idx, fx) in bus.fx.iter().enumerate() {
                 let mut filter = create_filter(&fx.type_id, sample_rate)?;
+                // Engine-owned parameters are injected by `create_filter`.
+                let engine_owned = crate::meta::engine_owned_params(&fx.type_id);
                 for (param, value) in fx.params.iter() {
-                    if crate::instruments::spec::ENGINE_OWNED_PARAMS.contains(&param.as_str()) {
+                    if engine_owned.contains(&param.as_str()) {
                         continue;
                     }
                     if !filter.set_parameter(param, *value) {

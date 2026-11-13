@@ -17,13 +17,13 @@ pub struct Limiter {
     #[filter_source]
     source: Arc<Block>,
     /// Output ceiling in linear amplitude (0.0–1.0)
-    #[filter_parameter(range, 0.0, 1.0, 0.95)]
+    #[filter_parameter(range, 0.0, 1.0, 0.95, scale = linear)]
     threshold: f32,
     /// Attack time in seconds — how fast the limiter engages on a peak
-    #[filter_parameter(range, 0.0001, 0.1, 0.001)]
+    #[filter_parameter(range, 0.0001, 0.1, 0.001, scale = logarithmic)]
     attack: f32,
     /// Release time in seconds — how fast the limiter recovers after a peak
-    #[filter_parameter(range, 0.01, 1.0, 0.2)]
+    #[filter_parameter(range, 0.01, 1.0, 0.2, scale = logarithmic)]
     release: f32,
     /// Per-channel peak envelope state
     envelope: [f32; CHANNELS],
@@ -31,7 +31,7 @@ pub struct Limiter {
     /// something asks for reduction.
     gain: [f32; CHANNELS],
     /// Sample rate used for coefficient calculation
-    #[filter_parameter(range, 1.0, 192000.0, 44100.0)]
+    #[filter_parameter(range, 1.0, 192000.0, 44100.0, access = engine)]
     sample_rate: f32,
 }
 

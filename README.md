@@ -40,7 +40,13 @@ cargo run --example rack --no-default-features
 Version 0.5.3 retains graph routing queue capacity and binds modulation names and
 base mapping coordinates once per render span. Sample-rate modulation still
 operates on every sample. Hosts can reuse sink output with `consume_into` instead
-of requesting a newly allocated block. Existing APIs and metadata remain compatible.
+of requesting a newly allocated block.
+
+Version 0.6.0 adds ownership and scale to legacy filter metadata: engine-owned
+parameters such as `sample_rate` are marked `access = engine` (see
+`meta::engine_owned_params`), and numeric parameters declare a linear or
+logarithmic scale. `GainFilter.factor` (`-16..=16`) and `MovingAverage.size`
+(`1..=4096`) now declare bounds.
 
 See [render performance](docs/render-performance.md) for host usage, allocation
 limits, benchmark workloads and the regression gate.
@@ -216,7 +222,9 @@ held level) and logs the code once. Debug builds additionally trip a
 ## Development
 
 `treble-meta` and `treble-derive` are separate repositories, consumed from
-crates.io at version 0.3. CI and package verification require the released crates.
+crates.io at version 0.4. CI and package verification require the released crates.
+To build against unpublished sibling checkouts, add a local (gitignored)
+`.cargo/config.toml` with a `[patch.crates-io]` section pointing at them.
 
 Verify with `cargo test`, `cargo test --no-default-features`,
 `cargo fmt --check`, and
