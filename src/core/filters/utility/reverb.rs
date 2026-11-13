@@ -12,9 +12,9 @@ use crate::core::{Block, CHANNELS, Frame};
 pub struct ReverbFilter {
     #[filter_source]
     source: Arc<Block>,
-    #[filter_parameter(range, 0.0, 1.0, 0.3)]
+    #[filter_parameter(range, 0.0, 1.0, 0.3, scale = linear)]
     amount: f32,
-    #[filter_parameter(range, 1.0, 192000.0, 44100.0)]
+    #[filter_parameter(range, 1.0, 192000.0, 44100.0, access = engine)]
     sample_rate: f32,
     buffers: Vec<VecDeque<Frame>>,
     configured_for: (f32, f32),

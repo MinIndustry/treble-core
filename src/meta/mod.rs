@@ -24,6 +24,34 @@ pub fn get_filters() -> Vec<FilterInfo> {
         .collect()
 }
 
+/// Field names of the parameters the engine owns for a registered filter type
+/// (declared with `access = engine`, e.g. `sample_rate`). The engine injects
+/// these at build time, so values carried by a saved spec are stale and must be
+/// ignored. Empty for unknown types.
+pub fn engine_owned_params(type_id: &str) -> Vec<&'static str> {
+    inventory::iter::<FilterRegistration>()
+        .map(|r| (r.info)())
+        .find(|info| info.type_id == type_id)
+        .map(|info| {
+            info.inputs
+                .iter()
+                .filter(|input| input.access == treble_meta::ParameterAccess::Engine)
+                .filter_map(|input| input.parameter.as_ref().map(parameter_field_name))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn parameter_field_name(parameter: &Parameter<&'static str>) -> &'static str {
+    match parameter {
+        Parameter::Toggle { field_name, .. }
+        | Parameter::Range { field_name, .. }
+        | Parameter::Float { field_name, .. }
+        | Parameter::Int { field_name, .. }
+        | Parameter::List { field_name, .. } => field_name,
+    }
+}
+
 pub fn get_generators() -> Vec<MetaGenerator> {
     let freq = Parameter::Range {
         title: "Frequency",

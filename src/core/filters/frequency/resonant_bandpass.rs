@@ -13,11 +13,11 @@ use crate::core::{Block, CHANNELS};
 pub struct ResonantBandpassFilter {
     #[filter_source]
     source: Arc<Block>,
-    #[filter_parameter(range, 20.0, 20000.0, 1000.0)]
+    #[filter_parameter(range, 20.0, 20000.0, 1000.0, scale = logarithmic)]
     center_frequency: f32,
-    #[filter_parameter(range, 0.1, 100.0, 1.0)]
+    #[filter_parameter(range, 0.1, 100.0, 1.0, scale = logarithmic)]
     quality: f32,
-    #[filter_parameter(range, 1.0, 192000.0, 44100.0)]
+    #[filter_parameter(range, 1.0, 192000.0, 44100.0, access = engine)]
     sample_rate: f32,
     b: [f64; 3], // b0, b1, b2
     a: [f64; 3], // a0, a1, a2

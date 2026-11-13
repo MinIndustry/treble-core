@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.6.0
+
+- Depend on `treble-meta` and `treble-derive` 0.4.0.
+- Legacy filter metadata declares parameter ownership and scale. `sample_rate`
+  is `access = engine` on all nine filters that carry it; numeric user
+  parameters declare `linear` or `logarithmic` scale. The two LFO `frequency`
+  parameters and `DelayFilter.delay_for` declare none, since their domains start
+  at 0.
+- Replace the hard-coded `ENGINE_OWNED_PARAMS` list with
+  `meta::engine_owned_params(type_id)`, read from metadata. Spec and audio-graph
+  loaders still ignore stale engine-owned values from saved specs.
+- `GainFilter.factor` declares `-16..=16` (matching the rack `gain` module;
+  negative values invert phase). `set_parameter` now clamps to that range;
+  previously it was unbounded.
+- `MovingAverage.size` declares a maximum of 4096 (matching the rack module);
+  `set_parameter` clamps to it.
+- Breaking: `FilterInfo` inputs (re-exported from `treble-meta`) gain `access`
+  and `scale`, including in the `ts` bindings. No DSP behaviour changes beyond
+  the two clamps above.
+
 ## 0.5.3
 
 - Retain graph input queues and legacy source-routing scratch capacity between

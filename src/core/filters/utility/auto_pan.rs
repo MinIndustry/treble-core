@@ -94,13 +94,13 @@ pub struct AutoPanFilter {
     period: u64,
     #[filter_parameter(range, 0.0, 100.0, 0.5)]
     frequency: f32,
-    #[filter_parameter(range, 0.0, 1.0, 1.0)]
+    #[filter_parameter(range, 0.0, 1.0, 1.0, scale = linear)]
     depth: f32,
     #[filter_parameter(int, 0, 0, 4)]
     waveform: u8,
     // Registered so the engine injects its real rate at build time; a plain
     // field would silently keep the default and mistune the sweep.
-    #[filter_parameter(range, 1.0, 192000.0, 44100.0)]
+    #[filter_parameter(range, 1.0, 192000.0, 44100.0, access = engine)]
     sample_rate: f32,
 }
 

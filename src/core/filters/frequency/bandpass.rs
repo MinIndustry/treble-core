@@ -10,9 +10,9 @@ use crate::core::graph::{Entry, Filter};
 #[derive(FilterMetaData, Debug, Clone, Default)]
 /// Bandpass filter using a high-pass and low-pass filter
 pub struct BandPass {
-    #[filter_parameter(range, 1.0, 20000.0, 1000.0)]
+    #[filter_parameter(range, 1.0, 20000.0, 1000.0, scale = logarithmic)]
     pub low: f32,
-    #[filter_parameter(range, 1.0, 20000.0, 1000.0)]
+    #[filter_parameter(range, 1.0, 20000.0, 1000.0, scale = logarithmic)]
     pub high: f32,
     pub sample_rate: f32,
     pub filters: (HighPassFilter, LowPassFilter),

@@ -397,3 +397,124 @@ mod moving_average_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod metadata_contract_tests {
+    use treble::meta::{Parameter, engine_owned_params, get_filters};
+    use treble_meta::{MetaFilter, ParameterAccess, Scale};
+
+    const LOG: Option<Scale> = Some(Scale::Logarithmic);
+    const LIN: Option<Scale> = Some(Scale::Linear);
+
+    /// Every legacy filter parameter with its declared access and scale. Downstream
+    /// consumers (treble-py, the ML schema) read these; a change must be deliberate.
+    const EXPECTED: &[(&str, &str, ParameterAccess, Option<Scale>)] = {
+        use ParameterAccess::{Engine as E, User as U};
+        &[
+            ("GainFilter", "factor", U, LIN),
+            ("Clipper", "max_ampl", U, LIN),
+            ("Compressor", "threshold", U, LIN),
+            ("Compressor", "ratio", U, LOG),
+            ("Compressor", "attack", U, LOG),
+            ("Compressor", "release", U, LOG),
+            ("Compressor", "sample_rate", E, None),
+            ("Limiter", "threshold", U, LIN),
+            ("Limiter", "attack", U, LOG),
+            ("Limiter", "release", U, LOG),
+            ("Limiter", "sample_rate", E, None),
+            ("BandPass", "low", U, LOG),
+            ("BandPass", "high", U, LOG),
+            ("HighPassFilter", "cutoff_frequency", U, LOG),
+            ("HighPassFilter", "resonance", U, LOG),
+            ("HighPassFilter", "sample_rate", E, None),
+            ("LowPassFilter", "cutoff_frequency", U, LOG),
+            ("LowPassFilter", "resonance", U, LOG),
+            ("LowPassFilter", "sample_rate", E, None),
+            ("MovingAverage", "size", U, LOG),
+            ("ResonantBandpassFilter", "center_frequency", U, LOG),
+            ("ResonantBandpassFilter", "quality", U, LOG),
+            ("ResonantBandpassFilter", "sample_rate", E, None),
+            ("Tremolo", "frequency", U, None),
+            ("Tremolo", "depth", U, LIN),
+            ("Tremolo", "sample_rate", E, None),
+            ("AutoPanFilter", "frequency", U, None),
+            ("AutoPanFilter", "depth", U, LIN),
+            ("AutoPanFilter", "waveform", U, None),
+            ("AutoPanFilter", "sample_rate", E, None),
+            ("DelayFilter", "delay_for", U, None),
+            ("DelayFilter", "feedback", U, LIN),
+            ("DelayFilter", "mix", U, LIN),
+            ("DelayFilter", "sample_rate", E, None),
+            ("PanFilter", "direction", U, LIN),
+            ("ReverbFilter", "amount", U, LIN),
+            ("ReverbFilter", "sample_rate", E, None),
+        ]
+    };
+
+    fn field_name(p: &Parameter<&'static str>) -> &'static str {
+        match p {
+            Parameter::Toggle { field_name, .. }
+            | Parameter::Range { field_name, .. }
+            | Parameter::Float { field_name, .. }
+            | Parameter::Int { field_name, .. }
+            | Parameter::List { field_name, .. } => field_name,
+        }
+    }
+
+    #[test]
+    fn legacy_filter_parameters_declare_access_and_scale() {
+        let mut actual = vec![];
+        for info in get_filters() {
+            for input in &info.inputs {
+                if let Some(p) = &input.parameter {
+                    actual.push((
+                        info.type_id,
+                        field_name(p),
+                        input.access.clone(),
+                        input.scale.clone(),
+                    ));
+                }
+            }
+        }
+        actual.sort_by_key(|(t, f, ..)| (*t, *f));
+        let mut expected: Vec<_> = EXPECTED
+            .iter()
+            .map(|(t, f, a, s)| (*t, *f, a.clone(), s.clone()))
+            .collect();
+        expected.sort_by_key(|(t, f, ..)| (*t, *f));
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn engine_owned_params_come_from_metadata() {
+        assert_eq!(engine_owned_params("LowPassFilter"), ["sample_rate"]);
+        assert!(engine_owned_params("GainFilter").is_empty());
+        assert!(engine_owned_params("NoSuchFilter").is_empty());
+    }
+
+    #[test]
+    fn previously_unbounded_ranges_are_declared() {
+        use treble::core::filters::prelude::{GainFilter, MovingAverage};
+        let range = |inputs: &[treble_meta::FilterInput]| match inputs
+            .iter()
+            .find_map(|i| i.parameter.clone())
+            .unwrap()
+        {
+            Parameter::Range { min, max, .. } => (min as f64, max as f64),
+            Parameter::Int { min, max, .. } => (min.unwrap() as f64, max.unwrap() as f64),
+            other => panic!("unexpected {other:?}"),
+        };
+        assert_eq!(range(&GainFilter::metadata().inputs), (-16.0, 16.0));
+        assert_eq!(range(&MovingAverage::metadata().inputs), (1.0, 4096.0));
+    }
+
+    #[test]
+    fn gain_factor_clamps_to_declared_range_and_allows_inversion() {
+        use treble::core::filters::prelude::GainFilter;
+        let mut f = GainFilter::default();
+        assert!(f.set_parameter("factor", -1.0));
+        assert!(f.to_string().ends_with("factor: -1"));
+        assert!(f.set_parameter("factor", 100.0));
+        assert!(f.to_string().ends_with("factor: 16"));
+    }
+}

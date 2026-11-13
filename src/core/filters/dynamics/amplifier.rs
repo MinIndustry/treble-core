@@ -13,7 +13,7 @@ use crate::core::graph::{Entry, Filter};
 pub struct GainFilter {
     #[filter_source]
     source: Arc<Block>,
-    #[filter_parameter(float, 1.0)]
+    #[filter_parameter(range, -16.0, 16.0, 1.0, scale = linear)]
     factor: f32,
 }
 

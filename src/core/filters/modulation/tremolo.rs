@@ -16,12 +16,12 @@ pub struct Tremolo {
     phase: f64,
     #[filter_parameter(range, 0.0, 20.0, 1.0)]
     pub frequency: f32,
-    #[filter_parameter(range, 0.0, 1.0, 0.5)]
+    #[filter_parameter(range, 0.0, 1.0, 0.5, scale = linear)]
     pub depth: f32,
     // Registered so the engine injects its real rate at build time. As a plain
     // field it stayed at the derived default of 0, which collapsed the phase
     // increment's divisor to 1 and detuned the LFO by the sample rate.
-    #[filter_parameter(range, 1.0, 192000.0, 44100.0)]
+    #[filter_parameter(range, 1.0, 192000.0, 44100.0, access = engine)]
     pub sample_rate: f32,
 }
 

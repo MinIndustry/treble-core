@@ -12,21 +12,21 @@ pub struct Compressor {
     #[filter_source]
     source: Arc<Block>,
     /// Threshold in linear amplitude (0.0-1.0)
-    #[filter_parameter(range, 0.0, 1.0, 0.5)]
+    #[filter_parameter(range, 0.0, 1.0, 0.5, scale = linear)]
     threshold: f32,
     /// Compression ratio (1.0 = no compression, higher = more compression)
-    #[filter_parameter(range, 1.0, 20.0, 4.0)]
+    #[filter_parameter(range, 1.0, 20.0, 4.0, scale = logarithmic)]
     ratio: f32,
     /// Attack time in seconds
-    #[filter_parameter(range, 0.0001, 0.1, 0.01)]
+    #[filter_parameter(range, 0.0001, 0.1, 0.01, scale = logarithmic)]
     attack: f32,
     /// Release time in seconds
-    #[filter_parameter(range, 0.01, 1.0, 0.1)]
+    #[filter_parameter(range, 0.01, 1.0, 0.1, scale = logarithmic)]
     release: f32,
     /// Per-channel envelope follower values
     envelope: [f32; CHANNELS],
     /// Sample rate for time-based calculations
-    #[filter_parameter(range, 1.0, 192000.0, 44100.0)]
+    #[filter_parameter(range, 1.0, 192000.0, 44100.0, access = engine)]
     sample_rate: f32,
 }
 

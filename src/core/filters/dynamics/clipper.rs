@@ -10,7 +10,7 @@ use crate::core::graph::{Entry, Filter};
 pub struct Clipper {
     #[filter_source]
     source: Arc<Block>,
-    #[filter_parameter(range, 0.0, 1.0, 0.5)]
+    #[filter_parameter(range, 0.0, 1.0, 0.5, scale = linear)]
     pub max_ampl: f32,
 }
 

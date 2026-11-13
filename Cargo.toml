@@ -3,7 +3,7 @@ name = "treble"
 description = "Treble — modular real-time audio synthesis in Rust"
 license = "MIT"
 repository = "https://github.com/MinIndustry/treble-core"
-version = "0.5.3"
+version = "0.6.0"
 edition = "2024"
 
 [dependencies]
@@ -22,8 +22,8 @@ thiserror = "2.0.12"
 toml = { version = "0.8.22", optional = true }
 typetag = "0.2.21"
 inventory = "0.3"
-treble-derive = "0.3.0"
-treble-meta = "0.3.0"
+treble-derive = "0.4.0"
+treble-meta = "0.4.0"
 evdev = { version = "0.12.2", optional = true }
 plotters = { version = "0.3.7", optional = true }
 hound = "3.5.1"

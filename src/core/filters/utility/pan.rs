@@ -11,7 +11,7 @@ pub struct PanFilter {
     #[filter_source]
     source: Arc<Block>,
     // Centre. The macro's third argument is the default, not a step.
-    #[filter_parameter(range, -1.0, 1.0, 0.0)]
+    #[filter_parameter(range, -1.0, 1.0, 0.0, scale = linear)]
     direction: f32,
 }
 
