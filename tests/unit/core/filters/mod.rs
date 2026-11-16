@@ -424,6 +424,7 @@ mod metadata_contract_tests {
             ("Limiter", "sample_rate", E, None),
             ("BandPass", "low", U, LOG),
             ("BandPass", "high", U, LOG),
+            ("BandPass", "sample_rate", E, None),
             ("HighPassFilter", "cutoff_frequency", U, LOG),
             ("HighPassFilter", "resonance", U, LOG),
             ("HighPassFilter", "sample_rate", E, None),
