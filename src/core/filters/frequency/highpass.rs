@@ -44,6 +44,13 @@ impl HighPassFilter {
         Self::with_resonance(cutoff_frequency, DEFAULT_RESONANCE, sample_rate)
     }
 
+    /// Set the cutoff and rate; the coefficients follow on the next
+    /// `transform`. For filters that wrap this one and own its parameters.
+    pub(crate) fn retune(&mut self, cutoff_frequency: f32, sample_rate: f32) {
+        self.cutoff_frequency = cutoff_frequency;
+        self.sample_rate = sample_rate;
+    }
+
     pub fn with_resonance(cutoff_frequency: f32, resonance: f32, sample_rate: f32) -> Self {
         Self {
             source: Arc::new(Vec::new()),

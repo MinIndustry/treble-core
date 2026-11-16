@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.1
+
+- Fix `BandPass` ignoring its parameters. Its inner high-pass and low-pass
+  were built once in `new`, and the derived `set_parameter` only assigns the
+  `low`, `high` and `sample_rate` fields, so every band pass built from a spec
+  or the metadata path ran at the 1 kHz defaults whatever its band said. Both
+  are now retuned from the fields on every `transform` (the coefficients are
+  only recomputed when a value changes). A band given with `low > high` is the
+  band between the two edges, as the catalog builder already treated it.
+- `BandPass.sample_rate` is `access = engine`, like the nine filters 0.6.0
+  covered, so the engine injects its rate instead of the field keeping its
+  default.
+
 ## 0.6.0
 
 - Depend on `treble-meta` and `treble-derive` 0.4.0.
